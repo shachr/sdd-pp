@@ -19,6 +19,6 @@ builder-check piles), so a switch means **redoing the session**, not converting 
 
 - `/tool <id> --set <other>` (`execution-tool.mjs`) refuses while the other tool's session file or a `handoff.md` naming the
   other tool exists.
-- `check-handoff` fails when both session files exist, when `handoff.md`'s `tool` differs from the session file,
-  when the session file's `tool:` front matter does not match its name, or when the session file is missing.
+- `/handoff` writes `handoff.md`'s `tool` from what `/tool <id>` reports; nothing re-checks it afterwards,
+  so do not edit it by hand.
 - Keep the old session in git history (the commit that deletes it), not in the change folder.

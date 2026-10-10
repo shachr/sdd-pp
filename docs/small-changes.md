@@ -7,17 +7,15 @@ reviewer's context, verification degrades silently: findings get shallower, not 
 
 ## Budget (warn-only)
 
-Size never fails a change. It is checked at three points and only warns:
+Size never fails a change. It is checked at two points and only warns:
 
 | Point | What is measured | Budget | Tool |
 |---|---|---|---|
 | 1. **Split gate** - end of the specs stage, before handoff (automatic, rerunnable) | Requirements and capabilities in the deltas (counted, no estimate) | ≤ 5 requirements, ≤ 2 capabilities | `/split-check <id>` → `execution/split-check.md` |
 | 2. **Line estimate after planning** | `Estimate: ~N lines` per AI Hero ticket / Superpowers plan task, summed | ~300 lines of code + tests | `/spec-check <id>` ("Size" section) |
-| 3. **Real PR diff** | Changed lines/files since `base_ref`: code + tests; lockfiles, generated output (`dist/`, `build/`, `*.min.js`, `*.generated.*`, snapshots...), `openspec/` and installed tooling excluded | lines 300 (louder above 600), files 15 (25) | `check-handoff <id>` |
-| (also) | Requirements in the deltas / tickets or plan tasks | 5 (8) / 8 (12) | `check-handoff <id>` |
 
 Thresholds: `.openspec-handoff/config.json` → `split.maxRequirements`, `split.maxCapabilities` (gate),
-`split.limitLines` (estimate after planning) and `sizeThresholds` (`[budget, well-over]`, both warnings).
+`split.limitLines` (estimate after planning). The real PR diff is not measured by this toolkit (decisions section 16).
 Over budget after planning: re-split the change with `/split-check <id>`; new slices join the same parent.
 
 ## Splitting a change (the gate)
@@ -96,8 +94,7 @@ approves or edits them. Nothing is split automatically.
 
 Changing the plan later: edit the child delta, add the split note to that child's proposal, rerun
 `split.mjs loss <parent>`, then update the tool files (regenerate open tickets / tasks only - never a done
-one; `check-handoff` errors with "done work reset" when a ticket marked done at git HEAD was overwritten),
-then `check-handoff` and `/spec-check`.
+one; `git diff HEAD` shows a done ticket that was overwritten), then `/spec-check`.
 
 `sdd-pp init` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `mark`
 commits); `split.mjs loss` warns if a union merge left a slice field twice.
@@ -124,7 +121,7 @@ path first and edge scenarios second (only if the first slice is correct and shi
 |---|---|---|
 | `openspec validate <id> --strict` (CLI) | Structure of the deltas: headers, ≥1 scenario per requirement, Purpose length, ≤500-char requirement descriptions | Low - structural; passes on huge changes too |
 | `/opsx:verify <id>` (agent workflow, opt-in via `openspec config profile`; there is **no** `openspec verify` CLI command in 1.14.1) | Completeness (task tracking: *Not applicable* with this schema; every requirement implemented), correctness (code matches scenarios), coherence (code patterns; Design Adherence is *Not applicable* because the handoff-driven schema has no design artifact - design is reviewed by the execution tool) | High - an agent must read every artifact plus the code |
-| `check-handoff` (this toolkit; internal - `/handoff`'s lint, optional for CI) | Handoff fields, reference-not-duplicate, outputs inside the change folder, size budget | Warns on the budget (never fails on size) |
+| `/spec-check <id>` (this toolkit; the only plan-vs-spec check) | Requirement links (every story / ticket / task names a real requirement), coverage, and an agent review for missing / invented / contradicted behaviour and restated requirement text (advisory) | Line estimate after planning (warn-only) |
 | The tool's own code review (plus CI's review on the PR) | `code-review` / `requesting-code-review` reviews the diff against the deltas | High - same as verify |
 
 Run order: the tool's own completion (ticket Status / ledger) → the tool's own code review (CI also reviews the PR) → fix → `/opsx:verify` (report saved to `execution/verify.md`) → `/opsx:archive` (agent-driven sync).
@@ -132,7 +129,7 @@ Run order: the tool's own completion (ticket Status / ledger) → the tool's own
 ## Small changes that don't need the full ceremony
 
 - **No behavior change** (refactor, tooling, docs): set `skip_specs: true` in the change's
-  `.openspec.yaml`; the deltas are empty and `check-handoff` only warns.
+  `.openspec.yaml`; the deltas are empty.
 - **Design**: OpenSpec has no design step. For a trivial change the execution tool's design can be a short
   a short `execution/grill.md` grilling record + a short `execution/spec.md` (AI Hero) or a short `execution/brainstorm.md` + the plan's Architecture line (Superpowers).
 - **One-ticket changes**: `to-tickets` / `writing-plans` with a single ticket/task is fine.

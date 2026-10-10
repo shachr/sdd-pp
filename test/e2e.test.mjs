@@ -1,5 +1,5 @@
 // End to end in a fresh project: openspec init -> sdd-pp init (Node CLI) -> new change -> artifacts
-// in schema order -> handoff -> execution -> check-handoff -> the tool's code review (fresh session)
+// in schema order -> handoff -> planning -> /spec-check -> implementation -> the tool's code review
 // -> openspec validate --strict -> openspec archive.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -55,31 +55,25 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
     .replace(/^base_ref:.*$/m, `base_ref: ${base}`)
     .replace(/\n## Reviews[\s\S]*$/, '\n');
   fs.writeFileSync(path.join(changeDir, 'handoff.md'), handoff);
-  sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID]);
   assert.match(sh(process.execPath, ['.openspec-handoff/scripts/next-steps.mjs', ID]), /1\. \/to-spec[\s\S]*\/spec-check[\s\S]*\/opsx:archive/);
 
   // execution planning (AI Hero grill-with-docs + to-tickets, redirected into the change folder) + implementation
   copy('execution/spec.md'); copy('execution/tickets');
+  const sc = JSON.parse(sh(process.execPath, ['.openspec-handoff/scripts/spec-check.mjs', ID, '--json', '--write']));
+  assert.equal(sc.gaps, 0);
+  assert.equal(sc.units, 4, 'two user stories + two tickets');
   for (const p of ['src/greet.mjs', 'src/cli.mjs', 'test/greet.test.mjs', 'test/cli.test.mjs']) {
     fs.copyFileSync(path.join(TOOLKIT, 'example', p), path.join(dir, p));
   }
   sh(process.execPath, ['--test', 'test/']);
   g('add', '-A'); g('commit', '-qm', 'implement add-greeting-name');
   assert.ok(Object.values(status()).every((s) => s === 'done'));
-  const lint = JSON.parse(sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID, '--json', '--expect-complete']));
-  assert.deepEqual(lint.errors, []);
-  assert.equal(lint.metrics.tickets, 2);
-  assert.ok(lint.metrics.lines > 0 && lint.metrics.lines < 400);
 
-  // the tool's own code review, run in a fresh session (labelled at the top of the review file)
+  // the tool's own code review (optional notes under execution/reviews/)
   copy('execution/reviews');
-  const afterReview = JSON.parse(sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID, '--json']));
-  assert.deepEqual(afterReview.errors, []);
-  assert.ok(!afterReview.warnings.some((w) => /code-review\.md/.test(w)), afterReview.warnings.join('\n'));
 
   // OpenSpec validation + archive
   assert.match(osx('validate', ID, '--strict'), /is valid/);
-  sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID]);
   // agents archive with /opsx:archive (agent-driven sync); the CLI archive is the scripted equivalent
   osx('archive', ID, '--yes');
   const mainSpec = fs.readFileSync(path.join(dir, 'openspec/specs/greeting/spec.md'), 'utf8');

@@ -44,7 +44,7 @@ requirements in the deltas, expected tickets/plan tasks, and a rough
 changed-lines estimate. Default budget (see .openspec-handoff/small-changes.md):
 <= 5 requirements and <= 2 capabilities (checked by /split-check at the end of the
 specs stage), ~300 changed lines of code + tests (estimated after planning by
-/spec-check, measured at the PR by check-handoff). Do not split by hand here: the
+/spec-check; that estimate is the only line check). Do not split by hand here: the
 split gate proposes slices for the engineer when the requirements exist.
 `;
 
@@ -92,7 +92,7 @@ the proposal phase (execution/grill.md for ai-hero, execution/brainstorm.md for
 superpowers); \`/tool <change>\` resolves it (per-change override, else the
 project default).
 
-The handoff stage writes handoff.md, runs check-handoff, and ENDS by printing the
+The handoff stage writes handoff.md and ENDS by printing the
 next steps for the tool - \`node .openspec-handoff/scripts/next-steps.mjs <change>\`
 (reprint: \`/next-steps <change>\`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
 writing-plans), /spec-check, implementation, the tool's code review, /opsx:verify
@@ -106,10 +106,10 @@ execution tool (AI Hero or Superpowers). It is a pointer document, not a spec.
 Front matter (YAML, all keys required unless marked optional):
 - \`change\`: this change id (folder name).
 - \`tool\`: \`ai-hero\` or \`superpowers\` - must match the design session file
-  (check-handoff fails on a mismatch or a missing session file).
+  (exactly one session file; \`/tool <change>\` reports the tool to write).
 - \`harness\` (optional): the coding agent harness (claude-code, cursor, codex, opencode).
 - \`base_ref\`: git commit SHA the implementation starts from
-  (\`git rev-parse HEAD\` at handoff). Used for size checks and review diffs.
+  (\`git rev-parse HEAD\` at handoff). Used for review diffs.
 - \`execution_dir\`: always \`execution/\`.
 - \`apply_mode\`: the tool's own implement command the engineer runs instead of
   /opsx:apply - ai-hero: \`implement\` | \`implement-spec\`; superpowers:
@@ -127,7 +127,7 @@ Body rules - REFERENCE, DON'T DUPLICATE:
 
 Execution outputs must NOT be written to the tools' default locations
 (\`.scratch/\`, \`docs/superpowers/plans/\`, \`docs/superpowers/specs/\`).
-Run \`node .openspec-handoff/scripts/check-handoff.mjs <change>\` after writing; it must pass.`,
+After planning, \`/spec-check <change>\` is the plan-vs-spec check.`,
   requires: ['specs'],
 };
 

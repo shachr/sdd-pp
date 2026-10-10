@@ -60,7 +60,8 @@ test('sdd-pp init with a relative dir and the current directory', () => {
   const dir = project();
   let r = spawnSync(process.execPath, [CLI, 'init', '--tool', 'ai-hero', '--no-claude', '--no-cursor'], { cwd: dir, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
-  assert.ok(fs.existsSync(path.join(dir, '.openspec-handoff/scripts/check-handoff.mjs')));
+  assert.ok(fs.existsSync(path.join(dir, '.openspec-handoff/scripts/spec-check.mjs')));
+  assert.ok(!fs.existsSync(path.join(dir, '.openspec-handoff/scripts/check-handoff.mjs')), 'check-handoff is retired');
   r = spawnSync(process.execPath, [CLI, 'init', path.basename(dir), '--no-claude', '--no-cursor'], { cwd: path.dirname(dir), encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /kept: "defaultTool": "ai-hero"/);

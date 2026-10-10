@@ -22,10 +22,18 @@
 
 - none
 
-### Contradictions (agent review)
+### Size (line estimate after planning, warn-only; the ~300-line budget is checked only here)
 
-- none
+- 0/2 tickets / plan tasks carry an "Estimate: ~N lines" line; total ~0 lines (code + tests), budget ~300.
+- ! no estimate: 01: greet() - name parameter; 02: CLI - argv wiring
+
+### Agent review
+
+- Missing: none
+- Invented: none
+- Contradicted: none
+- Restated (advisory): none
 
 ### Result
 
-PASS (mechanical checks). Contradictions: see agent review above.
+PASS

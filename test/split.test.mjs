@@ -7,7 +7,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { TOOLKIT, OPENSPEC, run, initCli } from './helpers.mjs';
-import { proposalLeaks } from '../scripts/lib/change.mjs';
 
 const W = (dir, rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
 const R = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
@@ -99,15 +98,21 @@ test('split apply: refuses without approval or with uncommitted deltas; the pare
   assert.match(totals, /^## Purpose\n\nWeekly activity reports/);
   assert.ok(totals.includes(req('Report totals', ['Totals per day', 'Empty week']).trim()));
   assert.match(R(dir, 'openspec/changes/add-reports-03-csv-export/proposal.md'), /Behind the feature flag `csv-export`[\s\S]*## Split notes[\s\S]*_None\._/);
-  assert.deepEqual(proposalLeaks(R(dir, 'openspec/changes/add-reports-03-csv-export/proposal.md')), [], 'the split-notes template is not an implementation-detail leak');
   assert.match(R(dir, 'openspec/changes/add-reports-01-totals/proposal.md'), /### New Capabilities\n\n- `reports`/);
   assert.match(R(dir, 'openspec/changes/add-reports-02-filters/proposal.md'), /### New Capabilities\n\n_None\._\n\n### Modified Capabilities\n\n- `reports`/, 'an earlier slice in depends_on creates the capability');
   addFlag(dir);
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, new RegExp(`loss-check add-reports \\(after split\\): PASS\\n  baseline: original deltas at split commit ${head.slice(0, 7)} \\(git show\\) - 3 requirements, 6 scenarios; slices: 4; split notes: 1`));
-  r = run('check-handoff.mjs', ['add-reports'], dir);
-  assert.match(r.out, /is a split parent/);
+  // a slice with split notes lists the parent decisions it overrides in its narrowed session (moved from check-handoff)
+  const g = path.join(dir, 'openspec/changes/add-reports-03-csv-export/execution/grill.md');
+  fs.mkdirSync(path.dirname(g), { recursive: true });
+  fs.writeFileSync(g, '# Narrowed session\n');
+  r = run('split.mjs', ['loss', 'add-reports'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /add-reports-03-csv-export\/execution\/grill\.md: this slice has split notes but its narrowed session has no "## Overrides" section/);
+  fs.appendFileSync(g, '\n## Overrides\n\n- None\n');
+  assert.doesNotMatch(run('split.mjs', ['loss', 'add-reports'], dir).out, /no "## Overrides" section/);
 });
 
 test('parent name leak: an original requirement name in the parent proposal fails the loss check', () => {

@@ -5,9 +5,6 @@ harness: claude-code
 base_ref: 379bb4d863a58aceb1e9f57b7860da2f4d3ab47a
 execution_dir: execution/
 apply_mode: implement
-diff_paths:
-  - src
-  - test
 ---
 
 # Handoff
@@ -39,5 +36,4 @@ Design and implementation are owned by the execution tool (below); OpenSpec has 
 
 ## Notes for the implementer
 
-- `diff_paths` scopes size checks to this example project (the toolkit repo is a monorepo).
 - Run `npm test` in `example/` after each ticket.

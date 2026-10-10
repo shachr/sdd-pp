@@ -23,7 +23,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "validate:example": "cd example && openspec schema validate handoff-driven && openspec validate --all --strict && node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name"
+    "validate:example": "cd example && openspec schema validate handoff-driven && openspec validate --all --strict && node .openspec-handoff/scripts/spec-check.mjs add-greeting-name"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.14.1",

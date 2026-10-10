@@ -31,7 +31,7 @@ test('sdd-pp init installs schema, scripts, skills and commands into an openspec
   r = initCli(dir, '--set-default');
   assert.equal(r.status, 0, r.stdout + r.stderr);
   for (const f of [
-    'openspec/schemas/handoff-driven/schema.yaml', '.openspec-handoff/scripts/check-handoff.mjs',
+    'openspec/schemas/handoff-driven/schema.yaml', '.openspec-handoff/scripts/spec-check.mjs',
     '.openspec-handoff/config.json', '.openspec-handoff/small-changes.md',
     '.claude/skills/openspec-handoff-ai-hero/SKILL.md', '.cursor/skills/openspec-handoff-superpowers/SKILL.md',
     '.claude/commands/handoff.md', '.cursor/commands/handoff.md',
@@ -41,7 +41,7 @@ test('sdd-pp init installs schema, scripts, skills and commands into an openspec
   assert.match(r.stdout + r.stderr, /Schema: handoff-driven/);
 });
 
-test('superpowers handoff with execution/plan-<id>.md passes and counts plan tasks', () => {
+test('superpowers: execution/plan-<id>.md passes /spec-check with two plan tasks', () => {
   const { dir, changeDir } = makeFixture();
   setHandoff(dir, { tool: 'superpowers', apply_mode: 'executing-plans' });
   fs.rmSync(path.join(changeDir, 'execution', 'tickets'), { recursive: true });
@@ -52,28 +52,14 @@ test('superpowers handoff with execution/plan-<id>.md passes and counts plan tas
     '# Greeting by name Implementation Plan', '',
     '**Spec:** [proposal](../proposal.md) · [specs/greeting/spec.md](../specs/greeting/spec.md) · [brainstorm](brainstorm.md)', '',
     '### Task 1: greet(name)', '', '**Covers:** "Requirement: Greeting by name", "Requirement: Blank name falls back to default"', '',
+    'Tests: Scenario "Name given", Scenario "Name with surrounding spaces", Scenario "Whitespace-only name"', '',
     '### Task 2: CLI wiring', '', '**Covers:** "Requirement: Greeting by name"', '',
   ].join('\n'));
-  const r = run('check-handoff.mjs', [CHANGE, '--json'], dir);
+  const r = run('spec-check.mjs', [CHANGE, '--json'], dir);
   assert.equal(r.code, 0, r.out);
   const json = JSON.parse(r.stdout);
-  assert.equal(json.metrics.planTasks, 2);
-  assert.deepEqual(json.warnings, []);
-  // a shared name (plan.md) still works but warns: SDD workspaces are named after the plan file
-  fs.renameSync(path.join(changeDir, 'execution', `plan-${CHANGE}.md`), path.join(changeDir, 'execution', 'plan.md'));
-  const r2 = JSON.parse(run('check-handoff.mjs', [CHANGE, '--json'], dir).stdout);
-  assert.equal(r2.metrics.planTasks, 2);
-  assert.match(r2.warnings.join('\n'), /name the plan execution\/plan-add-greeting-name\.md/);
-});
-
-test('too many tickets is a size warning, not a failure', () => {
-  const { dir, changeDir } = makeFixture();
-  for (let i = 3; i <= 13; i += 1) {
-    fs.writeFileSync(path.join(changeDir, 'execution', 'tickets', `${String(i).padStart(2, '0')}-x.md`), '> Source of truth: [proposal](../../proposal.md)\n');
-  }
-  const r = run('check-handoff.mjs', [CHANGE], dir);
-  assert.match(r.out, /! size: tickets\/plan tasks 13 > 12 \(well over the budget 8\)/);
-  assert.doesNotMatch(r.out, /✗ size/);
+  assert.equal(json.units, 2);
+  assert.deepEqual([...json.missing, ...json.unknown, ...json.unsourced], []);
 });
 
 test('fixtures are real copies: writing a fixture config never touches the toolkit config', () => {
