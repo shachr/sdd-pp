@@ -24,3 +24,17 @@ test('bin/textkit.mjs runs slugify from a real process (argument and stdin)', ()
   r = spawnSync(process.execPath, ['bin/textkit.mjs', 'slugify'], { input: 'Café au lait\n', encoding: 'utf8' });
   assert.equal(r.status, 0); assert.equal(r.stdout, 'cafe-au-lait\n');
 });
+
+test('Unknown command', () => {
+  const r = cli(['frobnicate']);
+  assert.equal(r.code, 2);
+  assert.match(r.err, /unknown command: frobnicate/);
+  assert.match(r.err, /usage: textkit <command> \[text\]/);
+  assert.equal(r.out, '');
+});
+test('Missing argument', () => {
+  const r = cli([]);
+  assert.equal(r.code, 2);
+  assert.match(r.err, /usage: textkit <command> \[text\]/);
+});
+test('inherited object names are unknown commands', () => assert.equal(cli(['toString']).code, 2));
