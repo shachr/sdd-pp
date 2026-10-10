@@ -1,4 +1,7 @@
 export function wrapText(text, width) {
+  if (!Number.isInteger(width) || width < 1) {
+    throw new RangeError(`width must be a positive integer, got ${width}`);
+  }
   return text.split('\n').flatMap((paragraph) => wrapParagraph(paragraph, width));
 }
 

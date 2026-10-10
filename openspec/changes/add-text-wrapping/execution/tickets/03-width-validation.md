@@ -6,7 +6,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Scenario "Zero width" passes
-- [ ] Scenario "Fractional width" passes
+- [x] Scenario "Zero width" passes
+- [x] Scenario "Fractional width" passes

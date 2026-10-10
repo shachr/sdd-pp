@@ -10,3 +10,5 @@ test('Empty text', () => assert.deepEqual(wrapText('', 5), ['']));
 test('Word wider than the column', () => assert.deepEqual(wrapText('abcdefghij', 4), ['abcd', 'efgh', 'ij']));
 test('Overlong word after a short one', () => assert.deepEqual(wrapText('go abcdefgh', 4), ['go', 'abcd', 'efgh']));
 test('Remainder shares its line', () => assert.deepEqual(wrapText('abcdefghij x', 4), ['abcd', 'efgh', 'ij x']));
+test('Zero width', () => assert.throws(() => wrapText('abc', 0), { name: 'RangeError', message: /width/ }));
+test('Fractional width', () => assert.throws(() => wrapText('abc', 2.5), { name: 'RangeError', message: /width/ }));
