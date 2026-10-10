@@ -6,8 +6,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Scenarios "Shorter than the limit" and "Exactly the limit" pass
-- [ ] Scenarios "Result fits the limit" and "Limit of one" pass
-- [ ] Scenarios "Word boundary available" and "Single long word" pass
+- [x] Scenarios "Shorter than the limit" and "Exactly the limit" pass
+- [x] Scenarios "Result fits the limit" and "Limit of one" pass
+- [x] Scenarios "Word boundary available" and "Single long word" pass
