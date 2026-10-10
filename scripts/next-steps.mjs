@@ -23,7 +23,9 @@ export function nextSteps({ id, tool, applyMode, parent = null, state = {} }) {
   ];
   const finish = (n) => [
     d('verify', `${n}. /opsx:verify ${id} - save the report verbatim to ${c}/execution/verify.md (it checks every ticket "Status: done" / plan step box)`),
-    d('archive', `${n + 1}. /opsx:archive ${id} on the change branch, and commit the archive in this change's PR together with its code (the change is complete when its archived folder is on main).`),
+    d('archive', parent
+      ? `${n + 1}. /sdd-slice-finish ${id} on the change branch (instead of /opsx:archive): it checks execution/verify.md${tool === 'superpowers' ? ' and execution/progress.md' : ''}, runs openspec archive ${id} -y, marks the slice done in openspec/changes/${parent}/slices.md and prints the commit line - commit it in this slice's PR together with its code.`
+      : `${n + 1}. /opsx:archive ${id} on the change branch, and commit the archive in this change's PR together with its code (the change is complete when its archived folder is on main).`),
   ];
   if (tool === 'ai-hero') {
     const impl = applyMode === 'implement-spec' ? '/implement-spec (sub-agents)' : '/implement (single session)';

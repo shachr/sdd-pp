@@ -56,7 +56,7 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 | `schemas/split-plan/` | Parent of a split change: proposal → slices (no specs; OpenSpec sets `skip_specs: true`; archived last with `--skip-specs`) |
 | `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/sdd-split-check.md` | `/sdd-split-check <id>`: split gate at the end of the specs stage (counts requirements and capabilities, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children named `<parent>-<nn>-<slice>`, cleanup slice `99`, re-split into the same parent continues the numbering; records `split_commit`), `loss` (exactly-once vs the original deltas at `split_commit` via git show, split notes, rename candidates, `--final` against main specs), `next` (ready / in progress / parallel-safe slices, tickets; writes `status: done` for archived slices), `start` (take a READY slice: in-progress), `undo` (original change back from split_commit), `finalize` (run by `/sdd-split-archive`: stops unless every slice is archived) |
 | `scripts/spec-check.mjs` + `commands/*/sdd-spec-check.md` | `/sdd-spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + agent review for missing / invented / contradicted behaviour and restated text (advisory); the agent sets PASS / GAPS. Also reports spec changes since the last accepted PASS (hash per requirement / scenario in `execution/.spec-check.json`, moved only by `--accept` after PASS) with the units citing each - report-only. The only plan-vs-spec check; writes `execution/spec-check.md` |
-| `scripts/sdd.mjs` + `commands/*/sdd-{next-steps,tool,split-apply,split-next,split-start,split-undo,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|start\|undo\|loss\|archive` (start = take a READY slice: finds the parent, marks it in-progress, prints the next lines; undo = original change back from split_commit, slices removed; archive = stops unless every slice is archived, marks them done, final loss check + `openspec archive --skip-specs -y`). Every file-writing command prints the exact `git add ... && git commit` line. The agent slash commands and the `sdd-pp` CLI subcommands both call it |
+| `scripts/sdd.mjs` + `commands/*/sdd-{next-steps,tool,split-apply,split-next,split-start,slice-finish,split-undo,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|start\|undo\|loss\|archive` (start = take a READY slice: finds the parent, marks it in-progress, prints the next lines; slice-finish = verify.md (+ progress.md for Superpowers) present, `openspec archive <slice> -y`, status done; undo = original change back from split_commit, slices removed; archive = stops unless every slice is archived, marks them done, final loss check + `openspec archive --skip-specs -y`). Every file-writing command prints the exact `git add ... && git commit` line. The agent slash commands and the `sdd-pp` CLI subcommands both call it |
 | `scripts/execution-tool.mjs` | Setup phase: `--default <tool>` (project), `<id> --set <tool>` (per-change override; starts the session file), `<id>` (resolve: handoff.md > session front matter > project default). Refuses a switch once a session exists (`docs/switching-tools.md`) |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
 | `commands/{claude,cursor,opencode}/sdd-*.md` | the agent slash commands, all prefixed `sdd-` (`/sdd-handoff`, `/sdd-tool`, `/sdd-next-steps`, `/sdd-spec-check`, `/sdd-split-*`) - story 2 |
@@ -117,7 +117,7 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
    -> proposal.md (what/why only) + delta (scenarios found in the session)
 /sdd-split-check add-greeting-name           # split gate, end of the specs stage (automatic): "fits", or > 5 requirements / > 2 capabilities
    -> slices proposed (execution/split-proposal.md) -> engineer approves -> commit deltas -> /sdd-split-apply -> parent + children <parent>-<nn>-<slice>
-   -> loss check PASS -> one planning PR -> /sdd-split-next <parent> -> per slice: /sdd-split-start <slice> (commit the mark), branch, design session, /sdd-handoff <slice>
+   -> loss check PASS -> one planning PR -> /sdd-split-next <parent> -> per slice: /sdd-split-start <slice> (commit the mark), branch, design session, /sdd-handoff <slice>, ..., /opsx:verify, /sdd-slice-finish <slice>
    -> all slices archived -> /sdd-split-archive <parent>
 /sdd-handoff add-greeting-name
    -> handoff.md (tool = per-change override or project default, apply_mode, base_ref, links),
@@ -143,6 +143,7 @@ npx github:shachr/sdd-pp spec-check <id>             # mechanical part of /sdd-s
 npx github:shachr/sdd-pp split-check <id>            # counts part of /sdd-split-check
 npx github:shachr/sdd-pp split apply|next|loss|archive ...   # = /sdd-split-apply, /sdd-split-next, /sdd-split-archive
 npx github:shachr/sdd-pp split start <slice> [--undo]     # = /sdd-split-start <slice>
+npx github:shachr/sdd-pp slice-finish <slice>             # = /sdd-slice-finish <slice>
 npx github:shachr/sdd-pp split undo <parent> [--force]    # = /sdd-split-undo <parent>
 ```
 
@@ -150,6 +151,7 @@ Under the hood (agent commands and CLI both run `.openspec-handoff/scripts/sdd.m
 `next` = `next-steps.mjs`;
 `tool` = `execution-tool.mjs`; `spec-check` / `split-check` = `spec-check.mjs` / `split-check.mjs` with `--write`;
 `split apply|start|undo|loss` = `split.mjs apply|start|undo|loss`; `split next` = `split.mjs next --write-tickets`;
+`slice-finish` = `split.mjs finish-check` + `openspec archive <slice> -y` + `split.mjs finish-mark`;
 `split archive` = `split.mjs finalize <parent>` (all slices archived? marks them done, final loss check) + `openspec archive <parent> --skip-specs -y`.
 `spec-check <id> --check` writes nothing (a look only).
 The scripts still take `--root` / `--json` when run directly. See `docs/getting-started.md` (Commands).

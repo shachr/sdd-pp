@@ -41,7 +41,7 @@ export function agentsBlock(file) {
 
 /** Agent slash commands renamed to sdd-<name> (old unprefixed copies are removed on reinstall). */
 export const RENAMED_COMMANDS = ['handoff', 'tool', 'next-steps', 'spec-check', 'split-check', 'split-apply', 'split-next', 'split-start', 'split-archive', 'split-undo'];
-export const RUN_COMMANDS = ['spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split'];
+export const RUN_COMMANDS = ['spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split', 'slice-finish'];
 
 /** The sdd.mjs to run from `start`: the project's installed copy (nearest .openspec-handoff/scripts), else this package's. */
 export function sddScript(start = process.cwd()) {
@@ -63,6 +63,7 @@ export const USAGE = `Usage: sdd-pp init [dir] [options]      install into <dir>
          split start <slice> [--undo]    take a READY slice (marks it in-progress, prints the next lines)
          split undo <parent> [--force]   undo a split: original change back from split_commit, slices removed
          split loss <parent> [--final]   loss check
+         slice-finish <slice>            finish an in-progress slice: verify.md (+ progress.md for Superpowers), openspec archive, status done
          split archive <parent>          all slices archived? mark done, final loss check + openspec archive <parent> --skip-specs -y
        sdd-pp --help | --version
 
@@ -202,7 +203,7 @@ Done. Next (agent slash commands; the same checks run from a shell as \`npx <too
   /sdd-handoff <id>                      last OpenSpec stage: handoff.md + prints the next steps (/sdd-next-steps <id> reprints them)
   ... planning, /sdd-spec-check <id>, implement (the tool's own completion), code review (as the next steps say)
   /opsx:verify <id> (save to execution/verify.md), /opsx:archive <id>
-  Split changes: /sdd-split-apply <id>, /sdd-split-next <parent>, /sdd-split-start <slice>, /sdd-split-archive <parent>, /sdd-split-undo <parent>
+  Split changes: /sdd-split-apply <id>, /sdd-split-next <parent>, /sdd-split-start <slice>, /sdd-slice-finish <slice>, /sdd-split-archive <parent>, /sdd-split-undo <parent>
 Also install the execution toolkits themselves (not bundled; <agent> = your coding agent, e.g. claude-code, cursor, opencode):
   AI Hero:     npx skills add mattpocock/skills -a <agent>   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
   Superpowers: npx skills add obra/superpowers -a <agent>    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)`);

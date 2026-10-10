@@ -91,10 +91,12 @@ approves or edits them. Nothing is split automatically.
    they share no capability. To take a slice: `/sdd-split-start <slice>` (finds the parent, refuses unless READY;
    `--undo` releases it), committed on main - **in progress is a manual mark**; the next report trusts it and does not scan branches. Then a
    branch from main, a short design session narrowed to the slice (reading the parent's
-   `execution/grill.md` / `brainstorm.md`), `/sdd-handoff <slice>`, and the usual flow. `/opsx:archive <slice>`
-   runs on the slice branch and the archive is **committed in the slice's own PR with its code**; after the
-   merge, `/sdd-split-next <parent>` on main.
-8. **Parent last** - when every slice is done: `/sdd-split-archive <parent>` runs `split.mjs loss <parent> --final`
+   `execution/grill.md` / `brainstorm.md`), `/sdd-handoff <slice>`, and the usual flow. After `/opsx:verify <slice>` (report in `execution/verify.md`;
+   Superpowers also `execution/progress.md`), `/sdd-slice-finish <slice>` (instead of `/opsx:archive`) runs on the slice
+   branch: it refuses a non-slice, a slice not in progress, or a missing verify / progress file, runs `openspec archive
+   <slice> -y`, writes `status: done` in the parent's `slices.md` and prints the commit line. The archive is **committed in
+   the slice's own PR with its code**; after the merge, `/sdd-split-next <parent>` on main.
+8. **Parent last** - when every slice is done: `/sdd-split-archive <parent>` runs `split.mjs finalize <parent>` (stops unless every slice is archived, marks them done, `loss --final`)
    (also checks the final names against the main specs), then `openspec archive <parent> --skip-specs -y`
    (must not sync specs; `/opsx:archive` cannot pass `--skip-specs`).
    Never run `/opsx:verify` on a parent.

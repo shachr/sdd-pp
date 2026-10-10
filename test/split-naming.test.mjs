@@ -136,3 +136,73 @@ test('sdd-pp split apply | next | start | archive from inside the project (archi
   assert.ok(arch.some((a) => /^\d{4}-\d\d-\d\d-add-text-stats$/.test(a)), arch.join(', '));
   assert.ok(arch.some((a) => /^\d{4}-\d\d-\d\d-add-text-stats-01-core$/.test(a)));
 });
+
+// ---------------------------------------------------------------- /sdd-slice-finish, driven through the sdd-pp CLI
+function finishProject() {
+  const p = project(CORE + '### Slice: cli\n- order: 02\n- goal: Command line tool\n- capabilities: stats-cli\n- requirements: CLI output; CLI flag\n- depends_on: core\n- flag: none\n');
+  assert.equal(initCli(p.dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
+  p.g('add', '-A'); p.g('commit', '-qm', 'install');
+  p.sdd = (...a) => { const r = spawnSync(process.execPath, [CLI, ...a], { cwd: p.dir, encoding: 'utf8', env: ENV }); return { code: r.status, out: r.stdout + r.stderr }; };
+  assert.equal(p.sdd('split', 'apply', P).code, 0);
+  p.g('add', '-A'); p.g('commit', '-qm', 'planning PR');
+  return p;
+}
+const CORE_ID = 'add-text-stats-01-core';
+const archived = (dir, id) => fs.readdirSync(path.join(dir, 'openspec/changes/archive')).some((a) => a.endsWith(`-${id}`));
+
+test('sdd-pp slice-finish (ai-hero): verify.md present -> openspec archive, status done in slices.md, commit line', { skip: OPENSPEC_SKIP }, () => {
+  const { dir, sdd } = finishProject();
+  assert.equal(sdd('split', 'start', CORE_ID).code, 0);
+  assert.equal(sdd('tool', CORE_ID, '--set', 'ai-hero').code, 0);
+  W(dir, `openspec/changes/${CORE_ID}/execution/verify.md`, '# Verify\n\nNo critical issues.\n');
+  const r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^\$ split\.mjs finish-check add-text-stats-01-core\nslice finish add-text-stats-01-core: execution\/verify\.md present \(ai-hero\); archiving the slice \(parent add-text-stats\)$/m);
+  assert.match(r.out, /^\$ openspec archive add-text-stats-01-core -y$/m);
+  assert.match(r.out, /^slice finish add-text-stats-01-core: archived to openspec\/changes\/archive\/\d{4}-\d\d-\d\d-add-text-stats-01-core; status done in openspec\/changes\/add-text-stats\/slices\.md$/m);
+  assert.match(r.out, /^Commit with the slice's PR: git add -A openspec\/changes openspec\/specs && git commit -m "archive\(add-text-stats-01-core\): finish slice of add-text-stats"$/m);
+  assert.ok(archived(dir, CORE_ID));
+  assert.ok(fs.existsSync(path.join(dir, 'openspec/specs/text-stats/spec.md')), 'the delta was synced into the main specs');
+  assert.match(R(dir, 'openspec/changes/add-text-stats/slices.md'), /### Slice: add-text-stats-01-core\n[\s\S]*?- status: done/);
+  // finished: a second run is refused, and the next slice is ready
+  const again = sdd('slice-finish', CORE_ID);
+  assert.equal(again.code, 1, again.out);
+  assert.match(again.out, /slice finish add-text-stats-01-core: REFUSED - "add-text-stats-01-core" is already archived\./);
+  assert.match(sdd('split', 'next', P).out, /Ready now: add-text-stats-02-cli/);
+});
+
+test('sdd-pp slice-finish refuses (exit 1, nothing archived): missing verify.md, missing progress.md for superpowers, not a slice, not in progress', () => {
+  const { dir, sdd } = finishProject();
+  const nothingArchived = () => assert.ok(!fs.existsSync(path.join(dir, 'openspec/changes/archive')) || !archived(dir, CORE_ID));
+  // not a slice: the parent itself, and an unknown id
+  let r = sdd('slice-finish', P);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /slice finish add-text-stats: REFUSED - "add-text-stats" is not a slice of any split parent[^\n]*For a normal change use \/opsx:archive add-text-stats\./);
+  assert.doesNotMatch(r.out, /\$ openspec archive/);
+  // a planned slice (not taken)
+  r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSED - "add-text-stats-01-core" is planned, not in progress - take it first with \/sdd-split-start add-text-stats-01-core\./);
+  // in progress, no verify.md
+  assert.equal(sdd('split', 'start', CORE_ID).code, 0);
+  assert.equal(sdd('tool', CORE_ID, '--set', 'superpowers').code, 0);
+  r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSED - missing in openspec\/changes\/add-text-stats-01-core\/: execution\/verify\.md \(run \/opsx:verify and save the report there\), execution\/progress\.md \(copy the Superpowers ledger there\) - nothing archived\./);
+  assert.doesNotMatch(r.out, /\$ openspec archive/);
+  nothingArchived();
+  // superpowers: verify.md alone is not enough
+  W(dir, `openspec/changes/${CORE_ID}/execution/verify.md`, '# Verify\n\nNo critical issues.\n');
+  r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSED - missing in openspec\/changes\/add-text-stats-01-core\/: execution\/progress\.md \(copy the Superpowers ledger there\) - nothing archived\./);
+  assert.doesNotMatch(r.out, /verify\.md \(run/);
+  nothingArchived();
+  assert.match(R(dir, 'openspec/changes/add-text-stats/slices.md'), /### Slice: add-text-stats-01-core\n[\s\S]*?- status: in-progress/, 'slices.md untouched');
+  if (OPENSPEC_SKIP) return;
+  W(dir, `openspec/changes/${CORE_ID}/execution/progress.md`, '# Progress\n\n- task 1 done\n');
+  r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /execution\/verify\.md and execution\/progress\.md present \(superpowers\)/);
+  assert.ok(archived(dir, CORE_ID));
+});

@@ -13,7 +13,7 @@ import { nextSteps } from '../scripts/next-steps.mjs';
 const ENV = { ...process.env, PATH: `${path.dirname(OPENSPEC)}${path.delimiter}${process.env.PATH}` };
 const sddPp = (cwd, ...args) => { const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', env: ENV }); return { code: r.status, out: r.stdout + r.stderr }; };
 const labels = (argv) => plan(argv).map(([l]) => l);
-const NEW = { 'next-steps': 'next', tool: 'tool', 'split-apply': 'split apply', 'split-next': 'split next', 'split-start': 'split start', 'split-undo': 'split undo', 'split-archive': 'split archive' };
+const NEW = { 'next-steps': 'next', tool: 'tool', 'split-apply': 'split apply', 'split-next': 'split next', 'split-start': 'split start', 'split-undo': 'split undo', 'split-archive': 'split archive', 'slice-finish': 'slice-finish' };
 
 test('sdd.mjs plan: each command maps to the scripts it runs', () => {
   assert.deepEqual(labels(['spec-check', 'x']), ['spec-check.mjs x --write']);
@@ -29,6 +29,8 @@ test('sdd.mjs plan: each command maps to the scripts it runs', () => {
   assert.deepEqual(labels(['split', 'undo', 'p', '--force']), ['split.mjs undo p --force']);
   assert.deepEqual(labels(['split', 'loss', 'p', '--final']), ['split.mjs loss p --final']);
   assert.deepEqual(labels(['split', 'archive', 'p']), ['split.mjs finalize p', 'openspec archive p --skip-specs -y']);
+  assert.deepEqual(labels(['slice-finish', 's']), ['split.mjs finish-check s', 'openspec archive s -y', 'split.mjs finish-mark s']);
+  assert.deepEqual(labels(['split', 'finish', 's']), labels(['slice-finish', 's']));
   for (const bad of [[], ['check', 'x'], ['split'], ['split', 'bogus', 'p'], ['split', 'mark', 'p', 's', 'in-progress'], ['split', 'start'], ['split', 'apply'], ['nope', 'x'], ['next', '--strict']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
 });
 
@@ -220,7 +222,7 @@ test('reinstall removes retired commands (check-handoff.md, split-mark.md) for c
 test('commands are prefixed sdd-: the toolkit ships only sdd-*.md; a reinstall removes our old unprefixed copies and keeps a user\'s own same-named command', () => {
   const NAMES = ['handoff', 'tool', 'next-steps', 'spec-check', 'split-check', 'split-apply', 'split-next', 'split-start', 'split-archive', 'split-undo'];
   for (const h of ['claude', 'cursor', 'opencode']) {
-    assert.deepEqual(fs.readdirSync(path.join(TOOLKIT, 'commands', h)).sort(), NAMES.map((n) => `sdd-${n}.md`).sort(), h);
+    assert.deepEqual(fs.readdirSync(path.join(TOOLKIT, 'commands', h)).sort(), [...NAMES, 'slice-finish'].map((n) => `sdd-${n}.md`).sort(), h);
   }
   for (const n of NAMES) assert.match(fs.readFileSync(path.join(TOOLKIT, 'commands/cursor', `sdd-${n}.md`), 'utf8'), new RegExp(`^name: /sdd-${n}\\nid: sdd-${n}$`, 'm'));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-prefix-'));

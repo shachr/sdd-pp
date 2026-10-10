@@ -15,6 +15,8 @@
 //   undo  <parent> [--force]     undo a split: restore openspec/changes/<parent>/ from split_commit (the original
 //                                change, also after re-splits), remove slices.md/tickets and every listed slice folder;
 //                                refuses with an archived slice, a dirty openspec/changes, or (without --force) a slice in progress
+//   finish-check / finish-mark <slice>   /sdd-slice-finish around `openspec archive <slice> -y`: verify.md (+ progress.md
+//                                for Superpowers) present and the slice in progress; then status done in slices.md
 // Options: --root <dir> --json
 // Exit: 0 ok, 1 findings (loss) / refused (apply), 2 usage error.
 import fs from 'node:fs';
@@ -364,6 +366,43 @@ export function startSlice(root, sliceId, { undo = false } = {}) {
   ];
 }
 
+// ------------------------------------------------------------------ finish (/sdd-slice-finish)
+/**
+ * Finish a slice in two steps around `openspec archive <slice> -y` (sdd.mjs runs all three):
+ * check: the slice is a slice, in progress, and has execution/verify.md (+ execution/progress.md for Superpowers);
+ * mark:  after the archive, writes "status: done" in the parent's slices.md and prints the commit line.
+ */
+export function finishSlice(root, sliceId, phase) {
+  const parent = findParentOf(root, sliceId);
+  if (!parent) throw new Refused(`"${sliceId}" is not a slice of any split parent (no openspec/changes/*/slices.md lists it). For a normal change use /opsx:archive ${sliceId}.`);
+  const r = nextReport(root, parent.id);
+  const row = r.rows.find((x) => x.id === sliceId);
+  const rel = path.relative(root, path.join(r.dir, 'slices.md')).split(path.sep).join('/');
+  if (phase === 'check') {
+    if (row.status === 'done') throw new Refused(`"${sliceId}" is already archived.`);
+    if (row.status === 'missing') throw new Refused(`"${sliceId}" has no change folder (openspec/changes/${sliceId}).`);
+    if (row.status !== 'in progress') throw new Refused(`"${sliceId}" is ${row.status}, not in progress - take it first with /sdd-split-start ${sliceId}.`);
+    const change = loadChange(root, sliceId);
+    let tool = null;
+    try { tool = resolveTool(change).tool; } catch { /* no tool resolved: verify.md is still required */ }
+    const need = ['execution/verify.md', ...(tool === 'superpowers' ? ['execution/progress.md'] : [])];
+    const missing = need.filter((f) => !change.files.includes(f));
+    if (missing.length) {
+      throw new Refused(`missing in openspec/changes/${sliceId}/: ${missing.map((f) => `${f} (${f.endsWith('verify.md') ? 'run /opsx:verify and save the report there' : "copy the Superpowers ledger there"})`).join(', ')} - nothing archived.`);
+    }
+    return [`slice finish ${sliceId}: ${need.join(' and ')} present${tool ? ` (${tool})` : ''}; archiving the slice (parent ${parent.id})`];
+  }
+  const loc = changeLocation(root, sliceId);
+  if (!loc?.archived) throw new Refused(`"${sliceId}" is not archived - openspec archive did not move it.`);
+  if (row.mark !== 'done') setSliceField(r.dir, sliceId, 'status', 'done');
+  const arch = path.relative(root, loc.dir).split(path.sep).join('/');
+  return [
+    `slice finish ${sliceId}: archived to ${arch}; status done in ${rel}`,
+    `Commit with the slice's PR: git add -A openspec/changes openspec/specs && git commit -m "archive(${sliceId}): finish slice of ${parent.id}"`,
+    `Then merge the PR (branch change/${sliceId}) into main; /sdd-split-next ${parent.id} shows what is ready next.`,
+  ];
+}
+
 // ------------------------------------------------------------------ undo
 /** Undo a split: the parent goes back to the original change at split_commit; slice folders are removed. Nothing is committed. */
 export function undoSplit(root, parentId, { force = false } = {}) {
@@ -631,8 +670,8 @@ async function main() {
     options: { root: { type: 'string' }, json: { type: 'boolean' }, undo: { type: 'boolean' }, force: { type: 'boolean' }, final: { type: 'boolean' }, 'write-tickets': { type: 'boolean' }, proposal: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
   });
   const [cmd, id] = positionals;
-  if (values.help || !['apply', 'loss', 'next', 'start', 'undo', 'finalize'].includes(cmd) || !id) {
-    console.log('usage: split apply <change> [--proposal <file>] | split loss <parent> [--final] | split next <parent> [--write-tickets] | split start <slice> [--undo] | split undo <parent> [--force] | split finalize <parent>  [--root <dir>] [--json]');
+  if (values.help || !['apply', 'loss', 'next', 'start', 'undo', 'finalize', 'finish-check', 'finish-mark'].includes(cmd) || !id) {
+    console.log('usage: split apply <change> [--proposal <file>] | split loss <parent> [--final] | split next <parent> [--write-tickets] | split start <slice> [--undo] | split undo <parent> [--force] | split finalize <parent> | split finish-check|finish-mark <slice>  [--root <dir>] [--json]');
     return values.help ? 0 : 2;
   }
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
@@ -659,6 +698,16 @@ async function main() {
     } catch (e) {
       if (!(e instanceof Refused)) throw e;
       console.log(`split ${cmd} ${id}: REFUSED - ${e.message}`);
+      return 1;
+    }
+  }
+  if (cmd === 'finish-check' || cmd === 'finish-mark') {
+    try {
+      console.log(finishSlice(root, id, cmd === 'finish-check' ? 'check' : 'mark').join('\n'));
+      return 0;
+    } catch (e) {
+      if (!(e instanceof Refused)) throw e;
+      console.log(`slice finish ${id}: REFUSED - ${e.message}`);
       return 1;
     }
   }
