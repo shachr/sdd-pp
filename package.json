@@ -3,5 +3,10 @@
   "private": true,
   "type": "module",
   "description": "Tiny text utilities (demo project for the OpenSpec handoff workflow)",
-  "scripts": { "test": "node --test" }
+  "scripts": {
+    "test": "node --test"
+  },
+  "bin": {
+    "textkit": "bin/textkit.mjs"
+  }
 }
