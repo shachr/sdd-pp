@@ -18,6 +18,8 @@ export function makeFixture({ handoff = {}, keepExecution = true } = {}) {
   if (!keepExecution) fs.rmSync(path.join(changeDir, 'execution'), { recursive: true, force: true });
   // start every fixture without prior review output so tests can assert on what a run writes
   fs.rmSync(path.join(changeDir, 'execution', 'reviews'), { recursive: true, force: true });
+  const hf = path.join(changeDir, 'handoff.md');
+  if (fs.existsSync(hf)) fs.writeFileSync(hf, fs.readFileSync(hf, 'utf8').replace(/\n## Reviews\n[\s\S]*$/, '\n'));
   const g = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'pipe' }).toString().trim();
   g('init', '-q', '-b', 'main');
   g('-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '-A');

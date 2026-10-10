@@ -40,6 +40,16 @@
     ],
     "grok": [
       "grok-"
+    ],
+    "qwen": [
+      "qwen"
+    ],
+    "deepseek": [
+      "deepseek"
+    ],
+    "llama": [
+      "llama",
+      "codellama"
     ]
   },
   "runners": {
@@ -69,6 +79,18 @@
       ],
       "promptVia": "stdin",
       "$comment": "OpenAI Codex CLI; \"-\" reads the prompt from stdin; read-only sandbox."
+    },
+    "ollama": {
+      "$comment": "Local open-weight model via a running `ollama serve` (open source, free). Plain model without tools, so the change files and diff are inlined into the prompt.",
+      "match": "qwen",
+      "command": [
+        "{node}",
+        "{scripts}/runners/ollama.mjs",
+        "{model}"
+      ],
+      "promptVia": "stdin",
+      "inlineContext": true,
+      "timeoutMs": 1800000
     },
     "cursor-agent": {
       "match": "*",
@@ -101,5 +123,11 @@
       15,
       25
     ]
+  },
+  "localReviewers": {
+    "$comment": "Free, open-weight reviewers run on this machine via Ollama (no account, no API key). Use with --reviewer-model or reviewer_model in handoff.md.",
+    "claude": "qwen2.5-coder:3b",
+    "gpt": "qwen2.5-coder:3b",
+    "qwen": "llama3.2:3b"
   }
 }

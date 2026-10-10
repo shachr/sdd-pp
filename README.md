@@ -83,11 +83,29 @@ node .openspec-handoff/scripts/adversarial-review.mjs <id> [--dry-run] [--emit-p
   `gpt` → `codex exec`), else `*` (`cursor-agent -p`). No runner installed? `--emit-prompt` writes the prompt
   to `execution/reviews/` to paste into a session using the reviewer model.
 
+### Free local reviewer (no account, no API key)
+
+Run an open-weight model on your machine with [Ollama](https://ollama.com) (open source):
+
+```bash
+ollama serve &                       # or the desktop app
+ollama pull qwen2.5-coder:7b         # 3b if RAM is tight; any non-Claude family for a Claude implementer
+node .openspec-handoff/scripts/adversarial-review.mjs <id> --reviewer-model qwen2.5-coder:7b
+```
+
+`qwen*` models route to the `ollama` runner (`scripts/runners/ollama.mjs`, local HTTP API, `OLLAMA_HOST`,
+`OLLAMA_NUM_CTX`). Because a plain model can't open files, that runner sets `inlineContext: true` and the change's
+proposal, deltas, design, tasks and full diff are pasted into the prompt. Add other local families (`llama`,
+`deepseek` are pre-declared) by adding a runner with the matching `match`. The same-model / same-family guard
+applies (a qwen implementer can't be reviewed by qwen). Each review file records runner, timing and a parsed
+`verdict` (`APPROVE`, `REQUEST_CHANGES`, or `unparsed`). Small CPU models produce shaky reviews - triage findings
+before acting on them (the example's `execution/reviews/triage.md` shows a 3B model's false positives).
+
 ## Develop / test
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 32 tests: lint rules, review selection, fake-runner review, real CLI validate/status, e2e
+npm test               # 37 tests: lint rules, review selection, fake-runner review, real CLI validate/status, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```

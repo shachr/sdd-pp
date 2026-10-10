@@ -72,7 +72,9 @@ export function buildPlan(change, config, opts = {}) {
   if (!skill) throw new UsageError(`no review skill configured for tool "${h.tool}"`);
   const reviewer = selectReviewer({ handoff: h, config, override: opts.reviewerModel, allowSameFamily: opts.allowSameFamily });
   const runner = selectRunner(config, reviewer, opts.runner);
-  const argv = runner.command.map((a) => a.replaceAll('{model}', reviewer.model));
+  const scriptsDir = path.dirname(new URL(import.meta.url).pathname);
+  const argv = runner.command.map((a) => a.replaceAll('{model}', reviewer.model)
+    .replaceAll('{node}', process.execPath).replaceAll('{scripts}', scriptsDir));
   const slug = normalizeModel(reviewer.model).replace(/[^a-z0-9.-]+/g, '-');
   const ts = opts.timestamp || stamp();
   const reviewRel = `execution/reviews/${ts}-${slug}.md`;
@@ -85,15 +87,38 @@ export function buildPlan(change, config, opts = {}) {
     stat = git(change.root, ['diff', '--stat', h.base_ref, '--', ...(diffPaths.length ? diffPaths : ['.'])]).trimEnd() || '(no changes since base_ref)';
     commits = git(change.root, ['log', '--oneline', `${h.base_ref}..HEAD`, '--', ...(diffPaths.length ? diffPaths : ['.'])]).trim();
   } catch { /* reported in prompt */ }
-  const prompt = buildPrompt({ change, changeRel, h, skill, reviewer, head, stat, commits, diffPaths, lint, reviewRel });
+  let prompt = buildPrompt({ change, changeRel, h, skill, reviewer, head, stat, commits, diffPaths, lint, reviewRel });
+  if (runner.inlineContext) prompt += inlineContext(change, changeRel, h, diffPaths);
   return {
     change: change.id, tool: h.tool, implementationModel: h.implementation_model,
     reviewerModel: reviewer.model, reviewerSource: reviewer.source, skill: skill.skill,
     runner: runner.name, argv, promptVia: runner.promptVia || 'stdin',
+    inlineContext: Boolean(runner.inlineContext), timeoutMs: runner.timeoutMs || 30 * 60 * 1000,
     baseRef: h.base_ref, head, reviewFile: `${changeRel}/${reviewRel}`, reviewPath: path.join(change.dir, reviewRel),
     promptPath: path.join(change.dir, reviewRel.replace(/\.md$/, '.prompt.md')),
     lint: { errors: lint.errors.length, warnings: lint.warnings.length }, prompt,
   };
+}
+
+/**
+ * For runners that are plain models without tools (e.g. ollama): paste the
+ * source-of-truth files and the diff into the prompt, since the reviewer
+ * cannot open files or run git itself.
+ */
+function inlineContext(change, changeRel, h, diffPaths) {
+  const files = ['proposal.md', ...change.deltas, 'design.md', 'tasks.md'].filter((f) => change.read(f) !== null);
+  let diff;
+  try {
+    diff = git(change.root, ['diff', h.base_ref, '--', ...(diffPaths.length ? diffPaths : ['.']), ':(exclude)openspec/**']).trim();
+  } catch (e) { diff = `(git diff failed: ${e.message})`; }
+  const block = (title, lang, text) => `### ${title}\n\n\`\`\`\`${lang}\n${text.trim()}\n\`\`\`\`\n`;
+  return `
+## Inlined context
+
+You cannot open files or run commands. Everything you need is below: the requirement files and the full diff since base_ref. Review ONLY what is shown; do not invent files, lines, or requirements that are not here.
+
+${files.map((f) => block(`${changeRel}/${f}`, 'markdown', change.read(f))).join('\n')}
+${block(`git diff ${h.base_ref.slice(0, 12)}${diffPaths.length ? ` -- ${diffPaths.join(' ')}` : ''}`, 'diff', diff || '(empty diff)')}`;
 }
 
 function buildPrompt({ change, changeRel, h, skill, reviewer, head, stat, commits, diffPaths, lint, reviewRel }) {
@@ -144,9 +169,12 @@ ${lint.errors.length || lint.warnings.length ? [...lint.errors.map((e) => `- ERR
 
 ## Output format (markdown, nothing else)
 
+Under "## Verdict" write exactly one word, APPROVE or REQUEST_CHANGES, then a dash and one sentence with your reason (format only - judge this change yourself).
+Fill every section from your own analysis of the material above; do not copy these instructions. Every finding must quote or cite a real line from the diff; if you cannot cite one, it is not a finding. If coverage is complete and you find no defect, the verdict is APPROVE.
+
 \`\`\`
 ## Verdict
-APPROVE | REQUEST_CHANGES - one sentence
+<APPROVE or REQUEST_CHANGES> - <one sentence>
 
 ## Requirement coverage
 | Requirement (name) | Implemented | Tested | Notes |
@@ -171,10 +199,14 @@ export function runReview(plan, change) {
   if (!which(bin)) {
     throw new UsageError(`runner "${plan.runner}" needs "${bin}" on PATH. Install it, pick another with --runner, or use --emit-prompt and paste the prompt into a ${plan.reviewerModel} session`);
   }
+  const started = Date.now();
   const r = spawnSync(bin, plan.promptVia === 'arg' ? [...args, plan.prompt] : args, {
     cwd: change.root, input: plan.promptVia === 'arg' ? undefined : plan.prompt, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+    timeout: plan.timeoutMs,
   });
+  const seconds = ((Date.now() - started) / 1000).toFixed(1);
   const ok = r.status === 0 && r.stdout.trim().length > 0;
+  const verdict = ok ? parseVerdict(r.stdout) : 'none';
   const header = `# Adversarial review - ${plan.change}
 
 > Source of truth: [proposal](../../proposal.md) · [handoff](../../handoff.md)
@@ -186,13 +218,24 @@ export function runReview(plan, change) {
 | review skill | ${plan.skill} |
 | runner | ${plan.runner}: \`${plan.argv.join(' ')}\` |
 | range | ${plan.baseRef.slice(0, 12)}..${plan.head.slice(0, 12)} |
-| status | ${ok ? 'completed' : `FAILED (exit ${r.status})`} |
+| status | ${ok ? 'completed' : `FAILED (exit ${r.status})`} in ${seconds}s |
+| verdict | ${verdict} |
 
 `;
   fs.mkdirSync(path.dirname(plan.reviewPath), { recursive: true });
   fs.writeFileSync(plan.reviewPath, header + (r.stdout || '') + (ok ? '' : `\n\n## Runner stderr\n\n\`\`\`\n${r.stderr || r.error?.message || ''}\n\`\`\`\n`));
   if (ok) recordInHandoff(change, plan);
-  return { ok, status: r.status };
+  return { ok, status: r.status, seconds, verdict };
+}
+
+/** APPROVE / REQUEST_CHANGES from the "## Verdict" section, or "unparsed" if the reviewer didn't commit to one. */
+export function parseVerdict(text) {
+  const m = /##\s*Verdict\s*\n+\s*([^\n]*)/i.exec(text);
+  const line = m ? m[1] : '';
+  const has = (w) => new RegExp(`\\b${w}\\b`).test(line);
+  if (has('REQUEST_CHANGES') && !has('APPROVE')) return 'REQUEST_CHANGES';
+  if (has('APPROVE') && !has('REQUEST_CHANGES')) return 'APPROVE';
+  return 'unparsed';
 }
 
 function recordInHandoff(change, plan) {
@@ -230,7 +273,7 @@ async function main() {
     `  tool:            ${plan.tool} -> review skill: ${plan.skill}`,
     `  implementation:  ${plan.implementationModel}`,
     `  reviewer:        ${plan.reviewerModel}  [${plan.reviewerSource}]`,
-    `  runner:          ${plan.runner}: ${plan.argv.join(' ')}  (prompt via ${plan.promptVia})`,
+    `  runner:          ${plan.runner}: ${plan.argv.join(' ')}  (prompt via ${plan.promptVia}${plan.inlineContext ? ', context inlined' : ''})`,
     `  range:           ${plan.baseRef.slice(0, 12)}..${plan.head.slice(0, 12)}`,
     `  handoff lint:    ${plan.lint.errors} error(s), ${plan.lint.warnings} warning(s)`,
     `  output:          ${plan.reviewFile}`,
@@ -248,7 +291,7 @@ async function main() {
   }
   console.log(summary);
   const res = runReview(plan, change);
-  console.log(res.ok ? `  review written:  ${plan.reviewFile}` : `  runner failed (exit ${res.status}); details in ${plan.reviewFile}`);
+  console.log(res.ok ? `  review written:  ${plan.reviewFile} (${res.seconds}s, verdict: ${res.verdict})` : `  runner failed (exit ${res.status}) after ${res.seconds}s; details in ${plan.reviewFile}`);
   return res.ok ? 0 : 1;
 }
 

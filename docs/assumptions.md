@@ -54,3 +54,21 @@ Made autonomously while the user was unavailable. Each is cheap to change; the f
 - In the example change, `tasks.md` items 2.1 (adversarial review) and 2.2 (`/opsx:verify`) are deliberately
   left unticked: only the review *prompt* was emitted (no reviewer CLI here), and `/opsx:verify` is an agent
   workflow that wasn't run. `openspec validate --strict` and `check-handoff` do pass.
+
+## Free local reviewer (Ollama)
+
+- Ollama v0.40.2 (MIT) installed user-local at `~/.local/ollama` (CPU-only libraries extracted; no root).
+  `ollama pull` failed on this box (`redirect target not allowed: …r2.cloudflarestorage.com resolves to non-public
+  198.18.0.1` - the sandbox DNS maps the model CDN to a private IP, which Ollama refuses), so the open-weight
+  GGUF `Qwen/Qwen2.5-Coder-3B-Instruct-GGUF` (`q4_k_m`, Apache-2.0) was downloaded from Hugging Face and
+  registered with `ollama create qwen2.5-coder:3b` using an explicit ChatML template (the GGUF's Jinja template
+  produced empty output).
+- 3B, not 7B: the box has 8 CPUs, 15 GiB RAM but only ~3 GiB available, no GPU. A 7B Q4 model needs ~5 GB.
+- Runner `ollama` (`scripts/runners/ollama.mjs`) calls the local HTTP API (`/api/generate`, `num_ctx` 8192)
+  rather than `ollama run`, which emitted only terminal control codes when piped. `codex exec --oss` was not
+  used (direct runner was simpler and needs no Codex config).
+- Plain models have no tools, so runners with `inlineContext: true` get the proposal, deltas, design, tasks and
+  the full `git diff` pasted into the prompt. Fine for PR-sized changes; large diffs will overflow `num_ctx`
+  (the runner warns).
+- Review quality from the 3B model is weak (see `example/.../execution/reviews/triage.md`): one run copied the
+  format placeholder, two runs reported Critical findings that were false. Treat it as a smoke-test reviewer.

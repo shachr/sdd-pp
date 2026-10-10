@@ -39,3 +39,9 @@ diff_paths:
 
 - `diff_paths` scopes size checks to this example project (the toolkit repo is a monorepo).
 - Run `npm test` in `example/` after each ticket.
+
+## Reviews
+
+- qwen2.5-coder:3b via code-review: [execution/reviews/20261009-230321-qwen2.5-coder-3b.md](execution/reviews/20261009-230321-qwen2.5-coder-3b.md)
+- qwen2.5-coder:3b via code-review: [execution/reviews/20261009-230358-qwen2.5-coder-3b.md](execution/reviews/20261009-230358-qwen2.5-coder-3b.md)
+- qwen2.5-coder:3b via code-review: [execution/reviews/20261009-230422-qwen2.5-coder-3b.md](execution/reviews/20261009-230422-qwen2.5-coder-3b.md)
