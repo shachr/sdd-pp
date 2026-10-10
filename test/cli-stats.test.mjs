@@ -4,10 +4,8 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { run } from '../src/cli.mjs';
 
-const FLAG_ON = { TEXTKIT_STATS_CLI: '1' };
-
-// Runs the CLI core with fake streams and the given stdin text and environment.
-function cli(argv, { input = '', env = FLAG_ON } = {}) {
+// Runs the CLI core with fake streams, the given stdin text and an empty environment.
+function cli(argv, { input = '', env = {} } = {}) {
   const out = []; const err = [];
   const io = { stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, readStdin: () => input, env };
   const code = run(argv, io);
@@ -29,24 +27,14 @@ test('Unknown stats option', () => {
   }
 });
 
-test('Flag off', () => {
-  for (const env of [{}, { TEXTKIT_STATS_CLI: '0' }, { TEXTKIT_STATS_CLI: 'true' }]) {
-    const r = cli(['stats'], { input: 'Hi.', env });
-    assert.equal(r.code, 2);
-    assert.match(r.err, /unknown command: stats/);
-    assert.doesNotMatch(r.err, /commands: .*stats/);
-  }
-});
-
-test('Flag on', () => {
-  const r = cli(['stats'], { input: 'Hi.' });
-  assert.equal(r.out, 'words: 1\nsentences: 1\n');
-  assert.match(cli([], {}).err, /commands: slugify, stats/);
+test('stats is released: no environment variable needed, usage lists it', () => {
+  assert.equal(cli(['stats'], { input: 'Hi.' }).out, 'words: 1\nsentences: 1\n');
+  assert.match(cli([]).err, /commands: slugify, stats/);
 });
 
 test('bin/textkit.mjs pipes standard input into stats', () => {
   const bin = fileURLToPath(new URL('../bin/textkit.mjs', import.meta.url));
-  const out = execFileSync(process.execPath, [bin, 'stats'], { input: 'One. Two three!', encoding: 'utf8', env: { ...process.env, ...FLAG_ON } });
+  const out = execFileSync(process.execPath, [bin, 'stats'], { input: 'One. Two three!', encoding: 'utf8' });
   assert.equal(out, 'words: 3\nsentences: 2\n');
 });
 
