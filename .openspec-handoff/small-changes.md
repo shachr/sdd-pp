@@ -47,7 +47,7 @@ approves or edits them. Nothing is split automatically.
      **control plane**: `proposal.md` (why and scope) and `slices.md` with front matter
      `parent / approved_by / split_at / split_commit` and one block per slice: id, goal, capabilities,
      depends_on, flag (or removes_flag), ticket, status. **No requirement or scenario names** and no behaviour
-     (the loss check fails on any original name in the parent's proposal.md, slices.md or tickets/). Its
+     (the loss check fails on any original name in the parent's proposal.md, slices.md or tickets/). The shared design session (`execution/grill.md` / `brainstorm.md`) stays in the parent because the slices read it; it was written before the split and names behaviour, so the loss check only reports it (warning) - never update it after the split. Its
      `specs/` and `execution/split-proposal.md` are removed; OpenSpec sets `skip_specs: true`.
    - one **child** change per slice (schema `handoff-driven`) with the original requirement blocks copied
      verbatim into live deltas (exact names; `## Purpose` for new capabilities) and an empty

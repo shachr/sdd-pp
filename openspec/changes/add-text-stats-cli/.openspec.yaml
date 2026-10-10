@@ -1,2 +1,3 @@
-schema: handoff-driven
+schema: split-plan
 created: 2026-10-10
+skip_specs: true

@@ -32,7 +32,3 @@ The system SHALL estimate the reading time in whole minutes as the word count di
 #### Scenario: Short text reads in one minute
 - **WHEN** the text has 1 to 200 words
 - **THEN** the reading time is 1 minute
-
-#### Scenario: Empty text reads in zero minutes
-- **WHEN** the text has no words
-- **THEN** the reading time is 0 minutes

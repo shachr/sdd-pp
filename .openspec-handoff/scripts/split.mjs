@@ -188,6 +188,22 @@ export function parentLeaks(root, parentId) {
   return out;
 }
 
+/** The shared design session stays in the parent (slices read it); it predates the split and names behaviour. Reported, not failed. */
+export function sessionMentions(root, parentId) {
+  const { dir } = parentDir(root, parentId);
+  const plan = parseSlices(fs.readFileSync(path.join(dir, 'slices.md'), 'utf8'));
+  if (!plan.front.split_commit) return [];
+  const names = baselineDeltas(root, plan.front.split_commit, plan.front.original || parentId).flatMap((r) => [r.name, ...r.scenarios]);
+  const out = [];
+  for (const f of ['execution/grill.md', 'execution/brainstorm.md']) {
+    const p = path.join(dir, f);
+    if (!fs.existsSync(p)) continue;
+    const n = new Set(nameLeaks(fs.readFileSync(p, 'utf8'), names).map((l) => l.name)).size;
+    if (n) out.push(`${parentId}/${f} (shared design session, written before the split) names ${n} original requirements/scenarios - it is the slices' design record, not a control-plane file; never update it after the split`);
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ next / tickets / mark
 export function nextReport(root, parentId) {
   const { dir } = parentDir(root, parentId);
@@ -457,6 +473,7 @@ async function main() {
     const r = lossCheck(root, id, { final: values.final });
     const leaks = parentLeaks(root, id);
     r.errors.push(...leaks);
+    r.warnings.push(...sessionMentions(root, id));
     console.log(values.json ? JSON.stringify(r, null, 2) : formatLoss(r));
     return r.errors.length ? 1 : 0;
   }
