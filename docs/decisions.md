@@ -150,3 +150,13 @@ Requested by the user; built in this toolkit, proven in `/workspace/handoff-flow
 
 Documented limits after v6: the rename step is agent judgement (the script only lists candidates); "in progress" is a manual mark. Removed from the limits: "a history rewrite breaks the baseline" - the user treats the split commit like any code commit (do not rewrite published history).
 
+
+Found and fixed while running handoff-flows-v6 (2026-10-10):
+
+| # | Finding | Fix |
+|---|---|---|
+| V1 | The shared design session stays in the parent (slices read it) and names the original requirements, which Q1 forbids in the control plane. | Not moved (the slices need it, and it predates the split); `split.mjs loss` reports it as a warning ("never update it after the split"); scope of the name check = proposal.md, slices.md, tickets/. |
+| V2 | `split.mjs next` printed "Parallel-safe later" for two slices both marked in progress. | New line "Parallel-safe with work in progress" (taken or ready pairs). |
+| V3 | The split-notes template comment in child proposals tripped the proposal implementation-detail lint. | The lint skips HTML comments and the `## Split notes` section. |
+| V4 | The `/spec-check` report (`execution/spec-check.md`) tripped the paraphrase lint. | `spec-check.md` and `split-check.md` are exempt, like reviews and verify. |
+| V5 | A slice whose capability is created by an earlier slice (depends_on) listed it as a new capability. | `split.mjs apply` lists it under Modified Capabilities. |
