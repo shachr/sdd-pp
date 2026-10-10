@@ -1,0 +1,8 @@
+{
+  "name": "greeter-example",
+  "private": true,
+  "type": "module",
+  "description": "Minimal test repo exercising the OpenSpec handoff workflow end to end",
+  "bin": { "greet": "src/cli.mjs" },
+  "scripts": { "test": "node --test test/" }
+}
