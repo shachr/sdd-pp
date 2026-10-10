@@ -105,7 +105,7 @@ const LIST_FIELDS = new Set(['capabilities', 'depends_on', 'requirements', 'spli
  *             - Requirement "<name>" split into "A", "B" - confirmed
  */
 export function parseSlices(text) {
-  const slices = []; const checklist = []; const amendments = []; const front = {};
+  const slices = []; const checklist = []; const amendments = []; const front = {}; const duplicates = []; const seen = new Map();
   let cur = null; let section = null; let lastReq = null;
   const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
   if (fm) for (const l of fm[1].split(/\r?\n/)) { const m = /^(\w+):\s*(.*)$/.exec(l); if (m) front[m[1]] = m[2].trim(); }
@@ -115,6 +115,7 @@ export function parseSlices(text) {
     if ((m = /^###\s+Slice:\s*(\S+)/.exec(line))) { cur = { id: m[1], line: i + 1, depends_on: [], capabilities: [], requirements: [], split: [], flag: null }; slices.push(cur); return; }
     if (cur && (m = /^-\s+([a-z_]+):\s*(.*)$/.exec(line))) {
       const [, k, v] = m;
+      if (k !== 'split') { const ks = seen.get(cur) || new Set(); if (ks.has(k)) duplicates.push({ slice: cur.id, field: k, line: i + 1 }); ks.add(k); seen.set(cur, ks); }
       if (k === 'split') cur.split.push(...parseSplitField(v));
       else if (LIST_FIELDS.has(k)) cur[k] = /^(none|-)?$/i.test(v.trim()) ? [] : v.split(k === 'requirements' ? ';' : ',').map((x) => x.trim()).filter(Boolean);
       else if (k === 'estimate') cur.estimate = Number((/\d+/.exec(v) || [NaN])[0]);
@@ -134,7 +135,7 @@ export function parseSlices(text) {
       else amendments.push({ kind, name, type: 'unknown', text: rest, line: i + 1 });
     }
   });
-  return { front, slices, checklist, amendments };
+  return { front, slices, checklist, amendments, duplicates };
 }
 
 /** "Original -> New A [Scen 1; Scen 2]; Original -> New B [Scen 3]" */
@@ -193,6 +194,7 @@ export function lintSlices(plan, { limit = SPLIT_LIMIT_DEFAULT, text = '' } = {}
       if (!c.depends_on.includes(s.id)) warnings.push(`cleanup slice "${c.id}" should depend on flagged slice "${s.id}"`);
     }
   }
+  for (const d of plan.duplicates || []) warnings.push(`slices.md:${d.line}: slice "${d.slice}" has "${d.field}:" twice (a union merge of two branches?) - keep one; the last one wins`);
   for (const l of behaviourLeaks(text)) errors.push(`line ${l.line}: behaviour text in a split plan (names only; behaviour lives in the child deltas): "${l.text}"`);
   return { errors, warnings };
 }

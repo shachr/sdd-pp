@@ -78,6 +78,10 @@ them. Nothing is split automatically.
 A slice gate (`/split-check <slice>`) uses the approved slice estimate from `slices.md` when the slice has no
 `execution/size-estimate.md` of its own (one line when it fits).
 
+Slices run in parallel on their own branches, and each may append amendment lines to the parent's `slices.md`.
+`install.sh` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` so those appends merge without
+conflicts; `split.mjs loss` warns if a union merge left a slice field twice.
+
 Edit the child delta, add the amendment, rerun `split.mjs loss <parent>`, then update the tool files
 (rerun the planning command, then `/spec-check`).
 
