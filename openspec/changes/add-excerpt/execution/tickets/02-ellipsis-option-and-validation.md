@@ -6,11 +6,11 @@
 
 **Blocked by:** 01 (Word-safe excerpt with the default ellipsis)
 
-**Status:** ready-for-agent
+**Status:** done
 
 Estimate: ~50 lines
 
-- [ ] Scenario "Custom ellipsis" passes
-- [ ] Scenario "No ellipsis" passes
-- [ ] Scenario "Text is not a string" passes
-- [ ] Scenario "Invalid maximum length" passes
+- [x] Scenario "Custom ellipsis" passes
+- [x] Scenario "No ellipsis" passes
+- [x] Scenario "Text is not a string" passes
+- [x] Scenario "Invalid maximum length" passes

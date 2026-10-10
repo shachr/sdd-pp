@@ -31,3 +31,21 @@ test('Whitespace collapsed', () => {
 test('Emoji count as one character', () => {
   assert.equal(excerpt('🙂🙂🙂 smile more', 5), '🙂🙂🙂…');
 });
+
+test('Custom ellipsis', () => {
+  assert.equal(excerpt('one two three', 10, { ellipsis: '...' }), 'one two...');
+});
+
+test('No ellipsis', () => {
+  assert.equal(excerpt('one two three', 9, { ellipsis: '' }), 'one two');
+});
+
+test('Text is not a string', () => {
+  assert.throws(() => excerpt(42, 10), TypeError);
+});
+
+test('Invalid maximum length', () => {
+  assert.throws(() => excerpt('Hello', -1), RangeError);
+  assert.throws(() => excerpt('Hello', 1.5), RangeError);
+  assert.throws(() => excerpt('Hello', 0), RangeError);
+});
