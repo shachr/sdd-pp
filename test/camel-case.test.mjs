@@ -17,3 +17,6 @@ test('Nothing to convert', () => {
   assert.equal(camelCase('  --  '), '');
   assert.equal(camelCase('🙂 !!'), '');
 });
+test('Review fix: combining marks alone are not a word', () => {
+  assert.equal(camelCase(' \u0301 - \u0308 '), '');
+});
