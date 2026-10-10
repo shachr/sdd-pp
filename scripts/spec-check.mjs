@@ -154,7 +154,7 @@ export function formatReport(r) {
     out.push('', '### Size (line estimate after planning, warn-only; the ~300-line budget is checked only here)', '');
     out.push(`- ${s.estimated}/${s.units} tickets / plan tasks carry an "Estimate: ~N lines" line; total ~${s.total} lines (code + tests), budget ~${s.limit}.`);
     if (s.missing.length) out.push(`- ! no estimate: ${s.missing.join('; ')}`);
-    if (s.total > s.limit) out.push(`- ! over budget: consider re-splitting with /split-check ${r.change} before implementing (new slices join the same parent).`);
+    if (s.total > s.limit) out.push(`- ! over budget: consider re-splitting with /split-check ${r.change} before implementing (a slice is re-split into its existing parent; /split-apply builds the new slice ids).`);
   }
   out.push('', `### Spec changes since the last check (report-only${r.previousAt ? `; baseline ${r.previousAt}` : ''})`, '');
   if (!r.specChanges) out.push(`- none: first check - baseline recorded in ${SNAPSHOT} (content hash per requirement and scenario)`);
