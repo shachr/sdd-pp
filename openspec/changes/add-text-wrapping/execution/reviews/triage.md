@@ -10,7 +10,7 @@ Reviews:
 | # | Severity (reviewer) | Finding | Ruling | Evidence |
 |---|---|---|---|---|
 | 1 | Critical | `src/text-wrapping.mjs:30-31`: the remainder of a split word is "not preserved" for later words; scenario "Remainder shares its line" passes "by coincidence". | **Rejected.** The file has 25 lines; the piece loop leaves the last piece in `line`, which the next iteration extends. The reviewer's own example returns the expected value. | Probes: `("abcdefghij xy z", 4)` -> `["abcd","efgh","ij","xy z"]`; `("abcdefgh x", 4)` -> `["abcd","efgh","x"]`; `("ab abcdefghij c d", 5)` -> `["ab","abcde","fghij","c d"]`. All follow requirement "Overlong words are split". |
-| 2 | Important | `src/text-wrapping.mjs:23-24`: the space-run split "may not" handle a split word joining a later word. | **Rejected.** Same claim as 1; no failing input named. Covered by scenarios "Space runs collapse" and "Remainder shares its line" and the probes above. | `npm test` 22/22. |
+| 2 | Important | `src/text-wrapping.mjs:23-24`: the space-run split "may not" handle a split word joining a later word. | **Rejected.** Same claim as 1; no failing input named. Covered by scenarios "Space runs collapse" and "Remainder shares its line" and the probes above. | `npm test` 12/12. |
 | 3 | Minor | The error message should say the width must be a positive integer. | **Rejected (already so).** | `wrapText('a', 0)` -> `RangeError: width must be a positive integer, got 0`. |
 
 No code changes. Task 2.1 ticked.
