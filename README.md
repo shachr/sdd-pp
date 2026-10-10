@@ -5,7 +5,9 @@
 > [v3 setup phase](examples/handoff-flows-v3/), [v4 no tasks stage](examples/handoff-flows-v4/),
 > [v5 first split](examples/handoff-flows-v5/), [v6 split control plane](examples/handoff-flows-v6/),
 > [v7 clean test: parent design session names are harmless](examples/handoff-flows-v7/),
-> [v8 first full run of the Node installer](examples/handoff-flows-v8/).
+> [v8 first full run of the Node installer](examples/handoff-flows-v8/),
+> [v9 implement-spec + subagent-driven-development, spec-change report](examples/handoff-flows-v9/).
+> The runs used the command names of their time (`/handoff`, `/spec-check`, ...); the commands are now prefixed `/sdd-` (`docs/decisions.md` section 22).
 > Third-party skills inside them are MIT-licensed; see [`examples/README.md`](examples/README.md).
 
 OpenSpec decides **what** to build (proposal + delta specs, nothing else); AI Hero or Superpowers decide
