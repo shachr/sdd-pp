@@ -90,7 +90,7 @@ Run: `npm test` - Expected: PASS.
 - Consumes: `hasWord` from Task 1.
 - Produces: `export function sentenceCount(text: unknown): number` from `src/stats.mjs`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```js
 import { sentenceCount } from '../src/stats.mjs';
@@ -105,19 +105,19 @@ test('Review focus: no words, decimals', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test` - Expected: FAIL (`sentenceCount` is not exported).
 
-- [ ] **Step 3: Implement `sentenceCount`**
+- [x] **Step 3: Implement `sentenceCount`**
 
 `String(text).split(/[.!?]+/).filter(hasWord).length`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm test` - Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 `git add src/stats.mjs test/stats.test.mjs && git commit -m "feat(text-stats): sentence count (plan task 2)"`
 
