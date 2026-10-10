@@ -39,6 +39,7 @@ Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches 
    - `## Scenarios found`: names only of behaviours the grilling surfaced - each one becomes a requirement or scenario in the delta (the delta holds its WHEN/THEN, not this file)
    - links to `GLOSSARY.md` / ADRs written by domain-modeling
 4. Hand back to OpenSpec: write `proposal.md` (what/why only - no decisions, file layouts or algorithms; those stay in grill.md) and the delta (every scenario from step 3, `## Purpose` first for a new capability). `openspec validate <id> --strict`. `check-handoff` warns on implementation detail in proposal.md.
+5. Once the delta exists, point the behavioural answers in the grilling record at it by name (`-> delta Scenario "<name>"`) instead of keeping the rule's wording twice; `check-handoff` flags likely paraphrases as warnings.
 
 ## Planning (handoff)
 
