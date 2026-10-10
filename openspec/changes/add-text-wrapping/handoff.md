@@ -24,7 +24,8 @@ Implementation diff: `git diff 7f9392d...HEAD -- . ':!openspec'`
 | Tool step | Writes to |
 |-----------|-----------|
 | ai-hero `grill-with-docs` (decisions answered on the user's behalf - user delegated) | `execution/design.md`; glossary terms -> `GLOSSARY.md`, ADRs -> `docs/adr/` |
-| ai-hero `to-tickets` (fed from the delta, not from to-spec) | `execution/tickets/NN-<slug>.md` |
+| ai-hero `to-spec` (user-facing sections link the proposal/delta) | `execution/spec.md` |
+| ai-hero `to-tickets` (scenarios cited by name) | `execution/tickets/NN-<slug>.md` |
 | ai-hero `implement` + `tdd`, then `code-review` | code + tests; `execution/reviews/self-review.md` |
 | `/adversarial-review` | `execution/reviews/<timestamp>-<reviewer-model>.md` |
 | `/opsx:verify` report | `execution/verify.md` |

@@ -1,4 +1,4 @@
-> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/text-wrapping/spec.md) · [design](../design.md)
+> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/text-wrapping/spec.md) · [spec](../spec.md) · [design](../design.md)
 
 # 01: text-wrapping module - line filling
 
