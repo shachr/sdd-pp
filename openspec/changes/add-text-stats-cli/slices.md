@@ -20,7 +20,7 @@ Archive this parent last: `split.mjs loss add-text-stats-cli --final`, then `ope
 - depends_on: none
 - flag: none
 - ticket: tickets/add-text-stats-core.md
-- status: planned
+- status: in-progress
 
 ### Slice: add-cli
 - goal: The textkit command-line tool with slugify and usage errors
@@ -28,7 +28,7 @@ Archive this parent last: `split.mjs loss add-text-stats-cli --final`, then `ope
 - depends_on: none
 - flag: none
 - ticket: tickets/add-cli.md
-- status: planned
+- status: in-progress
 
 ### Slice: add-stats-cli
 - goal: The stats sub-command, dark behind a flag
