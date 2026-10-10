@@ -42,9 +42,10 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
   // planning (OpenSpec)
   assert.match(osx('new', 'change', ID), /Schema: handoff-driven/);
   assert.equal(status().proposal, 'ready');
-  copy('proposal.md'); copy('specs'); copy('design.md');
+  copy('proposal.md'); copy('specs');
   assert.equal(status().handoff, 'ready');
-  assert.equal(status().execution, 'blocked');
+  assert.equal(status().tasks, 'blocked');
+  assert.equal(status().design, undefined, 'no OpenSpec design artifact');
 
   // handoff
   const base = g('rev-parse', 'HEAD');
@@ -53,11 +54,10 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
     .replace(/\n## Reviews[\s\S]*$/, '\n');
   fs.writeFileSync(path.join(changeDir, 'handoff.md'), handoff);
   sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID]);
-  assert.equal(status().execution, 'ready');
-
-  // execution (AI Hero outputs redirected into the change folder) + implementation
-  copy('execution/spec.md'); copy('execution/tickets');
   assert.equal(status().tasks, 'ready');
+
+  // execution planning (AI Hero grill-with-docs + to-tickets, redirected into the change folder) + implementation
+  copy('execution/design.md'); copy('execution/tickets');
   copy('tasks.md');
   for (const p of ['src/greet.mjs', 'src/cli.mjs', 'test/greet.test.mjs', 'test/cli.test.mjs']) {
     fs.copyFileSync(path.join(TOOLKIT, 'example', p), path.join(dir, p));
@@ -82,6 +82,7 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
   // OpenSpec validation + archive
   assert.match(osx('validate', ID, '--strict'), /is valid/);
   sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID]);
+  // agents archive with /opsx:archive (agent-driven sync); the CLI archive is the scripted equivalent
   osx('archive', ID, '--yes');
   const mainSpec = fs.readFileSync(path.join(dir, 'openspec/specs/greeting/spec.md'), 'utf8');
   assert.match(mainSpec, /### Requirement: Greeting by name/);

@@ -15,16 +15,16 @@ diff_paths:
 ## Source of truth
 
 - Proposal: [proposal.md](proposal.md)
-- Design: [design.md](design.md)
 - Spec deltas:
   - [specs/greeting/spec.md](specs/greeting/spec.md) - both ADDED requirements
+
+Design and implementation are owned by the execution tool (below); OpenSpec has no design step.
 
 ## Execution artifacts
 
 | Tool step | Writes to |
 |-----------|-----------|
-| ai-hero `grill-with-docs` | skipped - proposal and design already settle the open questions |
-| ai-hero `to-spec` | `execution/spec.md` |
+| ai-hero `grill-with-docs` | `execution/design.md` |
 | ai-hero `to-tickets` | `execution/tickets/NN-<slug>.md` |
 | ai-hero `implement` (+ `tdd`) | code in `src/`, `test/`; ticks `tasks.md` |
 | `/adversarial-review` | `execution/reviews/<timestamp>-<reviewer-model>.md` |

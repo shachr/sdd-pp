@@ -106,7 +106,9 @@ export function buildPlan(change, config, opts = {}) {
  * cannot open files or run git itself.
  */
 function inlineContext(change, changeRel, h, diffPaths) {
-  const files = ['proposal.md', ...change.deltas, 'design.md', 'tasks.md'].filter((f) => change.read(f) !== null);
+  // design is the execution tool's: execution/design.md (ai-hero) or the plan (superpowers)
+  const design = change.execution.filter((f) => f === 'execution/design.md' || /^execution\/plan(-[^/]+)?\.md$/.test(f));
+  const files = ['proposal.md', ...change.deltas, ...design, 'tasks.md'].filter((f) => change.read(f) !== null);
   let diff;
   try {
     diff = git(change.root, ['diff', h.base_ref, '--', ...(diffPaths.length ? diffPaths : ['.']), ':(exclude)openspec/**']).trim();
@@ -140,11 +142,10 @@ ${howTo}
 The OpenSpec change folder \`${changeRel}/\` is the only source of requirements.
 - ${changeRel}/proposal.md - why and scope
 ${files(change.deltas)}  <- spec deltas: THE requirements (### Requirement / #### Scenario)
-- ${changeRel}/design.md - agreed approach
 - ${changeRel}/handoff.md - who implemented it and where outputs live
 
-Execution artifacts (implementation context only - they must not add or change requirements):
-${files(change.execution.filter((f) => !f.startsWith('execution/reviews/')))}
+Execution artifacts (the execution tool's design, plan and tickets - implementation context only; they must not add or change requirements):
+${files(change.execution.filter((f) => !f.startsWith('execution/reviews/') && f !== 'execution/verify.md'))}
 
 ## What changed
 

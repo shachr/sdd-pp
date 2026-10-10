@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // check-handoff: lint one OpenSpec change that uses the handoff-driven schema.
 //   - handoff.md front matter is complete (tool, implementation_model, base_ref ...)
-//   - reference-not-duplicate: handoff.md and execution/** link the proposal/deltas
-//     and do not copy requirement text
+//   - reference-not-duplicate: handoff.md and execution/** link the proposal/deltas and
+//     do not copy, restate (forbidden sections, SHALL) or paraphrase (token overlap) them
+//   - ownership: no OpenSpec design.md, no to-spec output; design lives in execution/
 //   - execution outputs live in the change folder, not the tools' default locations
 //   - the change is PR-sized (.openspec-handoff/small-changes.md)
 // Usage: node check-handoff.mjs <change-id> [--root <dir>] [--config <file>] [--json] [--no-git]
@@ -13,6 +14,7 @@ import { parseArgs } from 'node:util';
 import {
   findProjectRoot, loadChange, loadConfig, normativeLines, normalize, countRequirements,
   countWorkUnits, diffSize, git, TOOLS, REQUIRED_KEYS, UsageError,
+  paraphraseFindings, PARAPHRASE, FORBIDDEN_SECTIONS, findPlan,
 } from './lib/change.mjs';
 
 export function checkChange(change, config, { useGit = true } = {}) {
@@ -48,18 +50,33 @@ export function checkChange(change, config, { useGit = true } = {}) {
   }
   if (change.deltas.length === 0) warnings.push('change has no spec deltas (fine only with skip_specs: true)');
 
-  // 3. reference, don't duplicate: copied requirement text
+  // 3. reference, don't duplicate: copied, restated or paraphrased requirement text.
+  //    Review outputs (execution/reviews/**, execution/verify.md, *.prompt.md) discuss the
+  //    requirements by design and are exempt.
+  const exempt = (f) => f.startsWith('execution/reviews/') || f === 'execution/verify.md' || f.endsWith('.prompt.md');
   const protectedLines = new Map();
   for (const d of change.deltas) for (const l of normativeLines(change.read(d))) protectedLines.set(l, d);
-  const targets = [['handoff.md', change.handoffText], ...change.execution.filter((f) => f.endsWith('.md') && !f.startsWith('execution/reviews/')).map((f) => [f, change.read(f)])];
+  const targets = [['handoff.md', change.handoffText], ...change.execution.filter((f) => f.endsWith('.md') && !exempt(f)).map((f) => [f, change.read(f)])];
+  const paraphrase = config.paraphrase ? { ...PARAPHRASE, ...config.paraphrase } : PARAPHRASE;
   for (const [file, text] of targets) {
     if (/^###\s+Requirement:|^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements|^####\s+Scenario:/m.test(text)) {
       errors.push(`${file}: contains spec-delta headers (Requirement/Scenario/ADDED...) - link the delta instead`);
     }
+    const forbidden = FORBIDDEN_SECTIONS.exec(text);
+    if (forbidden) errors.push(`${file}: section "${forbidden[0].trim()}" restates behaviour - the proposal + delta are the spec; cite requirements by name + link`);
+    const prose = text.replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, '');
+    const shall = /^.*\bSHALL\b.*$/m.exec(prose);
+    if (shall) errors.push(`${file}: normative SHALL sentence ("${shall[0].trim().slice(0, 60)}") - requirements live only in the delta`);
     const norm = normalize(text);
     for (const [line, src] of protectedLines) {
       if (norm.includes(line)) {
         errors.push(`${file}: duplicates requirement text from ${src}: "${line.slice(0, 70)}..." - link it instead`);
+      }
+    }
+    for (const d of change.deltas) {
+      for (const p of paraphraseFindings(text, change.read(d), paraphrase)) {
+        const msg = `${file}:${p.line}: ${p.level === 'error' ? 'paraphrases' : 'may paraphrase'} ${p.unit} of ${d} (overlap ${p.jaccard.toFixed(2)}): "${p.raw.slice(0, 70)}" - cite it by name instead`;
+        (p.level === 'error' ? errors : warnings).push(msg);
       }
     }
   }
@@ -69,7 +86,9 @@ export function checkChange(change, config, { useGit = true } = {}) {
     if (!/proposal\.md/.test(change.read(f))) errors.push(`${f}: must start with a "Source of truth" line linking proposal.md`);
   }
 
-  // 5. outputs redirected into the change folder
+  // 5. ownership and locations: OpenSpec = proposal + deltas; design/plan/tickets = execution tool, in execution/
+  if (change.files.includes('design.md')) errors.push('design.md in the change folder: design is owned by the execution tool - move decisions to execution/design.md (ai-hero) or the plan (superpowers)');
+  if (change.execution.includes('execution/spec.md')) errors.push('execution/spec.md (to-spec output): the proposal + delta are the spec - do not run to-spec; feed to-tickets from the delta');
   const strays = [
     path.join(change.root, '.scratch', change.id),
     ...['docs/superpowers/plans', 'docs/superpowers/specs'].flatMap((d) => {
@@ -81,8 +100,10 @@ export function checkChange(change, config, { useGit = true } = {}) {
   if (h.tool === 'ai-hero' && !change.execution.some((f) => f.startsWith('execution/tickets/')) && change.execution.length) {
     warnings.push('tool is ai-hero but execution/tickets/ is empty (to-tickets output expected there)');
   }
-  if (h.tool === 'superpowers' && change.execution.length && !change.execution.includes('execution/plan.md')) {
-    warnings.push('tool is superpowers but execution/plan.md is missing (writing-plans output expected there)');
+  if (h.tool === 'superpowers' && change.execution.length) {
+    const plan = findPlan(change);
+    if (!plan) warnings.push(`tool is superpowers but execution/plan-${change.id}.md is missing (writing-plans output expected there)`);
+    else if (plan !== `execution/plan-${change.id}.md`) warnings.push(`${plan}: name the plan execution/plan-${change.id}.md so its SDD workspace (.superpowers/sdd/<plan-basename>/) is unique to this change`);
   }
 
   // 6. PR-sized

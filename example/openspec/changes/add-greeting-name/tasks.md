@@ -13,5 +13,5 @@
 
 ## Workflow follow-up
 
-- Run /opsx:verify add-greeting-name once every box above is ticked.
-- Archive with `openspec archive add-greeting-name` after the PR merges.
+- Run /opsx:verify add-greeting-name once every box above is ticked; save the report to execution/verify.md.
+- Run /opsx:archive add-greeting-name after the PR merges.

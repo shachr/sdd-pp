@@ -1,13 +1,14 @@
-# 01: greet() accepts a name
+> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/greeting/spec.md) · [design](../design.md)
 
-> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/greeting/spec.md) · [execution spec](../spec.md)
+# 01: greet() - name parameter
 
-**What to build:** `greet()` greets a given name and falls back to the default greeting for missing or blank names, covered by unit tests at the `greet()` seam.
+**What to build:** [delta](../../specs/greeting/spec.md) - "Requirement: Greeting by name" and "Requirement: Blank name falls back to default", implemented in `greet()` and proven at the `greet()` seam (see [design](../design.md)).
 
 **Blocked by:** None (can start immediately)
 
 **Status:** done
 
-- [x] Scenarios "Name given" and "Name with surrounding spaces" pass as `greet()` unit tests
-- [x] Scenario "Whitespace-only name" passes as a `greet()` unit test
+- [x] Scenario "Name given" passes (greet unit test)
+- [x] Scenario "Name with surrounding spaces" passes (greet unit test)
+- [x] Scenario "Whitespace-only name" passes (greet unit test)
 - [x] Existing "Default greeting" test still passes

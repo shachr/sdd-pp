@@ -15,5 +15,5 @@
 ## Workflow follow-up
 
 <!-- Plain bullets, not checkboxes: /opsx:verify flags every unticked box as CRITICAL. -->
-- Run /opsx:verify <change-id> once every box above is ticked.
-- Archive with `openspec archive <change-id>`.
+- Run /opsx:verify <change-id> once every box above is ticked; save the report to execution/verify.md.
+- Run /opsx:archive <change-id> (agent-driven sync of the deltas, then move to archive/).

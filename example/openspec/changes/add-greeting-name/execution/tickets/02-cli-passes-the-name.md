@@ -1,12 +1,12 @@
-# 02: CLI passes the name through
+> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/greeting/spec.md) · [design](../design.md)
 
-> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/greeting/spec.md) · [execution spec](../spec.md)
+# 02: CLI - argv wiring
 
-**What to build:** `greet Ada` on the command line prints the named greeting, by passing the first argument to `greet()`.
+**What to build:** [delta](../../specs/greeting/spec.md) - "Requirement: Greeting by name" end to end through `cli.mjs` (argv wiring per [design](../design.md)).
 
 **Blocked by:** 01
 
 **Status:** done
 
-- [x] CLI test spawning `node src/cli.mjs Ada` sees the named greeting on stdout and exit status 0
+- [x] Scenario "Name given" passes as a CLI test spawning the script
 - [x] Running with no arguments is unchanged (CLI test)

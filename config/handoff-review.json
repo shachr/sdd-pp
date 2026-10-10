@@ -4,12 +4,12 @@
     "ai-hero": {
       "skill": "code-review",
       "source": "mattpocock/skills skills/engineering/code-review",
-      "howTo": "Two-axis review (Standards + Spec) of `git diff {base_ref}...HEAD`. Use the OpenSpec change folder as the Spec source: proposal.md and the spec deltas are the requirements; execution/spec.md and execution/tickets/ are implementation context only."
+      "howTo": "Two-axis review (Standards + Spec) of `git diff {base_ref}...HEAD`. Use the OpenSpec change folder as the Spec source: proposal.md and the spec deltas are the requirements; execution/design.md and execution/tickets/ are implementation context only."
     },
     "superpowers": {
       "skill": "requesting-code-review",
       "source": "obra/superpowers skills/requesting-code-review (code-reviewer.md template)",
-      "howTo": "Fill the code-reviewer.md template with DESCRIPTION = the proposal's Why/What Changes, PLAN_OR_REQUIREMENTS = the spec deltas plus execution/plan.md, BASE_SHA = {base_ref}, HEAD_SHA = HEAD. Report Critical / Important / Minor."
+      "howTo": "Fill the code-reviewer.md template with DESCRIPTION = the proposal's Why/What Changes, PLAN_OR_REQUIREMENTS = the spec deltas plus execution/plan-<change>.md, BASE_SHA = {base_ref}, HEAD_SHA = HEAD. Report Critical / Important / Minor."
     }
   },
   "reviewerFor": {

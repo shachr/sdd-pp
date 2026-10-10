@@ -120,10 +120,18 @@ export function countRequirements(deltaText) {
   return (deltaText.match(/^###\s+Requirement:/gm) || []).length;
 }
 
+/** The Superpowers plan: execution/plan-<id>.md (preferred) or legacy execution/plan.md. */
+export function findPlan(change) {
+  const own = `execution/plan-${change.id}.md`;
+  if (change.execution.includes(own)) return own;
+  return change.execution.find((f) => /^execution\/plan(-[^/]+)?\.md$/.test(f)) || null;
+}
+
 /** Count execution work units: ai-hero tickets or superpowers plan tasks. */
 export function countWorkUnits(change) {
   const tickets = change.execution.filter((f) => /^execution\/tickets\/[^/]+\.md$/.test(f)).length;
-  const plan = change.read('execution/plan.md');
+  const planFile = findPlan(change);
+  const plan = planFile ? change.read(planFile) : null;
   const planTasks = plan ? (plan.match(/^###\s+Task\s+\d+/gm) || []).length : 0;
   return { tickets, planTasks, units: Math.max(tickets, planTasks) };
 }
@@ -181,3 +189,94 @@ export function modelFamily(m, families = {}) {
   }
   return n.split('-').slice(0, 2).join('-');
 }
+
+// ---------------------------------------------------------------------------
+// Paraphrase detection (reference, don't duplicate - beyond verbatim copies).
+// Each requirement statement and each scenario (WHEN/THEN text) of a delta is a
+// "unit". Every prose line/sentence of an execution artifact (code fences and
+// inline code removed, link targets and requirement/scenario NAMES removed, so
+// citing by name stays legal) is compared to every unit with content-token
+// overlap. Thresholds were tuned on real flow output (docs/decisions.md C6).
+// ---------------------------------------------------------------------------
+const STOP = new Set(('a an the and or of to in on for is are be it its this that with as at by from when then ' +
+  'shall must should will which any than not no if only into per each was were has have do does can').split(' '));
+
+export function contentTokens(s) {
+  return (s.toLowerCase().normalize('NFKC').match(/[\p{L}\p{N}]+/gu) || [])
+    .filter((t) => !STOP.has(t) && (t.length > 1 || /\d/.test(t)))
+    .map((t) => (t.length > 4 ? t.replace(/(ing|ed|es|s)$/, '') : t));
+}
+
+/** Requirement statements and scenarios of one delta, with their names. */
+export function deltaUnits(deltaText) {
+  const units = []; const names = [];
+  let req = null; let scen = null;
+  const flush = () => {
+    if (scen && scen.text.trim()) units.push(scen);
+    scen = null;
+  };
+  const flushReq = () => { if (req && req.text.trim()) units.push(req); };
+  for (const line of deltaText.split(/\r?\n/)) {
+    let m;
+    if ((m = /^###\s+Requirement:\s*(.*)$/.exec(line))) {
+      flush(); flushReq();
+      req = { kind: 'requirement', name: m[1].trim(), text: '' }; names.push(req.name); continue;
+    }
+    if ((m = /^####\s+Scenario:\s*(.*)$/.exec(line))) {
+      flush(); flushReq(); if (req) req = { ...req, text: '' };
+      scen = { kind: 'scenario', name: m[1].trim(), requirement: req?.name, text: '' }; names.push(scen.name); continue;
+    }
+    if (/^##\s/.test(line)) { flush(); flushReq(); req = null; continue; }
+    const clean = line.replace(/\*\*(WHEN|THEN|AND|GIVEN)\*\*/g, ' ');
+    if (scen) scen.text += ' ' + clean; else if (req) req.text += ' ' + clean;
+  }
+  flush(); flushReq();
+  return { units: units.map((u) => ({ ...u, tokens: new Set(contentTokens(u.text)) })), names };
+}
+
+function proseCandidates(md, names) {
+  const out = []; let fence = false; let n = 0;
+  const sorted = [...names].sort((a, b) => b.length - a.length);
+  for (const raw of md.split(/\r?\n/)) {
+    n += 1;
+    if (/^\s*(```|~~~)/.test(raw)) { fence = !fence; continue; }
+    if (fence || !raw.trim() || /^>\s*Source of truth/i.test(raw)) continue;
+    // keep single-word inline code (`truncate`), drop code expressions (`if (x) throw ...`)
+    let line = raw.replace(/`([^`]*)`/g, (_, c) => (/^[\w.-]+$/.test(c) ? c : ' ')).replace(/\]\([^)]*\)/g, ']').replace(/https?:\S+/g, ' ');
+    for (const nm of sorted) line = line.split(nm).join(' ');
+    for (const part of new Set([line, ...line.split(/(?<=[.;:])\s+|\s+[-—]\s+/)])) {
+      const tokens = new Set(contentTokens(part));
+      if (tokens.size >= 3) out.push({ line: n, raw: raw.trim(), tokens });
+    }
+  }
+  return out;
+}
+
+export const PARAPHRASE = { minShared: 4, error: { jaccard: 0.4, containment: 0.6, jaccardWithContainment: 0.25 }, warn: { jaccard: 0.25 } };
+
+/** Lines of `md` that restate a delta unit in other words. Returns [{line, raw, unit, level, shared, jaccard, containment}]. */
+export function paraphraseFindings(md, deltaText, t = PARAPHRASE) {
+  const { units, names } = deltaUnits(deltaText);
+  const best = new Map();
+  for (const c of proseCandidates(md, names)) {
+    for (const u of units) {
+      let shared = 0;
+      for (const tok of u.tokens) if (c.tokens.has(tok)) shared += 1;
+      if (shared < t.minShared) continue;
+      const jaccard = shared / (u.tokens.size + c.tokens.size - shared);
+      const containment = shared / u.tokens.size;
+      const level = jaccard >= t.error.jaccard || (containment >= t.error.containment && jaccard >= t.error.jaccardWithContainment)
+        ? 'error' : jaccard >= t.warn.jaccard ? 'warning' : null;
+      if (!level) continue;
+      const key = `${c.line}`;
+      const prev = best.get(key);
+      if (!prev || (prev.level === 'warning' && level === 'error') || (prev.level === level && prev.jaccard < jaccard)) {
+        best.set(key, { line: c.line, raw: c.raw, unit: `${u.kind} "${u.name}"`, level, shared, jaccard, containment });
+      }
+    }
+  }
+  return [...best.values()].sort((a, b) => a.line - b.line);
+}
+
+/** Section headings that restate behaviour instead of linking it (to-spec style). */
+export const FORBIDDEN_SECTIONS = /^#{1,6}\s*(user stories|problem statement|solution|(functional |non-functional |behaviou?ral )?requirements|acceptance criteria|scenarios|specification)\s*:?\s*$/im;

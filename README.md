@@ -1,29 +1,31 @@
 # openspec-handoff-workflow
 
-OpenSpec decides **what** to build; AI Hero or Superpowers decide **how** and build it. This toolkit makes
-the hand-off explicit and keeps every artifact for a change inside the OpenSpec change folder:
+OpenSpec decides **what** to build (proposal + delta specs, nothing else); AI Hero or Superpowers decide
+**how** (design, plan, tickets, code, review) and build it. This toolkit makes the hand-off explicit, keeps every
+artifact for a change inside the OpenSpec change folder, and lints that no requirement is ever restated:
 
 ```
 openspec/changes/<id>/
   proposal.md          OpenSpec  - why / what, with a Size Budget
-  specs/<cap>/spec.md  OpenSpec  - delta specs: the ONLY source of requirements
-  design.md            OpenSpec  - how, at the architecture level
+  specs/<cap>/spec.md  OpenSpec  - delta specs: the ONLY place behaviour is written down
   handoff.md           handoff   - tool (ai-hero | superpowers), implementation_model, base_ref, links
-  execution/           AI Hero / Superpowers outputs, redirected here
-    spec.md, tickets/NN-*.md     (AI Hero to-spec, to-tickets)
-    plan.md, progress.md         (Superpowers writing-plans, SDD ledger summary)
-    reviews/<ts>-<model>.md      (/adversarial-review)
+  execution/           owned by the execution tool; cites requirements/scenarios by name + link only
+    design.md, tickets/NN-*.md   (AI Hero grill-with-docs, to-tickets fed from the delta; no to-spec)
+    plan-<id>.md, progress.md    (Superpowers writing-plans, executing-plans/SDD ledger summary)
+    reviews/<ts>-<model>.md      (/adversarial-review + triage)
+    verify.md                    (/opsx:verify report, saved before archive)
   tasks.md             link-only checklist (one box per ticket / plan task) for apply + verify
 ```
 
-Schema order: **proposal → specs → design → handoff → execution → tasks**, then apply.
+Schema order: **proposal → specs → handoff → tasks**, then apply. There is no OpenSpec design artifact, so
+`/opsx:verify` checks proposal + specs and reports Design Adherence as *Not applicable* (see `docs/decisions.md` C1).
 
 ## What's here
 
 | Path | What |
 |---|---|
 | `schemas/handoff-driven/` | Custom OpenSpec schema (`schema.yaml` + templates incl. `handoff.md`) - story 1 |
-| `scripts/check-handoff.mjs` | Lint: handoff fields, reference-not-duplicate, outputs in change folder, PR size - story 1/4 |
+| `scripts/check-handoff.mjs` | Lint: handoff fields, reference-not-duplicate (verbatim copies, forbidden sections like User Stories, SHALL, and token-overlap paraphrase detection), ownership (no OpenSpec design.md, no to-spec output), outputs in change folder, PR size |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
 | `commands/{claude,cursor}/handoff.md` | `/handoff` - story 2 |
 | `commands/{claude,cursor}/adversarial-review.md`, `scripts/adversarial-review.mjs` | `/adversarial-review` - story 3 |
@@ -39,7 +41,7 @@ Schema order: **proposal → specs → design → handoff → execution → task
 ```bash
 npm i -g @fission-ai/openspec@1.14.1          # tested version
 cd your-project && openspec init --tools claude,cursor
-/path/to/openspec-handoff-workflow/install.sh . --set-default   # --link to symlink instead of copy
+/path/to/openspec-handoff-workflow/install.sh .   # sets schema: handoff-driven + project context; --link to symlink
 openspec schema validate handoff-driven
 ```
 
@@ -51,17 +53,17 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
 ## Use
 
 ```text
-/opsx:propose add-greeting-name          # or: openspec new change <id>  (schema handoff-driven)
-                                         #     then proposal, specs, design via /opsx:continue
+/opsx:propose add-greeting-name          # proposal + delta specs only (handoff-driven is the project default)
 /handoff add-greeting-name ai-hero claude-sonnet-4-5
-   -> handoff.md (tool, model, base_ref, links), check-handoff, then
-      openspec-handoff-ai-hero:   /to-spec -> execution/spec.md, /to-tickets -> execution/tickets/, /implement
-      openspec-handoff-superpowers: writing-plans -> execution/plan.md, subagent-driven-development
+   -> handoff.md (tool, model, base_ref, links), check-handoff, then the tool's planning:
+      openspec-handoff-ai-hero:     grill-with-docs -> execution/design.md, to-tickets (from the delta) -> execution/tickets/
+      openspec-handoff-superpowers: writing-plans -> execution/plan-<id>.md   (brainstorming skipped: the proposal is it)
    -> tasks.md (one link per ticket / plan task)
-/adversarial-review add-greeting-name --dry-run
-/adversarial-review add-greeting-name     # different model, headless, -> execution/reviews/
-openspec validate add-greeting-name --strict && /opsx:verify add-greeting-name
-openspec archive add-greeting-name        # after merge; handoff + execution archive with the change
+/opsx:apply add-greeting-name            # implement+tdd+code-review  |  executing-plans / subagent-driven-development
+/adversarial-review add-greeting-name     # different model, headless, -> execution/reviews/ (+ triage.md)
+openspec validate add-greeting-name --strict && node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name
+/opsx:verify add-greeting-name            # save the report to execution/verify.md
+/opsx:archive add-greeting-name           # agent-driven sync, then move; handoff + execution archive with the change
 ```
 
 Scripts directly:
@@ -95,7 +97,7 @@ node .openspec-handoff/scripts/adversarial-review.mjs <id> --reviewer-model qwen
 
 `qwen*` models route to the `ollama` runner (`scripts/runners/ollama.mjs`, local HTTP API, `OLLAMA_HOST`,
 `OLLAMA_NUM_CTX`). Because a plain model can't open files, that runner sets `inlineContext: true` and the change's
-proposal, deltas, design, tasks and full diff are pasted into the prompt. Add other local families (`llama`,
+proposal, deltas, the tool's design/plan, tasks and full diff are pasted into the prompt. Add other local families (`llama`,
 `deepseek` are pre-declared) by adding a runner with the matching `match`. The same-model / same-family guard
 applies (a qwen implementer can't be reviewed by qwen). Each review file records runner, timing and a parsed
 `verdict` (`APPROVE`, `REQUEST_CHANGES`, or `unparsed`). Small CPU models produce shaky reviews - triage findings
@@ -105,7 +107,7 @@ before acting on them (the example's `execution/reviews/triage.md` shows a 3B mo
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 37 tests: lint rules, review selection, fake-runner review, real CLI validate/status, e2e
+npm test               # 48 tests: lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```
@@ -117,7 +119,8 @@ node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream sp
   Changes carry `.openspec.yaml` with `schema:`. `openspec/config.yaml` `rules:` get injected into
   `openspec instructions` output.
 - AI Hero: `to-spec` and `to-tickets` are the real names (not to-prd / to-issues); local tracker default is
-  `.scratch/<feature>/`, which the wrapper redirects to the change folder.
+  `.scratch/<feature>/`, redirected to the change folder via `docs/agents/issue-tracker.md`. `to-spec` is not used:
+  its template (Problem Statement, User Stories, Solution) restates behaviour that the delta already owns.
 - Superpowers: plans default to `docs/superpowers/plans/`, brainstorm specs to `docs/superpowers/specs/`; both
   redirected. `check-handoff` fails if a change's outputs are left in either default location.
 

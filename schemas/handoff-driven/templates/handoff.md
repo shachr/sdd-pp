@@ -2,7 +2,7 @@
 change: <change-id>
 tool: <ai-hero | superpowers>
 implementation_model: <exact-model-id>
-harness: <claude-code | cursor | codex>
+harness: <claude-code | cursor | codex | opencode>
 base_ref: <git rev-parse HEAD at handoff>
 execution_dir: execution/
 # reviewer_model: <optional; must differ from implementation_model>
@@ -12,22 +12,26 @@ execution_dir: execution/
 
 ## Source of truth
 
-<!-- Links only. Never copy requirement text, scenarios or SHALL/MUST sentences. -->
+<!-- Links only. Never copy or paraphrase requirement text, scenarios or SHALL/MUST sentences. -->
 - Proposal: [proposal.md](proposal.md)
-- Design: [design.md](design.md) <!-- or "skipped (conditional; not needed)" -->
 - Spec deltas:
   - [specs/<capability>/spec.md](specs/<capability>/spec.md)
+
+Design and implementation are owned by the execution tool (below); OpenSpec has no design step.
+Implementation diff: `git diff <base_ref>...HEAD -- . ':!openspec'`
 
 ## Execution artifacts
 
 <!-- Keep the rows for the chosen tool, delete the others. All paths are inside this change folder. -->
 | Tool step | Writes to |
 |-----------|-----------|
-| ai-hero `to-spec` | `execution/spec.md` |
-| ai-hero `to-tickets` | `execution/tickets/NN-<slug>.md` |
-| superpowers `writing-plans` | `execution/plan.md` |
-| superpowers `subagent-driven-development` / `executing-plans` ledger | `execution/progress.md` |
+| ai-hero `grill-with-docs` (decisions answered on the user's behalf if delegated) | `execution/design.md`; glossary terms -> `GLOSSARY.md`, ADRs -> `docs/adr/` |
+| ai-hero `to-tickets` (fed from the delta, not from to-spec) | `execution/tickets/NN-<slug>.md` |
+| ai-hero `implement` + `tdd`, then `code-review` | code + tests; `execution/reviews/self-review.md` |
+| superpowers `writing-plans` | `execution/plan-<change-id>.md` |
+| superpowers `executing-plans` / `subagent-driven-development` ledger | `execution/progress.md` |
 | `/adversarial-review` | `execution/reviews/<timestamp>-<reviewer-model>.md` |
+| `/opsx:verify` report | `execution/verify.md` |
 
 ## Size check
 

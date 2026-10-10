@@ -41,12 +41,12 @@ test('install.sh installs schema, scripts, skills and commands into an openspec 
   assert.match(r.stdout + r.stderr, /Schema: handoff-driven/);
 });
 
-test('superpowers handoff with execution/plan.md passes and counts plan tasks', () => {
+test('superpowers handoff with execution/plan-<id>.md passes and counts plan tasks', () => {
   const { dir, changeDir } = makeFixture();
   setHandoff(dir, { tool: 'superpowers', implementation_model: 'gpt-5-codex' });
   fs.rmSync(path.join(changeDir, 'execution', 'tickets'), { recursive: true });
-  fs.rmSync(path.join(changeDir, 'execution', 'spec.md'));
-  fs.writeFileSync(path.join(changeDir, 'execution', 'plan.md'), [
+  fs.rmSync(path.join(changeDir, 'execution', 'design.md'));
+  fs.writeFileSync(path.join(changeDir, 'execution', `plan-${CHANGE}.md`), [
     '# Greeting by name Implementation Plan', '',
     '**Spec:** [proposal](../proposal.md) · [specs/greeting/spec.md](../specs/greeting/spec.md)', '',
     '### Task 1: greet(name)', '', '### Task 2: CLI wiring', '',
@@ -56,6 +56,11 @@ test('superpowers handoff with execution/plan.md passes and counts plan tasks', 
   const json = JSON.parse(r.stdout);
   assert.equal(json.metrics.planTasks, 2);
   assert.deepEqual(json.warnings, []);
+  // a shared name (plan.md) still works but warns: SDD workspaces are named after the plan file
+  fs.renameSync(path.join(changeDir, 'execution', `plan-${CHANGE}.md`), path.join(changeDir, 'execution', 'plan.md'));
+  const r2 = JSON.parse(run('check-handoff.mjs', [CHANGE, '--json'], dir).stdout);
+  assert.equal(r2.metrics.planTasks, 2);
+  assert.match(r2.warnings.join('\n'), /name the plan execution\/plan-add-greeting-name\.md/);
 });
 
 test('too many tickets is a hard size error', () => {

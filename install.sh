@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # Install the OpenSpec handoff workflow into a project that already ran `openspec init`.
-# Usage: ./install.sh <project-dir> [--link] [--set-default] [--no-claude] [--no-cursor] [--opencode|--no-opencode] [--force]
-#   --link         symlink instead of copy (keeps the project tracking this toolkit checkout)
-#   --set-default  set `schema: handoff-driven` in openspec/config.yaml
+# Usage: ./install.sh <project-dir> [--link] [--no-set-default] [--no-claude] [--no-cursor] [--opencode|--no-opencode] [--force]
+#   --link            symlink instead of copy (keeps the project tracking this toolkit checkout)
+#   --no-set-default  keep openspec/config.yaml as is (default: schema: handoff-driven + project context)
 #   --opencode     also install into .opencode/ (default: only if .opencode/ already exists)
 #   --force        overwrite an existing .openspec-handoff/config.json
 set -euo pipefail
 
-usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 SRC=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-LINK=0 SET_DEFAULT=0 CLAUDE=1 CURSOR=1 OPENCODE=auto FORCE=0 TARGET_ARG=
+LINK=0 SET_DEFAULT=1 CLAUDE=1 CURSOR=1 OPENCODE=auto FORCE=0 TARGET_ARG=
 for a in "$@"; do  # options may come before or after the project dir
   case "$a" in
     -h|--help) usage 0;;
-    --link) LINK=1;; --set-default) SET_DEFAULT=1;; --no-claude) CLAUDE=0;; --no-cursor) CURSOR=0;; --opencode) OPENCODE=1;; --no-opencode) OPENCODE=0;; --force) FORCE=1;;
+    --link) LINK=1;; --set-default) SET_DEFAULT=1;; --no-set-default) SET_DEFAULT=0;; --no-claude) CLAUDE=0;; --no-cursor) CURSOR=0;; --opencode) OPENCODE=1;; --no-opencode) OPENCODE=0;; --force) FORCE=1;;
     -*) echo "unknown option: $a" >&2; usage 2;;
     *) [ -z "$TARGET_ARG" ] || { echo "only one project dir allowed" >&2; usage 2; }; TARGET_ARG=$a;;
   esac
@@ -61,6 +61,23 @@ if [ "$SET_DEFAULT" = 1 ]; then
     mv "$cfg.tmp" "$cfg"
   fi
   echo "  openspec/config.yaml -> schema: handoff-driven"
+  # Project context (OpenSpec's supported lever): injected into `openspec instructions` output,
+  # so apply/verify/archive agents learn that design is owned by the execution tool.
+  if ! grep -q '^context:' "$cfg"; then
+    cat >> "$cfg" <<'CTX'
+
+# Added by openspec-handoff-workflow (install.sh). Edit freely.
+context: |
+  Handoff-driven workflow: OpenSpec owns only proposal.md and the delta specs (specs/**/spec.md).
+  Design and implementation are owned by the execution tool named in each change's handoff.md
+  (AI Hero or Superpowers). Its design (execution/design.md or execution/plan-<change>.md), tickets,
+  plan, progress and reviews live in the change's execution/ folder and were reviewed by that tool.
+  There is no OpenSpec design.md in this workflow: do not create one, and do not report it missing.
+  Verify changes against proposal.md + delta specs. Execution artifacts cite requirements and
+  scenarios by name with a link and never restate them (node .openspec-handoff/scripts/check-handoff.mjs).
+CTX
+    echo "  openspec/config.yaml += context (design is owned by the execution tool)"
+  fi
 fi
 
 gi="$TARGET/.gitignore"
@@ -70,10 +87,10 @@ cat <<MSG
 
 Done. Next:
   openspec schema validate handoff-driven
-  openspec new change <id> --schema handoff-driven     # or rely on --set-default
-  /handoff <id> ai-hero|superpowers <model>             # after proposal, specs, design
+  openspec new change <id>                             # handoff-driven is the project default
+  /handoff <id> ai-hero|superpowers <model>             # after proposal + specs (no OpenSpec design)
   /adversarial-review <id> --dry-run
 Also install the execution toolkits themselves (not bundled):
-  AI Hero:     https://github.com/mattpocock/skills  (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
-  Superpowers: https://github.com/obra/superpowers  (writing-plans, subagent-driven-development, requesting-code-review)
+  AI Hero:     https://github.com/mattpocock/skills  (grill-with-docs, to-tickets, implement, tdd, code-review; to-spec is not used)
+  Superpowers: https://github.com/obra/superpowers  (writing-plans, executing-plans / subagent-driven-development, requesting-code-review)
 MSG

@@ -1,60 +1,62 @@
 ---
 name: openspec-handoff-ai-hero
-description: Run the AI Hero flow (mattpocock/skills - grill-with-docs, to-spec, to-tickets, implement, tdd, code-review) against an OpenSpec change folder, writing every output into openspec/changes/<id>/execution/. Use after openspec-handoff when handoff.md says tool ai-hero.
+description: Run the AI Hero flow (mattpocock/skills - grill-with-docs, to-tickets, implement, tdd, code-review) against an OpenSpec change folder, with the OpenSpec delta as the spec and every output written into openspec/changes/<id>/execution/. Use after openspec-handoff when handoff.md says tool ai-hero.
 ---
 
 # AI Hero on an OpenSpec change
 
-Thin wrapper: you run the real AI Hero skills, with **this change folder as the issue tracker** and **the OpenSpec deltas as the requirements**. Everything below overrides the skills' default locations; nothing else about them changes.
+Thin wrapper: you run the real AI Hero skills unmodified, with **this change folder as the issue tracker** and **the OpenSpec proposal + delta as the spec**. OpenSpec owns *what* (proposal, deltas). AI Hero owns *how* (design, tickets, code, review).
 
 Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 ## Before you start
 
 - Read `handoff.md`. `tool` must be `ai-hero`; you are `implementation_model`. If you are not that model, stop and say so.
-- Read `proposal.md`, `design.md`, every `specs/**/spec.md`. These are the source of truth.
-- AI Hero skills set `disable-model-invocation: true`. If you cannot call them with the Skill tool, ask the user to type the slash command (`/to-spec`), or read the installed `SKILL.md` and follow its process yourself with the overrides below.
-- **Issue tracker override (applies to every AI Hero skill for this change):** "publish to the issue tracker" means "write a file into the change folder". Ignore `.scratch/` for this change and do not open GitHub/Linear issues for it. Recommended: when running `/setup-matt-pocock-skills`, pick **Other** and describe the OpenSpec change folder as the tracker (template: `.openspec-handoff/issue-tracker-openspec.md`); then the skills follow `docs/agents/issue-tracker.md` with no override needed.
+- Read `proposal.md` and every `specs/**/spec.md`. They are the spec. There is no OpenSpec `design.md`: design is yours.
+- AI Hero skills set `disable-model-invocation: true`. If you cannot call them with the Skill tool, ask the user to type the slash command, or read the installed `SKILL.md` and follow its process yourself.
+- The issue tracker is the change folder: `docs/agents/issue-tracker.md` (installed from `.openspec-handoff/issue-tracker-openspec.md` by `/setup-matt-pocock-skills` -> "Other") says where tickets go. Nothing goes to `.scratch/` or GitHub/Linear.
 
 ## Flow
 
-| AI Hero step | Run it? | Output (override) |
+| AI Hero step | Run it? | Output |
 |---|---|---|
-| `grill-with-docs` | Only if `design.md` lists open questions that block execution | Answers go into `design.md` (via `/opsx:update`) or the deltas; project ADRs / glossary stay where AI Hero writes them - link them from `handoff.md` |
-| `to-spec` | Yes | `execution/spec.md` |
-| `to-tickets` | Yes | `execution/tickets/NN-<slug>.md` (local-markdown ticket template, one file per ticket) |
-| `implement` (single session) or `implement-spec` (subagents) | Yes | Code + tests; ticks `tasks.md` |
-| `tdd` | Inside implement | - |
-| `code-review` | Optional self-review inside implement | `execution/reviews/self-review.md` |
+| `to-spec` | **No.** The proposal + delta already are the spec; to-spec's template (Problem Statement, User Stories, Solution) restates behaviour, which this workflow forbids. | - |
+| `grill-with-docs` (= `grilling` + `domain-modeling`) | **Yes**, on the proposal + delta. If the user delegated decisions, answer each round yourself with the recommended answer (or a better one) and record it. | `execution/design.md`; glossary terms -> `GLOSSARY.md`, ADRs -> `docs/adr/` (AI Hero's durable homes; link them from `execution/design.md`) |
+| `to-tickets` | **Yes**, fed directly from the delta (pass `../specs/<cap>/spec.md` as the reference) plus `execution/design.md` | `execution/tickets/NN-<slug>.md` |
+| `implement` (single session) or `implement-spec` (subagents), with `tdd` | Yes, from `/opsx:apply` | code + tests; ticks `tasks.md` |
+| `code-review` | Yes (implement calls it) | `execution/reviews/self-review.md` |
 | Final review | Always | `/adversarial-review <id>` (different model) |
 
-### to-spec overrides (`execution/spec.md`)
+### grill-with-docs output (`execution/design.md`)
 
 - First line: `> Source of truth: [proposal](../proposal.md) · [specs/<cap>/spec.md](../specs/<cap>/spec.md) · [handoff](../handoff.md)`
-- **Problem Statement / Solution**: one line each linking `../proposal.md#why` and `#what-changes`. Do not restate.
-- **User Stories**: replace with a *Requirement map* - one bullet per requirement **name** linking the delta (`../specs/<cap>/spec.md`), plus the test seam that will prove it. Never paste SHALL/MUST text or scenarios.
-- **Implementation Decisions**, **Testing Decisions**: write them in full - this is AI Hero's real value-add.
-- **Out of Scope**: link the proposal / design Non-Goals.
-- Still confirm the test seams with the user (to-spec step 2) unless the user said to proceed autonomously; then record the seams you chose.
+- `## Grilling record`: each round's questions and the answers (mark answers given on the user's behalf as such).
+- `## Decisions`: the design tree's settled decisions - module boundaries, interfaces, data shapes, algorithms, test seams. These are *how*, never *what*.
+- A question whose answer changes behaviour is not a design decision: stop, update the delta (`/opsx:update` or edit `specs/`), re-run `openspec validate <id> --strict`, then continue. Never write the new behaviour into design.md.
+- Link `GLOSSARY.md` / ADRs written by domain-modeling.
 
 ### to-tickets overrides (`execution/tickets/`)
 
-- One file per ticket, `NN-<slug>.md`, numbered in dependency order, using AI Hero's local ticket template (`What to build`, `Blocked by`, `Status`, acceptance checkboxes).
-- First line of each ticket: `> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/<cap>/spec.md) · [execution spec](../spec.md)`
-- Acceptance criteria reference scenarios by name (`Scenario "Name given" passes`) instead of copying WHEN/THEN text.
-- Size: at most 8 tickets (hard cap 12). More means the change is too big - stop and split it (see `.openspec-handoff/small-changes.md`).
+- One file per ticket, `NN-<slug>.md`, numbered in dependency order, AI Hero's local ticket template (`What to build`, `Blocked by`, `Status`, checkboxes).
+- First line: `> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/<cap>/spec.md) · [design](../design.md)`
+- **What to build**: name the requirement(s) this slice makes work, by name + link (`[delta](../../specs/<cap>/spec.md) - "Requirement: <name>"`), plus the slice's path through the code in your own words. Do not re-describe the behaviour.
+- Checkboxes: one per scenario, by name only: `- [ ] Scenario "<name>" passes`. Never copy WHEN/THEN text or values.
+- Title: name the slice ("truncate: limit validation"), not the rule ("truncate rejects limits below one").
+- At most 8 tickets (hard cap 12). More means the change is too big - stop and split it (`.openspec-handoff/small-changes.md`).
+- to-tickets step 4 ("Quiz the user"): if decisions were delegated, approve the breakdown yourself and note it in `execution/design.md`.
 
 ## Phase boundary
 
-- **Planning** (run when the schema's `execution` artifact is next - from `/opsx:propose`, `/opsx:ff`, `/opsx:continue`, or right after `/handoff`): grill-with-docs (if needed), to-spec, to-tickets, then `tasks.md`. No code changes in this phase.
-- **Implementation** (run from `/opsx:apply`): implement/tdd per ticket, then review and verify.
+- **Planning** (right after `/handoff`, or when `/opsx:propose|ff|continue` reaches `tasks`): grill-with-docs, to-tickets, then `tasks.md`. No code changes.
+- **Implementation** (`/opsx:apply`): implement/tdd per ticket, code-review, then review and verify.
 
 ### Planning: after tickets exist
 
-1. Run `openspec instructions tasks --change "<id>"` and write `tasks.md`: one checkbox per ticket linking its file, plus the review/verify group from the template.
-2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors. Stop here if you were invoked for planning.
+1. Run `openspec instructions tasks --change "<id>"` and write `tasks.md`: one checkbox per ticket linking its file, plus the review group from the template.
+2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix every error (copied *or paraphrased* requirement text, forbidden sections). Stop here if you were invoked for planning.
 
 ### Implementation (from /opsx:apply)
 
-1. Implement with `implement` (or `implement-spec`). When a ticket is done, set its `Status:` to `done` and tick its `tasks.md` box in the same commit.
-2. Run `/adversarial-review <id>`, triage and fix Critical/Important findings, then `openspec validate <id> --strict` and `/opsx:verify <id>`.
+1. Implement with `implement` (or `implement-spec`). When a ticket is done, set its `Status:` to `done` and tick its `tasks.md` box in the same commit. `code-review` output goes to `execution/reviews/self-review.md`.
+2. Run `/adversarial-review <id>`, triage (`execution/reviews/triage.md`) and fix Critical/Important findings, tick 2.1; `openspec validate <id> --strict` (2.2); `check-handoff` (2.3).
+3. Run `/opsx:verify <id>` and save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written (agent-driven sync).

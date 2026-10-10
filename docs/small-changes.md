@@ -2,7 +2,7 @@
 
 One OpenSpec change = one handoff = one branch = one PR. The whole workflow assumes it:
 `openspec validate --strict`, `/opsx:verify`, and `/adversarial-review` all read the *entire*
-change (proposal, deltas, design, execution artifacts, diff) at once. When a change outgrows a
+change (proposal, deltas, the execution tool's design/plan/tickets, diff) at once. When a change outgrows a
 reviewer's context, verification degrades silently: findings get shallower, not louder.
 
 ## Budget
@@ -10,7 +10,7 @@ reviewer's context, verification degrades silently: findings get shallower, not 
 | Measure | Budget (warning above) | Hard limit (`check-handoff` fails above) | Where it's measured |
 |---|---|---|---|
 | Requirements in the spec deltas (`### Requirement:`) | 5 | 8 | `specs/**/spec.md` in the change |
-| Tickets (AI Hero) / plan tasks (Superpowers, `### Task N`) | 8 | 12 | `execution/tickets/*.md`, `execution/plan.md` |
+| Tickets (AI Hero) / plan tasks (Superpowers, `### Task N`) | 8 | 12 | `execution/tickets/*.md`, `execution/plan-<id>.md` |
 | Changed lines since `base_ref` (added + deleted, code and tests, untracked files included) | 400 | 800 | `git diff --numstat <base_ref>`, limited to `diff_paths`, excluding `openspec/` |
 | Changed files since `base_ref` | 15 | 25 | same |
 
@@ -57,18 +57,18 @@ Split when any of these is true - even if the numbers are under budget:
 | Command | What it checks | Size sensitivity |
 |---|---|---|
 | `openspec validate <id> --strict` (CLI) | Structure of the deltas: headers, ≥1 scenario per requirement, Purpose length, ≤500-char requirement descriptions | Low - structural; passes on huge changes too |
-| `/opsx:verify <id>` (agent workflow, opt-in via `openspec config profile`; there is **no** `openspec verify` CLI command in 1.14.1) | Completeness (tasks ticked, every requirement implemented), correctness (code matches scenarios), coherence (design followed) | High - an agent must read every artifact plus the code |
+| `/opsx:verify <id>` (agent workflow, opt-in via `openspec config profile`; there is **no** `openspec verify` CLI command in 1.14.1) | Completeness (tasks ticked, every requirement implemented), correctness (code matches scenarios), coherence (code patterns; Design Adherence is *Not applicable* because the handoff-driven schema has no design artifact - design is reviewed by the execution tool) | High - an agent must read every artifact plus the code |
 | `check-handoff` (this toolkit) | Handoff fields, reference-not-duplicate, outputs inside the change folder, size budget | Enforces the budget |
 | `/adversarial-review` (this toolkit) | A different model reviews the diff against the deltas | High - same as verify |
 
-Run order before opening the PR: `check-handoff` → `/adversarial-review` → fix → `openspec validate --strict` → `/opsx:verify` → archive after merge.
+Run order: `check-handoff` → `/adversarial-review` → fix → `openspec validate --strict` → `/opsx:verify` (report saved to `execution/verify.md`) → `/opsx:archive` (agent-driven sync) after merge.
 
 ## Small changes that don't need the full ceremony
 
 - **No behavior change** (refactor, tooling, docs): set `skip_specs: true` in the change's
   `.openspec.yaml`; the deltas are empty and `check-handoff` only warns.
-- **Design not needed**: the schema still expects `design.md`; write two lines - "Not needed: <reason>.
-  See proposal." Don't pad it.
+- **Design**: OpenSpec has no design step. For a trivial change the execution tool's design can be a short
+  `execution/design.md` grilling record (AI Hero) or the plan's Architecture line (Superpowers).
 - **One-ticket changes**: `to-tickets` / `writing-plans` with a single ticket/task is fine; `tasks.md`
   then has one execution checkbox plus the review group.
 

@@ -25,24 +25,24 @@ test('openspec validate --strict passes for the example change', { skip: !haveCl
   assert.match(r.out, /is valid/);
 });
 
-test('openspec status walks proposal → specs → design → handoff → execution → tasks', { skip: !haveCli }, () => {
+test('openspec status walks proposal → specs → handoff → tasks (no design artifact)', { skip: !haveCli }, () => {
   const { dir } = makeFixture();
   const r = os(['status', '--change', CHANGE, '--json'], dir);
   assert.equal(r.code, 0, r.out);
   const json = JSON.parse(r.out);
   assert.equal(json.schemaName, 'handoff-driven');
-  assert.deepEqual(json.artifacts.map((a) => a.id), ['proposal', 'specs', 'design', 'handoff', 'execution', 'tasks']);
+  assert.deepEqual(json.artifacts.map((a) => a.id), ['proposal', 'specs', 'handoff', 'tasks']);
 });
 
-test('handoff is blocked until design exists, and execution until handoff exists', { skip: !haveCli }, () => {
+test('handoff is ready right after specs, and tasks is blocked until handoff exists', { skip: !haveCli }, () => {
   const { dir, changeDir } = makeFixture({ keepExecution: false });
-  fs.rmSync(`${changeDir}/design.md`);
   fs.rmSync(`${changeDir}/handoff.md`);
+  fs.rmSync(`${changeDir}/tasks.md`);
   const json = JSON.parse(os(['status', '--change', CHANGE, '--json'], dir).out);
   const byId = Object.fromEntries(json.artifacts.map((a) => [a.id, a]));
-  assert.equal(byId.handoff.status, 'blocked');
-  assert.deepEqual(byId.handoff.missingDeps, ['design']);
-  assert.equal(byId.execution.status, 'blocked');
+  assert.equal(byId.handoff.status, 'ready');
+  assert.equal(byId.tasks.status, 'blocked');
+  assert.deepEqual(byId.tasks.missingDeps, ['handoff']);
 });
 
 test('openspec instructions handoff carries the reference-not-duplicate rules', { skip: !haveCli }, () => {

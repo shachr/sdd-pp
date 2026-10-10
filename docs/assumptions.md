@@ -23,7 +23,9 @@ Made autonomously while the user was unavailable. Each is cheap to change; the f
 ## Workflow
 
 - `tasks.md` comes *after* the execution tool's breakdown and only links to it (decisions G2/G3).
-- `design.md` stays required (as in upstream `spec-driven`); tiny changes write a two-line design.
+- There is no OpenSpec `design.md` (v2, decisions C1-C4): design is the execution tool's (`execution/design.md` or the plan).
+- `planningHome.defaultSchema` / the `openspec new change` spinner always says `spec-driven` (hard-coded in OpenSpec 1.14.1); the change itself gets `handoff-driven` from `openspec/config.yaml`.
+- Paraphrase detection is lexical (token overlap), not semantic: it catches restated rules that reuse the delta's words and warns on looser overlap, but a fully reworded paraphrase can pass. Forbidden sections and the wrapper templates cover the rest.
 - AI Hero's project-level outputs (ADRs, glossary/CONTEXT.md) are not redirected; Superpowers' git-ignored
   SDD scratch (`.superpowers/sdd/`) is not redirected; only their durable change-specific outputs are.
 - writing-plans' "copy Global Constraints verbatim" is overridden to "link the requirement name" to keep
@@ -67,7 +69,7 @@ Made autonomously while the user was unavailable. Each is cheap to change; the f
 - Runner `ollama` (`scripts/runners/ollama.mjs`) calls the local HTTP API (`/api/generate`, `num_ctx` 8192)
   rather than `ollama run`, which emitted only terminal control codes when piped. `codex exec --oss` was not
   used (direct runner was simpler and needs no Codex config).
-- Plain models have no tools, so runners with `inlineContext: true` get the proposal, deltas, design, tasks and
+- Plain models have no tools, so runners with `inlineContext: true` get the proposal, deltas, the tool's design/plan, tasks and
   the full `git diff` pasted into the prompt. Fine for PR-sized changes; large diffs will overflow `num_ctx`
   (the runner warns).
 - Review quality from the 3B model is weak (see `example/.../execution/reviews/triage.md`): one run copied the
