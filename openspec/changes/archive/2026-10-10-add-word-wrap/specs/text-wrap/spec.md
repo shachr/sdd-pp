@@ -30,7 +30,7 @@ The library SHALL cut a word longer than the line width into pieces of at most t
 
 #### Scenario: Word longer than the width
 - **WHEN** `wordWrap("abcdefghij xy", 4)` is called
-- **THEN** it returns `"abcd\nefgh\nij\nxy"`
+- **THEN** it returns `"abc-\ndef-\nghij\nxy"` (each cut piece ends with a hyphen that counts toward the width)
 
 ### Requirement: Paragraphs kept
 The library SHALL wrap each line of the input on its own and keep the input's line breaks, including empty lines.
