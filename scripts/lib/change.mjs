@@ -449,9 +449,12 @@ export function proposalLeaks(md) {
   const out = [];
   let fence = false;
   let impact = false; // OpenSpec's own template asks for affected code/APIs under ## Impact - not a leak
+  let comment = false;
   md.split(/\r?\n/).forEach((l, i) => {
-    if (!fence && /^##\s/.test(l)) impact = /^##\s+Impact\b/i.test(l);
+    // ## Impact (OpenSpec asks for affected code there) and ## Split notes (split bookkeeping) are not leaks
+    if (!fence && /^##\s/.test(l)) impact = /^##\s+(Impact|Split notes)\b/i.test(l);
     if (impact) return;
+    if (!fence && (comment || /<!--/.test(l))) { comment = !/-->/.test(l); return; } // HTML comments are template guidance
     if (/^\s*(```|~~~)/.test(l)) { if (!fence) out.push({ line: i + 1, hint: 'code block', text: l.trim() }); fence = !fence; return; }
     if (fence) return;
     for (const [re, hint] of rules.slice(1)) {

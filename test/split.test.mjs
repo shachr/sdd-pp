@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { TOOLKIT, OPENSPEC, run } from './helpers.mjs';
+import { proposalLeaks } from '../scripts/lib/change.mjs';
 
 const W = (dir, rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
 const R = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
@@ -98,6 +99,7 @@ test('split apply: refuses without approval or with uncommitted deltas; the pare
   assert.match(totals, /^## Purpose\n\nWeekly activity reports/);
   assert.ok(totals.includes(req('Report totals', ['Totals per day', 'Empty week']).trim()));
   assert.match(R(dir, 'openspec/changes/add-csv-export/proposal.md'), /Behind the feature flag `csv-export`[\s\S]*## Split notes[\s\S]*_None\._/);
+  assert.deepEqual(proposalLeaks(R(dir, 'openspec/changes/add-csv-export/proposal.md')), [], 'the split-notes template is not an implementation-detail leak');
   addFlag(dir);
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
