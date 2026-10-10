@@ -9,5 +9,11 @@
 ## 2. Review and verification
 
 - [ ] 2.1 Run /adversarial-review <change-id> and resolve Critical/Important findings - verify: review file exists in execution/reviews/
-- [ ] 2.2 Run `openspec validate <change-id> --strict` and /opsx:verify <change-id> - verify: both pass
+- [ ] 2.2 Run `openspec validate <change-id> --strict` - verify: exit 0
 - [ ] 2.3 Run `node .openspec-handoff/scripts/check-handoff.mjs <change-id>` - verify: exit 0
+
+## Workflow follow-up
+
+<!-- Plain bullets, not checkboxes: /opsx:verify flags every unticked box as CRITICAL. -->
+- Run /opsx:verify <change-id> once every box above is ticked.
+- Archive with `openspec archive <change-id>`.
