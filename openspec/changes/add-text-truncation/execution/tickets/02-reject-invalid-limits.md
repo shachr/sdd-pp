@@ -6,7 +6,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Scenarios "Zero limit" and "Fractional limit" pass
-- [ ] Valid limits from ticket 01 still behave the same
+- [x] Scenarios "Zero limit" and "Fractional limit" pass
+- [x] Valid limits from ticket 01 still behave the same

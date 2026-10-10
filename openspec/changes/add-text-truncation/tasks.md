@@ -3,7 +3,7 @@
 ## 1. Execution
 
 - [x] 1.1 Ticket 01 truncate shortens long text within the budget - execution/tickets/01-truncate-shortens-long-text.md - verify: `npm test` (truncate scenario tests)
-- [ ] 1.2 Ticket 02 truncate rejects invalid limits - execution/tickets/02-reject-invalid-limits.md - verify: `npm test` (RangeError tests)
+- [x] 1.2 Ticket 02 truncate rejects invalid limits - execution/tickets/02-reject-invalid-limits.md - verify: `npm test` (RangeError tests)
 
 ## 2. Review and verification
 

@@ -25,3 +25,11 @@ test('Exactly the limit: text comes back unchanged', () => {
 test('Limit of one: only the ellipsis remains', () => {
   assert.equal(truncate('abc', 1), '…');
 });
+
+test('Zero limit: RangeError', () => {
+  assert.throws(() => truncate('abc', 0), RangeError);
+});
+
+test('Fractional limit: RangeError', () => {
+  assert.throws(() => truncate('abc', 2.5), RangeError);
+});
