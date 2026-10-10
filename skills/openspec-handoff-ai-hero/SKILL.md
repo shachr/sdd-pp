@@ -14,7 +14,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 - Read `handoff.md`. `tool` must be `ai-hero`; you are `implementation_model`. If you are not that model, stop and say so.
 - Read `proposal.md`, `design.md`, every `specs/**/spec.md`. These are the source of truth.
 - AI Hero skills set `disable-model-invocation: true`. If you cannot call them with the Skill tool, ask the user to type the slash command (`/to-spec`), or read the installed `SKILL.md` and follow its process yourself with the overrides below.
-- **Issue tracker override (applies to every AI Hero skill for this change):** "publish to the issue tracker" means "write a file into the change folder". Ignore `docs/agents/issue-tracker.md` and `.scratch/` for this change. Do not open GitHub/Linear issues for it.
+- **Issue tracker override (applies to every AI Hero skill for this change):** "publish to the issue tracker" means "write a file into the change folder". Ignore `.scratch/` for this change and do not open GitHub/Linear issues for it. Recommended: when running `/setup-matt-pocock-skills`, pick **Other** and describe the OpenSpec change folder as the tracker (template: `.openspec-handoff/issue-tracker-openspec.md`); then the skills follow `docs/agents/issue-tracker.md` with no override needed.
 
 ## Flow
 
@@ -44,9 +44,17 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 - Acceptance criteria reference scenarios by name (`Scenario "Name given" passes`) instead of copying WHEN/THEN text.
 - Size: at most 8 tickets (hard cap 12). More means the change is too big - stop and split it (see `.openspec-handoff/small-changes.md`).
 
-### After tickets exist
+## Phase boundary
+
+- **Planning** (run when the schema's `execution` artifact is next - from `/opsx:propose`, `/opsx:ff`, `/opsx:continue`, or right after `/handoff`): grill-with-docs (if needed), to-spec, to-tickets, then `tasks.md`. No code changes in this phase.
+- **Implementation** (run from `/opsx:apply`): implement/tdd per ticket, then review and verify.
+
+### Planning: after tickets exist
 
 1. Run `openspec instructions tasks --change "<id>"` and write `tasks.md`: one checkbox per ticket linking its file, plus the review/verify group from the template.
-2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors.
-3. Implement with `implement` (or `implement-spec`). When a ticket is done, set its `Status:` to `done` and tick its `tasks.md` box in the same commit.
-4. Run `/adversarial-review <id>`, fix Critical/Important findings, then `openspec validate <id> --strict` and `/opsx:verify <id>`.
+2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors. Stop here if you were invoked for planning.
+
+### Implementation (from /opsx:apply)
+
+1. Implement with `implement` (or `implement-spec`). When a ticket is done, set its `Status:` to `done` and tick its `tasks.md` box in the same commit.
+2. Run `/adversarial-review <id>`, triage and fix Critical/Important findings, then `openspec validate <id> --strict` and `/opsx:verify <id>`.

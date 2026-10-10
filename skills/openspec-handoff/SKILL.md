@@ -20,8 +20,8 @@ You are moving an OpenSpec change from *planning* (OpenSpec owns proposal + spec
    - `base_ref`: output of `git rev-parse HEAD` right now
    - links to `proposal.md`, `design.md`, and every `specs/**/spec.md` delta - links only, no copied requirement text
 4. **Lint.** Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`. Fix every error before continuing.
-5. **Route.** Use skill `openspec-handoff-ai-hero` for `tool: ai-hero`, or `openspec-handoff-superpowers` for `tool: superpowers`. They write `execution/` and `tasks.md`.
-6. **Commit** `handoff.md` on its own (`handoff(<id>): <tool> / <model>`), so `base_ref` and the handoff are visible in history.
+5. **Commit** the planning artifacts and `handoff.md` (`handoff(<id>): <tool> / <model>`), so the handoff is visible in history. `base_ref` stays the commit before any implementation.
+6. **Route.** Run the *Planning* part of `openspec-handoff-ai-hero` (`tool: ai-hero`) or `openspec-handoff-superpowers` (`tool: superpowers`). They write `execution/` and `tasks.md` and stop; implementation starts with `/opsx:apply`.
 
 ## Guardrails
 

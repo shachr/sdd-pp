@@ -210,7 +210,13 @@ artifacts:
     description: Records which execution tool and implementation model take over, and where they write
     template: handoff.md
     instruction: |-
-      Create handoff.md: the contract between OpenSpec (requirements) and the
+      DELEGATED: create this artifact with the `openspec-handoff` skill
+      (`/handoff <change> <ai-hero|superpowers> <implementation-model>`). It needs the
+      user's choice of execution tool and the implementation model - ask once if the
+      request didn't say. When reached from /opsx:propose, /opsx:ff or /opsx:continue,
+      invoke that skill now; it writes handoff.md and stops before implementation.
+
+      handoff.md is the contract between OpenSpec (requirements) and the
       execution tool (AI Hero or Superpowers). It is a pointer document, not a spec.
 
       Front matter (YAML, all keys required unless marked optional):
@@ -248,8 +254,10 @@ artifacts:
     description: Execution artifacts written by AI Hero or Superpowers (spec, tickets, plan, progress, reviews)
     template: execution.md
     instruction: |-
-      Run the execution tool named in handoff.md and redirect its outputs into
-      `execution/` inside this change folder. Use the matching wrapper skill:
+      DELEGATED: run the PLANNING part of the wrapper skill for the tool named in
+      handoff.md; it runs the real execution-tool skills and redirects their outputs into
+      `execution/` inside this change folder. Planning only - no code changes here;
+      implementation happens in the apply phase (/opsx:apply). Wrapper skills:
       - tool: ai-hero -> skill `openspec-handoff-ai-hero`
         (to-spec -> execution/spec.md, to-tickets -> execution/tickets/NN-<slug>.md)
       - tool: superpowers -> skill `openspec-handoff-superpowers`
