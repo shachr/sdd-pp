@@ -1,11 +1,11 @@
 ---
 name: openspec-handoff-superpowers
-description: Run the Superpowers flow (obra/superpowers - writing-plans, executing-plans or subagent-driven-development, requesting-code-review) against an OpenSpec change folder, with the OpenSpec proposal + delta as the spec and the plan and progress written into openspec/changes/<id>/execution/. Use after openspec-handoff when handoff.md says tool superpowers.
+description: Run the Superpowers flow (obra/superpowers - brainstorming, writing-plans, executing-plans or subagent-driven-development, requesting-code-review) against an OpenSpec change folder, with the OpenSpec proposal + delta as the spec and the plan and progress written into openspec/changes/<id>/execution/. Use after openspec-handoff when handoff.md says tool superpowers.
 ---
 
 # Superpowers on an OpenSpec change
 
-Thin wrapper: you run the real Superpowers skills unmodified. The OpenSpec change folder replaces `docs/superpowers/` as their home, and the proposal + delta replace the brainstorming design doc as the spec. OpenSpec owns *what*; Superpowers owns *how* (the plan is the design).
+Thin wrapper: you run the real Superpowers skills unmodified. The OpenSpec change folder replaces `docs/superpowers/` as their home. OpenSpec owns *what* (proposal + delta); Superpowers owns *how* (brainstorming's written design and the plan).
 
 Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
@@ -13,13 +13,13 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 - Read `handoff.md`. `tool` must be `superpowers`; you are `implementation_model`. If you are not that model, stop and say so.
 - Read `proposal.md` and every `specs/**/spec.md`. They are the spec the plan argues from. There is no OpenSpec `design.md`.
-- **Location override (user preference, which writing-plans honours):** the plan goes to `execution/plan-<id>.md` (not `docs/superpowers/plans/`). The unique filename gives the SDD workspace a unique name (`.superpowers/sdd/plan-<id>/`), so two changes never share a ledger.
+- **Location override (user preference, which brainstorming and writing-plans honour):** the written design goes to `execution/design.md` (not `docs/superpowers/specs/`); the plan goes to `execution/plan-<id>.md` (not `docs/superpowers/plans/`). The unique filename gives the SDD workspace a unique name (`.superpowers/sdd/plan-<id>/`), so two changes never share a ledger.
 
 ## Flow
 
 | Superpowers step | Run it? | Output |
 |---|---|---|
-| `brainstorming` | **No.** The proposal + delta are the brainstorm's output. If the proposal leaves a behaviour question open, fix the delta first. | - |
+| `brainstorming` | **Yes**, starting from the proposal + delta (they are what your partner already said). If decisions were delegated, answer on their behalf and mark those answers as your calls. | `execution/design.md` (see overrides) |
 | `using-git-worktrees` | As Superpowers recommends | branch `change/<id>` |
 | `writing-plans` | Yes | `execution/plan-<id>.md` |
 | `subagent-driven-development` (if you have a subagent tool) or `executing-plans` | Yes, from `/opsx:apply` | code + tests; ledger in `.superpowers/sdd/plan-<id>/` (git-ignored); summary to `execution/progress.md` |
@@ -27,9 +27,18 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 | Final review | Always | `/adversarial-review <id>` (different model) |
 | `finishing-a-development-branch` | After review + verify | - |
 
+### brainstorming overrides (`execution/design.md`)
+
+- The conversation starts from the proposal + delta, so most of the "ground to cover" is already answered: ask (or, if delegated, answer) only what they leave open - mostly *how it gets made*.
+- **Size the Work**: an OpenSpec change that reached `/handoff` is planned with writing-plans, so pick "a project with a written design" (say so; the user can override).
+- **The Written Design**: first line `> Source of truth: [proposal](../proposal.md) · [spec delta](../specs/<cap>/spec.md) · [handoff](../handoff.md)`. *Intent and why* and *goals / non-goals* point at the proposal (Why / What Changes / out of scope) instead of retelling it; behaviour is cited by requirement/scenario name. *Constraints*, *the parts of the how they decided* and *what's left to the builder* are written in full.
+- A question whose answer changes behaviour goes into the delta (re-validate), not the design.
+- Builder check: dispatch the subagent if you have one; otherwise read the document as that builder yourself (the skill allows this). Record the three piles at the end of the design.
+- HARD-GATE approval: the user's, or yours on their behalf if they delegated (say so in the design). Then writing-plans.
+
 ### writing-plans overrides (`execution/plan-<id>.md`)
 
-- Header `**Spec:**` line: `[proposal](../proposal.md) · [specs/<cap>/spec.md](../specs/<cap>/spec.md) · [handoff](../handoff.md)` (also the "Source of truth" line).
+- Header `**Spec:**` line: `[proposal](../proposal.md) · [specs/<cap>/spec.md](../specs/<cap>/spec.md) · [design](design.md) · [handoff](../handoff.md)` (also the "Source of truth" line).
 - **Goal**: one sentence naming the capability and linking the delta; do not restate its rules.
 - **Global Constraints**: one line per requirement, as a link to its **name** (`[delta](../specs/<cap>/spec.md) - "Requirement: <name>"`), plus non-behavioural constraints (dependencies, commands). Do not copy values or SHALL text even though writing-plans asks for it - the delta is the verbatim source, one click away.
 - **Architecture, File Structure, Interfaces, Review Focus, task steps, test code, commands**: write in full as writing-plans says. Test code may contain the scenario values (code blocks are implementation, not restatement).
@@ -39,13 +48,13 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 ## Phase boundary
 
-- **Planning** (right after `/handoff`, or when `/opsx:propose|ff|continue` reaches `tasks`): writing-plans, then `tasks.md`. No code changes.
+- **Planning** (right after `/handoff`, or when `/opsx:propose|ff|continue` reaches `tasks`): brainstorming, writing-plans, then `tasks.md`. No code changes.
 - **Implementation** (`/opsx:apply`): executing-plans or subagent-driven-development, then review and verify.
 
 ### Planning: after the plan exists
 
 1. Run `openspec instructions tasks --change "<id>"` and write `tasks.md`: one checkbox per plan task linking `execution/plan-<id>.md#task-n-<slug>`, plus the review group.
-2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors. Stop here if you were invoked for planning.
+2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors and read the warnings (likely paraphrases). Stop here if you were invoked for planning.
 
 ### Implementation (from /opsx:apply)
 

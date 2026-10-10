@@ -26,8 +26,10 @@ Implementation diff: `git diff <base_ref>...HEAD -- . ':!openspec'`
 | Tool step | Writes to |
 |-----------|-----------|
 | ai-hero `grill-with-docs` (decisions answered on the user's behalf if delegated) | `execution/design.md`; glossary terms -> `GLOSSARY.md`, ADRs -> `docs/adr/` |
-| ai-hero `to-tickets` (fed from the delta, not from to-spec) | `execution/tickets/NN-<slug>.md` |
+| ai-hero `to-spec` (user-facing sections link the proposal/delta) | `execution/spec.md` |
+| ai-hero `to-tickets` (scenarios cited by name) | `execution/tickets/NN-<slug>.md` |
 | ai-hero `implement` + `tdd`, then `code-review` | code + tests; `execution/reviews/self-review.md` |
+| superpowers `brainstorming` (written design; intent/goals link the proposal) | `execution/design.md` |
 | superpowers `writing-plans` | `execution/plan-<change-id>.md` |
 | superpowers `executing-plans` / `subagent-driven-development` ledger | `execution/progress.md` |
 | `/adversarial-review` | `execution/reviews/<timestamp>-<reviewer-model>.md` |

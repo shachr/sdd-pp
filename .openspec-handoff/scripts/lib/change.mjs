@@ -278,5 +278,21 @@ export function paraphraseFindings(md, deltaText, t = PARAPHRASE) {
   return [...best.values()].sort((a, b) => a.line - b.line);
 }
 
-/** Section headings that restate behaviour instead of linking it (to-spec style). */
+/** Section headings that usually restate behaviour (to-spec style); fine when the section links the source of truth. */
 export const FORBIDDEN_SECTIONS = /^#{1,6}\s*(user stories|problem statement|solution|(functional |non-functional |behaviou?ral )?requirements|acceptance criteria|scenarios|specification)\s*:?\s*$/im;
+
+/** Sections matching FORBIDDEN_SECTIONS whose body has no link to proposal.md or a spec delta. */
+export function restatingSections(md) {
+  const lines = md.split('\n');
+  const out = [];
+  const head = new RegExp(FORBIDDEN_SECTIONS.source, 'i');
+  for (let i = 0; i < lines.length; i++) {
+    if (!head.test(lines[i])) continue;
+    const level = lines[i].match(/^#+/)[0].length;
+    let j = i + 1;
+    while (j < lines.length && !(/^#+\s/.test(lines[j]) && lines[j].match(/^#+/)[0].length <= level)) j++;
+    const body = lines.slice(i + 1, j).join('\n');
+    if (!/\]\([^)]*(proposal\.md|specs\/[^)]*spec\.md)[^)]*\)/.test(body)) out.push({ line: i + 1, heading: lines[i].trim() });
+  }
+  return out;
+}
