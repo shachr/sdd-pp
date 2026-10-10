@@ -20,7 +20,9 @@ in each change are the requirements; this file tells the engineering skills wher
 - Triage state is a `Status:` line near the top of each ticket (role strings in `triage-labels.md`); `done` when finished.
 - Comments append to the bottom of the ticket under `## Comments`.
 - Requirements are never restated (verbatim or in other words) in these files: cite requirements and scenarios by name with a link to the delta (`../specs/<capability>/spec.md` from `execution/`, `../../specs/<capability>/spec.md` from `execution/tickets/`).
-- Nothing for a change goes in `.scratch/`, GitHub/GitLab issues, or anywhere outside its change folder.
+- Nothing for a change goes in `.scratch/`, GitHub/GitLab issues, or anywhere outside its change folder. The one exception is
+  project-level knowledge that outlives the change: `grill-with-docs` may update the project's `GLOSSARY.md` and ADRs
+  (`docs/adr/`) where they already live - those are not change artifacts and are committed with the change.
 
 ## When a skill says "publish to the issue tracker"
 

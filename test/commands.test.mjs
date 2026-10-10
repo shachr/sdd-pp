@@ -28,14 +28,14 @@ test('sdd.mjs plan: each command maps to the scripts it runs', () => {
   assert.deepEqual(labels(['split', 'start', 's', '--undo']), ['split.mjs start s --undo']);
   assert.deepEqual(labels(['split', 'undo', 'p', '--force']), ['split.mjs undo p --force']);
   assert.deepEqual(labels(['split', 'loss', 'p', '--final']), ['split.mjs loss p --final']);
-  assert.deepEqual(labels(['split', 'archive', 'p']), ['split.mjs loss p --final', 'openspec archive p --skip-specs -y']);
+  assert.deepEqual(labels(['split', 'archive', 'p']), ['split.mjs finalize p', 'openspec archive p --skip-specs -y']);
   for (const bad of [[], ['check', 'x'], ['split'], ['split', 'bogus', 'p'], ['split', 'mark', 'p', 's', 'in-progress'], ['split', 'start'], ['split', 'apply'], ['nope', 'x'], ['next', '--strict']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
 });
 
 test('agent slash commands: claude, cursor, opencode each run sdd.mjs; argument hint / usage on every command', () => {
   for (const h of ['claude', 'cursor', 'opencode']) {
     for (const [name, sub] of Object.entries(NEW)) {
-      const t = fs.readFileSync(path.join(TOOLKIT, 'commands', h, `${name}.md`), 'utf8');
+      const t = fs.readFileSync(path.join(TOOLKIT, 'commands', h, `sdd-${name}.md`), 'utf8');
       assert.match(t, new RegExp(`node \\.openspec-handoff/scripts/sdd\\.mjs ${sub} `), `${h}/${name}`);
       assert.match(t, /Do nothing else/);
     }
@@ -53,7 +53,7 @@ test('next-steps and the init summary use the commands, not node script paths', 
     const s = nextSteps({ id: 'x', tool, applyMode: mode, parent: 'p' });
     assert.match(s, /\/opsx:verify x - save the report verbatim/);
     assert.doesNotMatch(s, /check-handoff/);
-    assert.match(s, /On main: \/split-next p /);
+    assert.match(s, /On main: \/sdd-split-next p /);
     assert.doesNotMatch(s, /node \.openspec-handoff|\.mjs/);
   }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-init-'));
@@ -61,12 +61,12 @@ test('next-steps and the init summary use the commands, not node script paths', 
   const r = initCli(dir, '--tool', 'ai-hero', '--no-cursor');
   assert.equal(r.status, 0, r.stderr);
   assert.doesNotMatch(r.stdout.split('Done. Next')[1], /node \.openspec-handoff/);
-  assert.match(r.stdout, /\/opsx:verify <id> \(save to execution\/verify\.md\)[\s\S]*\/split-archive <parent>/);
+  assert.match(r.stdout, /\/opsx:verify <id> \(save to execution\/verify\.md\)[\s\S]*\/sdd-split-archive <parent>/);
   assert.doesNotMatch(r.stdout, /check-handoff/);
   for (const h of ['.claude', '.cursor']) assert.ok(!fs.existsSync(path.join(dir, h, 'commands/check-handoff.md')), 'no /check-handoff command');
-  for (const name of Object.keys(NEW)) assert.ok(fs.existsSync(path.join(dir, '.claude/commands', `${name}.md`)), name);
+  for (const name of Object.keys(NEW)) assert.ok(fs.existsSync(path.join(dir, '.claude/commands', `sdd-${name}.md`)), name);
   assert.ok(fs.existsSync(path.join(dir, '.openspec-handoff/scripts/sdd.mjs')));
-  assert.match(r.stdout, /\/split-start <slice>/);
+  assert.match(r.stdout, /\/sdd-split-start <slice>/);
   assert.doesNotMatch(r.stdout, /split-mark|split mark/);
   // a reinstall removes a leftover /split-mark from an earlier install
   fs.writeFileSync(path.join(dir, '.claude/commands/split-mark.md'), 'old\n');
@@ -154,8 +154,50 @@ test('verify gets no review instruction: the schema apply instruction (what /ops
   assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode').status, 0);
   const r = spawnSync(OPENSPEC, ['instructions', 'apply', '--change', CHANGE, '--json'], { cwd: dir, encoding: 'utf8' });
   const j = JSON.parse(r.stdout);
-  assert.match(j.instruction, /\/next-steps <change>/);
-  assert.doesNotMatch(j.instruction, /review|CRITICAL|check-handoff/i);
+  assert.match(j.instruction, /\/sdd-next-steps <change>/);
+  assert.doesNotMatch(j.instruction, /review|check-handoff/i);
+  // verify sees the tool's tasks: open tickets / unticked plan steps and a missing Superpowers ledger are CRITICAL
+  assert.match(j.instruction, /every ticket in execution\/tickets\/ has "Status: done" and every plan step box in\s+execution\/plan-<change>\.md is ticked[\s\S]*CRITICAL[\s\S]*execution\/progress\.md[\s\S]*CRITICAL/);
+});
+
+test('sdd-pp init prints the exact commit line; with ai-hero + .claude the AGENTS.md block also goes to CLAUDE.md (idempotent)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-claude-md-'));
+  fs.mkdirSync(path.join(dir, 'openspec'));
+  fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '# My project\n\nKeep this.\n');
+  let r = initCli(dir, '--tool', 'ai-hero', '--no-cursor');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^  CLAUDE\.md block appended \(same agent skills block, for Claude Code\)$/m);
+  const claude = fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8');
+  assert.match(claude, /^# My project\n\nKeep this\.\n/);
+  assert.match(claude, /<!-- sdd-pp:agent-skills[\s\S]*docs\/agents\/issue-tracker\.md/);
+  assert.match(r.stdout, /^Commit the setup: git add openspec\/schemas openspec\/config\.yaml \.openspec-handoff \.claude \.gitignore \.gitattributes docs\/agents AGENTS\.md CLAUDE\.md && git commit -m "setup: sdd-pp"$/m);
+  // every path in the line exists, so the git add works as printed
+  const paths = /git add (.*) && git commit/m.exec(r.stdout)[1].split(' ');
+  for (const p of paths) assert.ok(fs.existsSync(path.join(dir, p)), p);
+  r = initCli(dir, '--no-cursor');
+  assert.match(r.stdout, /CLAUDE\.md block unchanged/);
+  assert.equal(fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8'), claude);
+  // no .claude: no CLAUDE.md
+  const d2 = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-claude-md-'));
+  fs.mkdirSync(path.join(d2, 'openspec'));
+  assert.equal(initCli(d2, '--tool', 'ai-hero', '--no-claude').status, 0);
+  assert.equal(fs.existsSync(path.join(d2, 'CLAUDE.md')), false);
+});
+
+test('sdd-pp spec-check <id> --check writes nothing; sdd-pp split-check (writes split-check.md) prints its commit line', () => {
+  const { dir, changeDir, git } = makeFixture();
+  assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
+  git('add', '-A'); git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'install');
+  fs.rmSync(path.join(changeDir, 'execution', 'spec-check.md'), { force: true });
+  let r = sddPp(dir, 'spec-check', CHANGE, '--check');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^PENDING: mechanical checks pass/m);
+  assert.match(r.out, /\(check only: nothing written\)/);
+  assert.equal(fs.existsSync(path.join(changeDir, 'execution', 'spec-check.md')), false);
+  r = sddPp(dir, 'split-check', CHANGE);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^Commit with the deltas: git add openspec\/changes\/add-greeting-name\/execution\/split-check\.md && git commit -m "split-check\(add-greeting-name\)"$/m);
+  assert.ok(fs.existsSync(path.join(changeDir, 'execution', 'split-check.md')));
 });
 
 test('reinstall removes retired commands (check-handoff.md, split-mark.md) for claude, cursor and opencode', () => {
@@ -167,10 +209,42 @@ test('reinstall removes retired commands (check-handoff.md, split-mark.md) for c
   const r = initCli(dir, '--no-set-default'); // .opencode/ exists, so it is reinstalled without --opencode
   assert.equal(r.status, 0, r.stderr);
   for (const h of ['.claude', '.cursor', '.opencode']) {
-    assert.ok(fs.existsSync(path.join(dir, h, 'commands', 'split-start.md')), `${h}: split-start.md installed`);
+    assert.ok(fs.existsSync(path.join(dir, h, 'commands', 'sdd-split-start.md')), `${h}: sdd-split-start.md installed`);
     for (const c of retired) {
       assert.ok(!fs.existsSync(path.join(dir, h, 'commands', c)), `${h}/${c} removed`);
       assert.match(r.stdout, new RegExp(`${h.replace('.', '\\.')}/commands/${c.replace('.', '\\.')} \\(removed: retired\\)`));
     }
   }
+});
+
+test('commands are prefixed sdd-: the toolkit ships only sdd-*.md; a reinstall removes our old unprefixed copies and keeps a user\'s own same-named command', () => {
+  const NAMES = ['handoff', 'tool', 'next-steps', 'spec-check', 'split-check', 'split-apply', 'split-next', 'split-start', 'split-archive', 'split-undo'];
+  for (const h of ['claude', 'cursor', 'opencode']) {
+    assert.deepEqual(fs.readdirSync(path.join(TOOLKIT, 'commands', h)).sort(), NAMES.map((n) => `sdd-${n}.md`).sort(), h);
+  }
+  for (const n of NAMES) assert.match(fs.readFileSync(path.join(TOOLKIT, 'commands/cursor', `sdd-${n}.md`), 'utf8'), new RegExp(`^name: /sdd-${n}\\nid: sdd-${n}$`, 'm'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-prefix-'));
+  fs.mkdirSync(path.join(dir, 'openspec'));
+  assert.equal(initCli(dir, '--opencode', '--no-set-default').status, 0);
+  // an earlier install's unprefixed copies (ours: they use the openspec-handoff skill / scripts), plus a user's own /tool
+  for (const h of ['.claude', '.cursor', '.opencode']) {
+    for (const n of NAMES) fs.writeFileSync(path.join(dir, h, 'commands', `${n}.md`), fs.readFileSync(path.join(dir, h, 'commands', `sdd-${n}.md`), 'utf8'));
+  }
+  fs.writeFileSync(path.join(dir, '.claude/commands/tool.md'), '---\ndescription: my own tool command\n---\n\nRun make tool.\n');
+  const r = initCli(dir, '--no-set-default');
+  assert.equal(r.status, 0, r.stderr);
+  for (const h of ['.claude', '.cursor', '.opencode']) {
+    for (const n of NAMES) {
+      assert.ok(fs.existsSync(path.join(dir, h, 'commands', `sdd-${n}.md`)), `${h}/sdd-${n}.md`);
+      if (h === '.claude' && n === 'tool') continue;
+      assert.ok(!fs.existsSync(path.join(dir, h, 'commands', `${n}.md`)), `${h}/${n}.md removed`);
+      assert.match(r.stdout, new RegExp(`${h.replace('.', '\\.')}/commands/${n}\\.md \\(removed: now /sdd-${n}\\)`));
+    }
+  }
+  assert.equal(fs.readFileSync(path.join(dir, '.claude/commands/tool.md'), 'utf8'), '---\ndescription: my own tool command\n---\n\nRun make tool.\n');
+  assert.match(r.stdout, /\.claude\/commands\/tool\.md \(kept: not installed by sdd-pp\)/);
+  // the init summary names only the prefixed commands
+  const next = r.stdout.split('Done. Next')[1];
+  assert.match(next, /\/sdd-tool <id> --set superpowers[\s\S]*\/sdd-handoff <id>[\s\S]*\/sdd-split-undo <parent>/);
+  assert.doesNotMatch(next, /(^|[\s,(])\/(handoff|tool|next-steps|spec-check|split-[a-z]+)\b/m);
 });

@@ -1,5 +1,5 @@
 ---
-description: "Archive a split parent last: final loss check, then openspec archive <parent> --skip-specs -y (usage: /split-archive <parent-id>)"
+description: "Archive a split parent last: stops if a slice is not archived, marks slices done, final loss check, then openspec archive <parent> --skip-specs -y (usage: /sdd-split-archive <parent-id>)"
 ---
 
 Run this one command from the project root and show its output verbatim:

@@ -37,7 +37,7 @@
 
 <!-- Keep the change PR-sized (.openspec-handoff/small-changes.md). Budget: <= 5 requirements
      and <= 2 capabilities, <= 8 tickets/plan tasks, ~300 changed lines of code + tests.
-     Do not split by hand: the split gate (/split-check, end of the specs stage) proposes
+     Do not split by hand: the split gate (/sdd-split-check, end of the specs stage) proposes
      slices when the deltas are over budget. -->
 - Requirements in deltas: <!-- n -->
 - Expected tickets / plan tasks: <!-- n -->

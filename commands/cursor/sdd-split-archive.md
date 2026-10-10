@@ -1,8 +1,8 @@
 ---
-name: /split-archive
-id: split-archive
+name: /sdd-split-archive
+id: sdd-split-archive
 category: Workflow
-description: "Archive a split parent last: final loss check, then openspec archive <parent> --skip-specs -y (usage: /split-archive <parent-id>)"
+description: "Archive a split parent last: stops if a slice is not archived, marks slices done, final loss check, then openspec archive <parent> --skip-specs -y (usage: /sdd-split-archive <parent-id>)"
 ---
 
 Arguments: <parent-id> - as given after the command.

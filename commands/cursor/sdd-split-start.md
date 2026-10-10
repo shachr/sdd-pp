@@ -1,8 +1,8 @@
 ---
-name: /split-start
-id: split-start
+name: /sdd-split-start
+id: sdd-split-start
 category: Workflow
-description: "Take a READY slice: marks it in-progress in its parent's slices.md and prints the next lines (--undo: back to planned) (usage: /split-start <slice-id> [--undo])"
+description: "Take a READY slice: marks it in-progress in its parent's slices.md and prints the next lines (--undo: back to planned) (usage: /sdd-split-start <slice-id> [--undo])"
 ---
 
 Arguments: <slice-id> [--undo] - as given after the command.

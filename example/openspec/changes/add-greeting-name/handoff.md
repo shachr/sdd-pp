@@ -24,7 +24,7 @@ Design and implementation are owned by the execution tool (below); OpenSpec has 
 | ai-hero `grill-with-docs` (proposal phase, before handoff) | `execution/grill.md` |
 | ai-hero `to-spec` (reads `execution/grill.md`) | `execution/spec.md` |
 | ai-hero `to-tickets` | `execution/tickets/NN-<slug>.md` |
-| `/spec-check` (end of handoff) | `execution/spec-check.md` |
+| `/sdd-spec-check` (end of handoff) | `execution/spec-check.md` |
 | ai-hero `implement` (apply_mode) + `tdd`, then `code-review` | code in `src/`, `test/`; ticket Status + checkboxes; `execution/reviews/code-review.md` |
 | `/opsx:verify` report | `execution/verify.md` |
 

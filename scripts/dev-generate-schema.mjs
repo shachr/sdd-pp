@@ -17,10 +17,10 @@ const replaceOnce = (text, from, to) => {
 
 const proposal = { ...by.proposal };
 proposal.instruction = `Handoff-driven - DESIGN SESSION FIRST (before writing proposal.md):
-1. Resolve the execution tool chosen in the setup phase: \`/tool <change>\`
+1. Resolve the execution tool chosen in the setup phase: \`/sdd-tool <change>\`
    (runs \`node .openspec-handoff/scripts/sdd.mjs tool <change>\`; project default in
    .openspec-handoff/project.json; a per-change override is recorded with
-   \`/tool <change> --set <ai-hero|superpowers>\`; \`/tool <change>\` starts the session file
+   \`/sdd-tool <change> --set <ai-hero|superpowers>\`; \`/sdd-tool <change>\` starts the session file
    when it is missing, for the default as for --set).
    No tool set: ask the user once, then record it with --set.
 2. Run that tool's design session - the "Design session" part of its wrapper skill:
@@ -28,7 +28,7 @@ proposal.instruction = `Handoff-driven - DESIGN SESSION FIRST (before writing pr
    - superpowers -> skill \`openspec-handoff-superpowers\`: brainstorming -> execution/brainstorm.md
      (the written design goes there, not docs/superpowers/specs/). STOP brainstorming
      after the written design is approved: do NOT invoke writing-plans - planning is the
-     engineer's first next step after /handoff. Control returns here.
+     engineer's first next step after /sdd-handoff. Control returns here.
 3. Then write proposal.md from the session, WHAT and WHY only: no decisions,
    file layouts, algorithms or code - those stay in the session file.
    Behaviours the session surfaced become requirements/scenarios in the delta (next artifact).
@@ -43,9 +43,9 @@ Handoff-driven addition - **Size Budget** section (required):
 State the expected size of this change so it stays PR-sized: number of
 requirements in the deltas, expected tickets/plan tasks, and a rough
 changed-lines estimate. Default budget (see .openspec-handoff/small-changes.md):
-<= 5 requirements and <= 2 capabilities (checked by /split-check at the end of the
+<= 5 requirements and <= 2 capabilities (checked by /sdd-split-check at the end of the
 specs stage), ~300 changed lines of code + tests (estimated after planning by
-/spec-check; that estimate is the only line check). Do not split by hand here: the
+/sdd-spec-check; that estimate is the only line check). Do not split by hand here: the
 split gate proposes slices for the engineer when the requirements exist.
 `;
 
@@ -60,20 +60,20 @@ Every scenario listed under "Scenarios found" in the design session file
 (execution/grill.md or execution/brainstorm.md) becomes a requirement or scenario here;
 the decisions stay in the session file.
 The delta is the ONLY place behaviour is written down.
-After /handoff, execution artifacts cite requirements and scenarios by name and
+After /sdd-handoff, execution artifacts cite requirements and scenarios by name and
 link (\`../specs/<capability>/spec.md\` - "Requirement: <name>"), so give every
 requirement and scenario a short, distinctive name.
 
-SPLIT GATE - run automatically when the deltas are written, before /handoff (rerunnable):
-\`/split-check <change>\` (\`node .openspec-handoff/scripts/split-check.mjs <change> --write\`).
+SPLIT GATE - run automatically when the deltas are written, before /sdd-handoff (rerunnable):
+\`/sdd-split-check <change>\` (\`node .openspec-handoff/scripts/split-check.mjs <change> --write\`).
 It counts requirements and capabilities (no line estimate here - that comes after
-planning, in /spec-check, from the tool's tickets / plan; budget ~300 lines).
-1. Up to 5 requirements and 2 capabilities it prints one line ("fits") - carry on to /handoff.
+planning, in /sdd-spec-check, from the tool's tickets / plan; budget ~300 lines).
+1. Up to 5 requirements and 2 capabilities it prints one line ("fits") - carry on to /sdd-handoff.
 2. Above (a warning, never a failure): propose slices in execution/split-proposal.md
    (slice part + order, goal, capabilities, requirements, depends_on, flag if any - the
-   /split-check command lists the format), show them to the engineer and STOP until they
+   /sdd-split-check command lists the format), show them to the engineer and STOP until they
    approve or edit (approved_by:). Nothing is split automatically. After approval: commit
-   the deltas (that commit is the loss-check baseline), then \`/split-apply <change>\` turns
+   the deltas (that commit is the loss-check baseline), then \`/sdd-split-apply <change>\` turns
    this change into the parent (schema split-plan: a control plane with no requirement
    names) and creates one handoff-driven child per slice, named
    \`<change>-<nn>-<slice>\` (nn = two-digit order; the flag cleanup slice uses 99);
@@ -89,16 +89,16 @@ const handoff = {
   description: 'Records which execution tool takes over, and where it writes',
   template: 'handoff.md',
   instruction: `LAST STAGE of this schema. Create it with the \`openspec-handoff\` skill
-(\`/handoff <change>\`). The execution tool was chosen in
+(\`/sdd-handoff <change>\`). The execution tool was chosen in
 the setup phase (or overridden per change) and its design session already ran in
 the proposal phase (execution/grill.md for ai-hero, execution/brainstorm.md for
-superpowers); \`/tool <change>\` resolves it (per-change override, else the
+superpowers); \`/sdd-tool <change>\` resolves it (per-change override, else the
 project default).
 
 The handoff stage writes handoff.md and ENDS by printing the
 next steps for the tool - \`node .openspec-handoff/scripts/next-steps.mjs <change>\`
-(reprint: \`/next-steps <change>\`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
-writing-plans), /spec-check, implementation, the tool's code review, /opsx:verify
+(reprint: \`/sdd-next-steps <change>\`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
+writing-plans), /sdd-spec-check, implementation, the tool's code review, /opsx:verify
 and /opsx:archive are the engineer's next steps, run through the tool's wrapper
 skill. The code review is the tool's own review step (CI also reviews the PR). There is no OpenSpec tasks artifact: progress lives in the tool's own
 tracking (ticket Status/checkboxes, plan step checkboxes).
@@ -109,7 +109,7 @@ execution tool (AI Hero or Superpowers). It is a pointer document, not a spec.
 Front matter (YAML, all keys required unless marked optional):
 - \`change\`: this change id (folder name).
 - \`tool\`: \`ai-hero\` or \`superpowers\` - must match the design session file
-  (exactly one session file; \`/tool <change>\` reports the tool to write).
+  (exactly one session file; \`/sdd-tool <change>\` reports the tool to write).
 - \`harness\` (optional): the coding agent harness (claude-code, cursor, codex, opencode, or other); may be omitted.
 - \`base_ref\`: git commit SHA the implementation starts from
   (\`git rev-parse HEAD\` at handoff). Used for review diffs.
@@ -130,7 +130,7 @@ Body rules - REFERENCE, DON'T DUPLICATE:
 
 Execution outputs must NOT be written to the tools' default locations
 (\`.scratch/\`, \`docs/superpowers/plans/\`, \`docs/superpowers/specs/\`).
-After planning, \`/spec-check <change>\` is the plan-vs-spec check.`,
+After planning, \`/sdd-spec-check <change>\` is the plan-vs-spec check.`,
   requires: ['specs'],
 };
 
@@ -144,14 +144,19 @@ const schema = {
     // point engineers at the tool's command. No \`tracks\`: OpenSpec does no task tracking.
     requires: ['handoff'],
     instruction: `This workflow does not implement through /opsx:apply. Run
-\`/next-steps <change>\` and follow it: planning,
-/spec-check and implementation run with the execution tool's own commands
+\`/sdd-next-steps <change>\` and follow it: planning,
+/sdd-spec-check and implementation run with the execution tool's own commands
 (handoff.md tool + apply_mode: ai-hero implement | implement-spec; superpowers
 executing-plans | subagent-driven-development) through its wrapper skill
 (openspec-handoff-ai-hero or openspec-handoff-superpowers). Progress is tracked by the tool
 (ticket Status/checkboxes, plan step checkboxes), not by OpenSpec.
 Requirements come only from the spec deltas; if the code needs behavior the
-deltas don't describe, stop and update the proposal/specs first.`,
+deltas don't describe, stop and update the proposal/specs first.
+Verify (/opsx:verify reads this): the tasks are the tool's files, not tasks.md. Check
+every ticket in execution/tickets/ has "Status: done" and every plan step box in
+execution/plan-<change>.md is ticked ("- [x]"); report each open ticket or unticked
+step as CRITICAL (incomplete task). Superpowers: execution/progress.md (the ledger
+copied from the workspace) must exist; report it missing as CRITICAL.`,
   },
 };
 const header = `# handoff-driven schema for OpenSpec (tested with @fission-ai/openspec 1.14.1)

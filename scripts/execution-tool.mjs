@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 // execution-tool: setup-phase tool selection.
 //   node execution-tool.mjs --default <ai-hero|superpowers>     set the project default (.openspec-handoff/project.json)
-//   node execution-tool.mjs <change>                            print the change's tool, where it came from, and its session file
-//                                                               (starts the session file when missing, before handoff; not with --json)
-//   node execution-tool.mjs <change> --set <ai-hero|superpowers> record a per-change override: starts the session file
-//                                                                (execution/grill.md or execution/brainstorm.md) with `tool:` front matter
+//   node execution-tool.mjs <change>                            show the change's tool, where it came from, and its session file (writes nothing)
+//   node execution-tool.mjs <change> --set <ai-hero|superpowers> record the change's tool: starts the session file
+//                                                                (execution/grill.md or execution/brainstorm.md) with `tool:` front matter;
+//                                                                a slice's stub links the parent's session and has "## Overrides: None"
 // Switching tools after the design session ran means redoing the session (.openspec-handoff/switching-tools.md); --set refuses then.
+// A session file that is still only the stub counts as not started: --set replaces it.
 // Exit: 0 ok, 1 refused / not set, 2 usage error.
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { findParentOf } from './lib/split.mjs';
 import { findProjectRoot, loadChange, resolveTool, projectToolConfigPath, SESSION_FILES, SESSION_SKILLS, TOOLS, UsageError, sessionFiles } from './lib/change.mjs';
 
 function main() {
@@ -26,46 +28,64 @@ function main() {
     fs.mkdirSync(path.dirname(f), { recursive: true });
     fs.writeFileSync(f, JSON.stringify({ ...cur, defaultTool: values.default }, null, 2) + '\n');
     console.log(`project default execution tool: ${values.default} (${path.relative(root, f).split(path.sep).join('/')})`);
+    console.log(`Commit: git add .openspec-handoff/project.json && git commit -m "setup: default execution tool ${values.default}"`);
     if (!positionals.length) return 0;
   }
   if (positionals.length !== 1) { console.error(usage); return 2; }
   let change = loadChange(root, positionals[0]);
+  let created = null;
   if (values.set) {
     const other = sessionFiles(change).filter((s) => s.fileTool !== values.set && (s.tool || s.fileTool) !== values.set);
     if (change.handoff?.tool && change.handoff.tool !== values.set) {
       console.error(`refused: handoff.md already hands this change to ${change.handoff.tool}. Switching tools means redoing the design session and the handoff - see .openspec-handoff/switching-tools.md.`);
       return 1;
     }
-    if (other.length) {
+    const started = other.filter((s) => !isStub(change.read(s.file)));
+    if (!started.length) for (const s of other) { fs.rmSync(path.join(change.dir, s.file)); console.log(`replaced the unused ${s.file} stub (no design session in it yet)`); }
+    else if (other.length) {
       console.error(`refused: ${other.map((s) => s.file).join(', ')} already holds a ${other[0].fileTool} design session. Switching tools means redoing the session - see .openspec-handoff/switching-tools.md.`);
       return 1;
     }
-    startSession(change, values.set);
+    created = startSession(root, change, values.set);
     change = loadChange(root, positionals[0]);
   }
   const r = resolveTool(change);
-  // the project-default tool gets its session file the same way as --set (before the session, not at handoff;
-  // --json is the handoff's read-only check, which must still see a missing session file)
-  let created = null;
-  if (r.tool && !values.json && !change.handoff && !sessionFiles(change).length) {
-    created = startSession(change, r.tool); // r (where the tool came from) stays as resolved before
-  }
+  const started = sessionFiles(change).some((s) => !isStub(change.read(s.file)));
   const out = { change: change.id, tool: r.tool, source: r.source, projectDefault: r.projectDefault,
     override: Boolean(r.tool && r.projectDefault && r.tool !== r.projectDefault),
-    sessionFile: r.tool ? SESSION_FILES[r.tool] : null, sessionSkill: r.tool ? SESSION_SKILLS[r.tool] : null };
+    sessionFile: r.tool ? SESSION_FILES[r.tool] : null, sessionSkill: r.tool ? SESSION_SKILLS[r.tool] : null, sessionStarted: started };
   if (values.json) console.log(JSON.stringify(out, null, 2));
   else if (!r.tool) console.log(`${change.id}: no execution tool set - run with --default <tool> (project) or --set <tool> (this change)`);
-  else console.log(`${change.id}: ${r.tool} (from ${r.source}${out.override ? `; overrides project default ${r.projectDefault}` : ''}) -> design session: ${out.sessionSkill} -> ${out.sessionFile}${created ? ' (created)' : ''}`);
+  else {
+    console.log(`${change.id}: ${r.tool} (from ${r.source}${out.override ? `; overrides project default ${r.projectDefault}` : ''}) -> design session: ${out.sessionSkill} -> ${out.sessionFile}${created ? ' (created)' : started ? '' : ' (not started)'}`);
+    if (created) console.log(`Commit with the change: git add openspec/changes/${change.id}/${created} && git commit -m "tool(${change.id}): ${r.tool}"`);
+  }
   return r.tool ? 0 : 1;
 }
 
-/** Start the design session file for a tool (front matter + links line), if it does not exist yet. */
-function startSession(change, tool) {
+/** Start the design session file for a tool (front matter + links line), if it does not exist yet.
+ *  A slice's stub links the parent's session file and starts "## Overrides" with None. */
+function startSession(root, change, tool) {
   const f = path.join(change.dir, SESSION_FILES[tool]);
   if (fs.existsSync(f)) return null;
+  const parent = findParentOf(root, change.id);
+  const slice = parent && parent.id !== change.id;
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(f, `---\ntool: ${tool}\nsession: ${SESSION_SKILLS[tool]}\n---\n\n> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md\n\n# ${SESSION_SKILLS[tool]} session: ${change.id}\n`);
+  fs.writeFileSync(f, [
+    '---', `tool: ${tool}`, `session: ${SESSION_SKILLS[tool]}`, '---', '',
+    ...(slice ? [`> Parent session: [../../${parent.id}/${SESSION_FILES[tool]}](../../${parent.id}/${SESSION_FILES[tool]}) - read it first; this session is narrowed to the slice.`, ''] : []),
+    '> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md', '',
+    `# ${SESSION_SKILLS[tool]} session: ${change.id}`, '',
+    ...(slice ? ['## Overrides', '', 'None', ''] : []),
+  ].join('\n'));
   return SESSION_FILES[tool];
+}
+
+/** A session file that holds only what startSession writes (no design session in it yet). */
+export function isStub(text) {
+  if (text == null) return true;
+  const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+  return body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^> (Links|Parent session):/.test(l) && !/^# \S+ session: /.test(l) && l !== '## Overrides' && l !== 'None').length === 0;
 }
 
 try { process.exit(main()); } catch (e) { console.error(`execution-tool: ${e.message}`); process.exit(e instanceof UsageError ? 2 : 1); }

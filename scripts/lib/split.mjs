@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { git, listFiles, UsageError } from './change.mjs';
 
-export const SPLIT_LIMIT_DEFAULT = 300; // estimated changed lines (code + tests) per PR, checked after planning (/spec-check)
-export const SPLIT_MAX_REQUIREMENTS = 5; // /split-check warns above this many delta requirements
+export const SPLIT_LIMIT_DEFAULT = 300; // estimated changed lines (code + tests) per PR, checked after planning (/sdd-spec-check)
+export const SPLIT_MAX_REQUIREMENTS = 5; // /sdd-split-check warns above this many delta requirements
 export const SPLIT_MAX_CAPABILITIES = 2; // ... or above this many capabilities
 const lc = (s) => s.trim().toLowerCase();
 const datePrefix = /^\d{4}-\d{2}-\d{2}-/;
@@ -292,7 +292,7 @@ export function lintSlices(plan, { text = '', parent = false } = {}) {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(s.id)) errors.push(`slice "${s.id}": id must be a kebab-case change name`);
     if (!s.goal) errors.push(`slice "${s.id}": no goal`);
     if (!s.capabilities.length) warnings.push(`slice "${s.id}": no capabilities listed`);
-    if (!SLICE_STATUSES.includes(s.status)) warnings.push(`slice "${s.id}": status "${s.status}" - use planned or in-progress (done = its archived folder on main)`);
+    if (![...SLICE_STATUSES, 'done'].includes(s.status)) warnings.push(`slice "${s.id}": status "${s.status}" - use planned or in-progress (done is written by /sdd-split-next once its archived folder is on main)`);
     if (parent && (s.requirements.length || s.split.length)) errors.push(`slice "${s.id}": requirement names in the parent - the parent is a control plane; behaviour and names live in the child delta`);
   }
   for (const s of plan.slices) for (const d of s.depends_on) if (!ids.has(d)) errors.push(`slice "${s.id}": depends_on "${d}" is not a slice`);
@@ -316,7 +316,7 @@ export function sliceStatus(root, slice) {
   const loc = changeLocation(root, slice.id);
   if (loc?.archived) return 'done';
   if (!loc) return 'missing';
-  return slice.status === 'in-progress' ? 'in progress' : 'planned';
+  return slice.status === 'in-progress' || slice.status === 'done' ? 'in progress' : 'planned'; // "done" without an archived folder: taken, not merged here
 }
 
 export function readiness(root, plan) {
