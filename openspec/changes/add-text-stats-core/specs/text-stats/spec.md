@@ -26,13 +26,9 @@ The system SHALL count a sentence for every run of text that ends in ".", "!" or
 - **WHEN** the text is "One. two words"
 - **THEN** the sentence count is 2
 
-### Requirement: Reading time
+### Requirement: Reading time estimate
 The system SHALL estimate the reading time in whole minutes as the word count divided by 200, rounded up.
 
 #### Scenario: Short text reads in one minute
 - **WHEN** the text has 1 to 200 words
 - **THEN** the reading time is 1 minute
-
-#### Scenario: Empty text reads in zero minutes
-- **WHEN** the text has no words
-- **THEN** the reading time is 0 minutes

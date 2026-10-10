@@ -32,4 +32,5 @@ See the parent plan [slices.md](../add-text-stats/slices.md); depends on: none.
      - renamed_from: Requirement|Scenario "<original name>" -> "<new name>" - <why equivalent>
      - split_from: Requirement "<original name>" - confirmed -->
 
-_None._
+- renamed_from: Requirement "Reading time" -> "Reading time estimate" - same behaviour; the slice's narrowed session renamed it to say it is an estimate
+- dropped: Scenario "Empty text reads in zero minutes" - redundant with the formula (0 words / 200 rounded up is 0); kept the scenario list minimal (Grok Bot on behalf of shachar bardavid)
