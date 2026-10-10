@@ -69,3 +69,12 @@ export const CLI = path.join(TOOLKIT, 'bin', 'sdd-pp.mjs');
 export function initCli(dir, ...args) {
   return spawnSync(process.execPath, [CLI, 'init', dir, ...args], { encoding: 'utf8' });
 }
+
+/** Run the exact "git add ... && git commit -m ..." line a command printed (after "<label>: "), as a user would paste it. */
+export function runPrinted(cwd, out, label) {
+  const m = new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\n]*?: (git add [^\\n]*&& git commit -m "[^"\\n]*")`, 'm').exec(out);
+  if (!m) throw new Error(`no "${label}" commit line in:\n${out}`);
+  const r = spawnSync('bash', ['-c', m[1]], { cwd, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } });
+  if (r.status !== 0) throw new Error(`printed line failed: ${m[1]}\n${r.stdout}${r.stderr}`);
+  return m[1];
+}

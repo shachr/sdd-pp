@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findParentOf } from './lib/split.mjs';
-import { findProjectRoot, loadChange, resolveTool, projectToolConfigPath, SESSION_FILES, SESSION_SKILLS, TOOLS, UsageError, sessionFiles } from './lib/change.mjs';
+import { findProjectRoot, loadChange, resolveTool, projectToolConfigPath, SESSION_FILES, SESSION_SKILLS, TOOLS, UsageError, sessionFiles, isStub } from './lib/change.mjs';
 
 function main() {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
@@ -33,7 +33,7 @@ function main() {
   }
   if (positionals.length !== 1) { console.error(usage); return 2; }
   let change = loadChange(root, positionals[0]);
-  let created = null;
+  let created = null; let replaced = false;
   if (values.set) {
     const other = sessionFiles(change).filter((s) => s.fileTool !== values.set && (s.tool || s.fileTool) !== values.set);
     if (change.handoff?.tool && change.handoff.tool !== values.set) {
@@ -41,7 +41,7 @@ function main() {
       return 1;
     }
     const started = other.filter((s) => !isStub(change.read(s.file)));
-    if (!started.length) for (const s of other) { fs.rmSync(path.join(change.dir, s.file)); console.log(`replaced the unused ${s.file} stub (no design session in it yet)`); }
+    if (!started.length) for (const s of other) { fs.rmSync(path.join(change.dir, s.file)); replaced = true; console.log(`replaced the unused ${s.file} stub (no design session in it yet)`); }
     else if (other.length) {
       console.error(`refused: ${other.map((s) => s.file).join(', ')} already holds a ${other[0].fileTool} design session. Switching tools means redoing the session - see .openspec-handoff/switching-tools.md.`);
       return 1;
@@ -58,7 +58,8 @@ function main() {
   else if (!r.tool) console.log(`${change.id}: no execution tool set - run with --default <tool> (project) or --set <tool> (this change)`);
   else {
     console.log(`${change.id}: ${r.tool} (from ${r.source}${out.override ? `; overrides project default ${r.projectDefault}` : ''}) -> design session: ${out.sessionSkill} -> ${out.sessionFile}${created ? ' (created)' : started ? '' : ' (not started)'}`);
-    if (created) console.log(`Commit with the change: git add openspec/changes/${change.id}/${created} && git commit -m "tool(${change.id}): ${r.tool}"`);
+    // a replaced stub's deletion must be staged too: -A on the execution folder
+    if (created) console.log(`Commit with the change: git add ${replaced ? `-A openspec/changes/${change.id}/execution` : `openspec/changes/${change.id}/${created}`} && git commit -m "tool(${change.id}): ${r.tool}"`);
   }
   return r.tool ? 0 : 1;
 }
@@ -70,22 +71,22 @@ function startSession(root, change, tool) {
   if (fs.existsSync(f)) return null;
   const parent = findParentOf(root, change.id);
   const slice = parent && parent.id !== change.id;
+  const caps = [...new Set(change.deltas.map((d) => d.split('/')[1]))].sort();
+  const prop = change.read('proposal.md') || '';
+  const sn = /^## Split notes\s*\n([\s\S]*?)(?=\n## |$)/m.exec(prop);
+  const notes = sn ? sn[1].split(/\r?\n/).filter((l) => /^- \S/.test(l)).map((l) => l.slice(2).trim()) : [];
   fs.mkdirSync(path.dirname(f), { recursive: true });
   fs.writeFileSync(f, [
     '---', `tool: ${tool}`, `session: ${SESSION_SKILLS[tool]}`, '---', '',
     ...(slice ? [`> Parent session: [../../${parent.id}/${SESSION_FILES[tool]}](../../${parent.id}/${SESSION_FILES[tool]}) - read it first; this session is narrowed to the slice.`, ''] : []),
-    '> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md', '',
+    `> Links: [proposal](../proposal.md) · specs: ${caps.length ? caps.map((c) => `[${c}](../specs/${c}/spec.md)`).join(', ') : '../specs/<capability>/spec.md'}`, '',
     `# ${SESSION_SKILLS[tool]} session: ${change.id}`, '',
-    ...(slice ? ['## Overrides', '', 'None', ''] : []),
+    // a slice's deliberate differences (its split notes) are the first candidates for overriding parent decisions
+    ...(slice ? ['## Overrides', '', ...(notes.length ? notes.map((n) => `- split note: ${n} - TODO: which parent decision this overrides (delete the line if none)`) : ['None']), ''] : []),
   ].join('\n'));
   return SESSION_FILES[tool];
 }
 
-/** A session file that holds only what startSession writes (no design session in it yet). */
-export function isStub(text) {
-  if (text == null) return true;
-  const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
-  return body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^> (Links|Parent session):/.test(l) && !/^# \S+ session: /.test(l) && l !== '## Overrides' && l !== 'None').length === 0;
-}
+export { isStub };
 
 try { process.exit(main()); } catch (e) { console.error(`execution-tool: ${e.message}`); process.exit(e instanceof UsageError ? 2 : 1); }

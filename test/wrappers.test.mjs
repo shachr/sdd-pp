@@ -79,9 +79,16 @@ test('wrappers and templates: spec changes after a delta edit, flag requirement 
     assert.match(s, /`openspec list` \/ `openspec status` do not see/);
     assert.match(s, /\*\*Ignore OpenSpec's apply prompts\.\*\*.*follow `\/sdd-next-steps <id>`/);
     assert.match(s, /\*\*No sub-agents in the harness\?\*\*/);
-    assert.match(s, /`\/sdd-tool <id>` creates `execution\/(grill|brainstorm)\.md` .*when it is missing/);
+    // B8: the wrappers agree with the script - show writes nothing, --set starts the session file
+    assert.match(s, /`\/sdd-tool <id>` only shows the tool and writes nothing; `--set (ai-hero|superpowers)` starts `execution\/(grill|brainstorm)\.md`/);
+    assert.doesNotMatch(s, /`\/sdd-tool <id>` creates/);
     assert.match(s, /`base_ref` in `handoff\.md`/);
   }
+  const schema = read('schemas/handoff-driven/schema.yaml');
+  assert.match(schema, /`\/sdd-tool <change>` only SHOWS the tool\s+and writes nothing; `--set` starts the session file/);
+  assert.doesNotMatch(schema, /`\/sdd-tool <change>` starts the session file/);
+  // verify: our instruction overrides OpenSpec verify's "Task Completion: not applicable"
+  assert.match(schema, /This overrides verify's own "Task Completion: not applicable"/);
   assert.match(read('skills/openspec-handoff-ai-hero/SKILL.md'), /integration branch is `change\/<id>`; each ticket's `Status: done` \+ checkboxes go in the ticket-branch commit/);
   for (const h of ['claude', 'cursor', 'opencode']) {
     const c = read(`commands/${h}/sdd-spec-check.md`);

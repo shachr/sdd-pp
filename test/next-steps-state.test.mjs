@@ -43,3 +43,27 @@ test('next-steps: [done] follows the files in the change folder; the switch line
   out = steps(dir);
   assert.ok(!isDone(out, 1) && !isDone(out, 2), out);
 });
+
+test('next-steps before /sdd-handoff (no handoff.md): exit 0 with the steps so far ([done] from the files), not an error', () => {
+  const { dir, changeDir } = makeFixture();
+  fs.rmSync(path.join(changeDir, 'handoff.md'));
+  const out = steps(dir);
+  assert.match(out, /^add-greeting-name: no handoff\.md yet - the change is not handed off, so the implementation steps are not known\. Steps up to the handoff:$/m);
+  assert.match(out, /^\[done\] 1\. Design session: grill-with-docs -> openspec\/changes\/add-greeting-name\/execution\/grill\.md \(tool ai-hero/m);
+  assert.match(out, /^\[done\] 2\. openspec\/changes\/add-greeting-name\/proposal\.md/m);
+  assert.match(out, /^\[done\] 3\. Delta specs/m);
+  assert.match(out, /^4\. \/sdd-split-check add-greeting-name - split gate/m);
+  assert.match(out, /^5\. \/sdd-handoff add-greeting-name -> openspec\/changes\/add-greeting-name\/handoff\.md[^\n]*\/sdd-next-steps add-greeting-name reprints them/m);
+  assert.doesNotMatch(out, /\/to-spec|\/opsx:verify/);
+});
+
+test('next-steps (superpowers): the sdd-workspace path uses the installed skills folder when found, else says what <skills dir> is', () => {
+  const { dir, changeDir } = makeFixture();
+  fs.writeFileSync(path.join(changeDir, 'handoff.md'), fs.readFileSync(path.join(changeDir, 'handoff.md'), 'utf8').replace(/^tool: .*$/m, 'tool: superpowers').replace(/^apply_mode: .*$/m, 'apply_mode: executing-plans'));
+  let out = steps(dir);
+  assert.match(out, /<skills dir>\/subagent-driven-development\/scripts\/sdd-workspace [^\n]*\(<skills dir> = where the Superpowers skills are installed, e\.g\. \.claude\/skills or \.agents\/skills\)/);
+  fs.mkdirSync(path.join(dir, '.claude/skills/subagent-driven-development'), { recursive: true });
+  out = steps(dir);
+  assert.match(out, / \.claude\/skills\/subagent-driven-development\/scripts\/sdd-workspace openspec\/changes\/add-greeting-name\/execution\/plan-add-greeting-name\.md\./);
+  assert.doesNotMatch(out, /<skills dir>/);
+});

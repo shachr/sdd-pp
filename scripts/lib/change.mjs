@@ -98,6 +98,64 @@ export function findPlan(change) {
   return change.execution.find((f) => /^execution\/plan(-[^/]+)?\.md$/.test(f)) || null;
 }
 
+/**
+ * Open work in a change's planning output: tickets not "Status: done" (AI Hero) and unticked plan step boxes
+ * (Superpowers). Returns one line per open item.
+ */
+export function openWork(change) {
+  const open = [];
+  for (const f of change.files.filter((x) => /^execution\/tickets\/[^/]+\.md$/.test(x)).sort()) {
+    const t = change.read(f);
+    if (!/^\s*\**status:?\**\s*done\b/im.test(t)) {
+      const st = (/^\s*\**status:?\**\s*([^\n]*)$/im.exec(t) || [])[1]?.trim();
+      open.push(`${f}: Status ${st ? `"${st}"` : 'missing'}, not done`);
+    }
+  }
+  const plan = findPlan(change);
+  if (plan) {
+    let task = null;
+    change.read(plan).split(/\r?\n/).forEach((l, i) => {
+      const h = /^#{2,4}\s+(Task\s+\d+[^\n]*)$/i.exec(l);
+      if (h) task = h[1].trim();
+      if (/^\s*[-*]\s*\[ \]/.test(l)) open.push(`${plan}:${i + 1}: unticked step${task ? ` in ${task}` : ''}: ${l.trim().replace(/^[-*]\s*\[ \]\s*/, '')}`);
+    });
+  }
+  return open;
+}
+
+/**
+ * CRITICAL issues recorded in an /opsx:verify report: a "CRITICAL" line (or heading) whose text, or whose list
+ * items below it, are anything but "none" / "0". "No critical issues" (lower case) and "CRITICAL: none" are clean.
+ */
+export function verifyCriticals(text) {
+  const lines = text.split(/\r?\n/);
+  const issues = [];
+  const clean = (x) => /^(none|0|n\/a|-)?\.?$/i.test(x.trim()) || /^(none|0)\b/i.test(x.trim());
+  for (let i = 0; i < lines.length; i++) {
+    const m = /\bCRITICAL\b(.*)$/.exec(lines[i]);
+    if (!m) continue;
+    const rest = m[1].replace(/\*\*/g, '').replace(/\([^)]*\)/g, '').replace(/^[\s:=-]+/, '').trim();
+    if (rest) { if (!clean(rest)) issues.push(lines[i].trim()); continue; }
+    // a heading / label: the list items right below it
+    for (let j = i + 1; j < lines.length; j++) {
+      const l = lines[j];
+      if (!l.trim()) { if (j > i + 1) break; continue; }
+      const item = /^\s*(?:[-*]|\d+\.)\s+(.*)$/.exec(l);
+      if (!item || /^#/.test(l.trim())) break;
+      if (/^\s*\d+\.\s/.test(l) && !/^\s/.test(l)) break; // the next numbered priority ("2. **WARNING**")
+      if (!clean(item[1].replace(/\*\*/g, ''))) issues.push(item[1].trim());
+    }
+  }
+  return [...new Set(issues)];
+}
+
+/** A session file that holds only what /sdd-tool --set writes (no design session in it yet). */
+export function isStub(text) {
+  if (text == null) return true;
+  const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+  return body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^> (Links|Parent session):/.test(l) && !/^# \S+ session: /.test(l) && l !== '## Overrides' && l !== 'None' && !/^- split note: .* - TODO: which parent decision this overrides/.test(l)).length === 0;
+}
+
 export function git(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
@@ -137,7 +195,12 @@ const cite = (kind) => new RegExp(`"${kind}:\\s*([^"\\n]+)"|${kind}:?\\s+"([^"\\
 /** Requirement and scenario names cited in a piece of markdown. */
 export function citations(md) {
   const pick = (re) => [...md.matchAll(re)].map((m) => (m[1] || m[2]).trim());
-  return { requirements: pick(cite('Requirement')), scenarios: pick(cite('Scenario')) };
+  // scenarios: only explicit, quoted citations - "Scenario: X", Scenario "X", scenarios "X", "Y" and "Z" (any case)
+  const scenarios = [...md.matchAll(/"scenario:\s*([^"\n]+)"/gi)].map((m) => m[1].trim());
+  for (const m of md.matchAll(/\bscenarios?:?\s+((?:"[^"\n]+"(?:\s*(?:,|;|&|\band\b|\bor\b)\s*)?)+)/gi)) {
+    for (const q of m[1].matchAll(/"([^"\n]+)"/g)) scenarios.push(q[1].trim());
+  }
+  return { requirements: pick(cite('Requirement')), scenarios: [...new Set(scenarios)] };
 }
 
 /**

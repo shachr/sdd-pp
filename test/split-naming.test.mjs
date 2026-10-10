@@ -104,24 +104,24 @@ test('sdd-pp split apply | next | start | archive from inside the project (archi
   assert.match(r.out, /Ready now: add-text-stats-01-core/);
   assert.match(r.out, /Tickets written: none new/);
   assert.ok(fs.existsSync(path.join(dir, 'openspec/changes/add-text-stats/tickets/add-text-stats-01-core.md')), 'apply wrote the READY ticket');
-  r = sdd('split', 'start', 'add-text-stats-02-cli');
+  r = sdd('slice-start', 'add-text-stats-02-cli');
   assert.equal(r.code, 1, 'refused: depends on core, not archived');
   assert.match(r.out, /REFUSED - "add-text-stats-02-cli" is not READY: it waits for add-text-stats-01-core/);
-  r = sdd('split', 'start', 'add-text-stats-01-core');
+  r = sdd('slice-start', 'add-text-stats-01-core');
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /split start add-text-stats-01-core: in-progress in openspec\/changes\/add-text-stats\/slices\.md \(parent add-text-stats\)/);
+  assert.match(r.out, /slice-start add-text-stats-01-core: in-progress in openspec\/changes\/add-text-stats\/slices\.md \(parent add-text-stats\)/);
   assert.match(r.out, /git switch -c change\/add-text-stats-01-core main/);
   assert.match(r.out, /\/sdd-handoff add-text-stats-01-core/);
-  r = sdd('split', 'archive', P);
+  r = sdd('split-finish', P);
   assert.equal(r.code, 1, 'refused while slices are not archived');
-  assert.match(r.out, /split archive add-text-stats: REFUSED - 2 slice\(s\) not archived: add-text-stats-01-core \(in progress\), add-text-stats-02-cli \(planned\)/);
+  assert.match(r.out, /split-finish add-text-stats: REFUSED - 2 slice\(s\) not archived: add-text-stats-01-core \(in progress\), add-text-stats-02-cli \(planned\)/);
   assert.doesNotMatch(r.out, /loss-check|\$ openspec archive/, 'stops before the final loss check');
   for (const id of ['add-text-stats-01-core', 'add-text-stats-02-cli']) {
     const a = spawnSync(OPENSPEC, ['archive', id, '--yes'], { cwd: dir, encoding: 'utf8' });
     assert.equal(a.status, 0, a.stdout + a.stderr);
   }
   r = sdd('split', 'next', P);
-  assert.match(r.out, /all slices done; archive the parent: \/sdd-split-archive add-text-stats/);
+  assert.match(r.out, /all slices done; finish the parent: \/sdd-split-finish add-text-stats/);
   // slices.md says done for archived slices, and the commit line is printed
   assert.match(r.out, /slices\.md: status done for add-text-stats-01-core, add-text-stats-02-cli \(archived folder present\)/);
   assert.match(r.out, /Commit on main: git add openspec\/changes\/add-text-stats && git commit -m "split: next add-text-stats \(done: add-text-stats-01-core, add-text-stats-02-cli\)"/);
@@ -129,9 +129,11 @@ test('sdd-pp split apply | next | start | archive from inside the project (archi
   assert.match(sl, /### Slice: add-text-stats-01-core\n[\s\S]*?- status: done/);
   assert.match(sl, /### Slice: add-text-stats-02-cli\n[\s\S]*?- status: done/);
   assert.doesNotMatch(sdd('split', 'next', P).out, /status done for/, 'marked once');
-  r = sdd('split', 'archive', P);
+  r = sdd('split-finish', P);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /\$ split\.mjs finalize add-text-stats[\s\S]*final, before archiving the parent\): PASS[\s\S]*git commit -m "split: archive parent add-text-stats"[\s\S]*\$ openspec archive add-text-stats --skip-specs -y/);
+  assert.match(r.out, /\$ split\.mjs finalize add-text-stats[\s\S]*final, before archiving the parent\): PASS[\s\S]*\$ openspec archive add-text-stats --skip-specs -y/);
+  // the commit line is the last thing on screen, after OpenSpec's archive output
+  assert.equal(r.out.trim().split('\n').at(-1), 'Commit the archive: git add -A openspec/changes && git commit -m "split: finish parent add-text-stats"');
   const arch = fs.readdirSync(path.join(dir, 'openspec/changes/archive'));
   assert.ok(arch.some((a) => /^\d{4}-\d\d-\d\d-add-text-stats$/.test(a)), arch.join(', '));
   assert.ok(arch.some((a) => /^\d{4}-\d\d-\d\d-add-text-stats-01-core$/.test(a)));
@@ -152,7 +154,7 @@ const archived = (dir, id) => fs.readdirSync(path.join(dir, 'openspec/changes/ar
 
 test('sdd-pp slice-finish (ai-hero): verify.md present -> openspec archive, status done in slices.md, commit line', { skip: OPENSPEC_SKIP }, () => {
   const { dir, sdd } = finishProject();
-  assert.equal(sdd('split', 'start', CORE_ID).code, 0);
+  assert.equal(sdd('slice-start', CORE_ID).code, 0);
   assert.equal(sdd('tool', CORE_ID, '--set', 'ai-hero').code, 0);
   W(dir, `openspec/changes/${CORE_ID}/execution/verify.md`, '# Verify\n\nNo critical issues.\n');
   const r = sdd('slice-finish', CORE_ID);
@@ -182,9 +184,9 @@ test('sdd-pp slice-finish refuses (exit 1, nothing archived): missing verify.md,
   // a planned slice (not taken)
   r = sdd('slice-finish', CORE_ID);
   assert.equal(r.code, 1, r.out);
-  assert.match(r.out, /REFUSED - "add-text-stats-01-core" is planned, not in progress - take it first with \/sdd-split-start add-text-stats-01-core\./);
+  assert.match(r.out, /REFUSED - "add-text-stats-01-core" is planned, not in progress - take it first with \/sdd-slice-start add-text-stats-01-core\./);
   // in progress, no verify.md
-  assert.equal(sdd('split', 'start', CORE_ID).code, 0);
+  assert.equal(sdd('slice-start', CORE_ID).code, 0);
   assert.equal(sdd('tool', CORE_ID, '--set', 'superpowers').code, 0);
   r = sdd('slice-finish', CORE_ID);
   assert.equal(r.code, 1, r.out);
@@ -205,4 +207,43 @@ test('sdd-pp slice-finish refuses (exit 1, nothing archived): missing verify.md,
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /execution\/verify\.md and execution\/progress\.md present \(superpowers\)/);
   assert.ok(archived(dir, CORE_ID));
+});
+
+test('sdd-pp slice-finish refuses open work (exit 1, nothing archived): open tickets, CRITICAL issues in verify.md, unticked plan steps, TODO(agent:) placeholders - each listed', () => {
+  const { dir, sdd } = finishProject();
+  const ex = (f) => `openspec/changes/${CORE_ID}/execution/${f}`;
+  assert.equal(sdd('slice-start', CORE_ID).code, 0);
+  assert.equal(sdd('tool', CORE_ID, '--set', 'ai-hero').code, 0);
+  W(dir, ex('verify.md'), '# Verify\n\n### Issues by Priority\n\n1. **CRITICAL** (Must fix before archive):\n   - none\n\n2. **WARNING** (Should fix):\n   - none\n\nNo critical issues.\n');
+  W(dir, ex('tickets/01-counts.md'), '# 01: Counts\n\n**Status:** done\n\n- [x] Scenario "Count words" passes\n');
+  W(dir, ex('tickets/02-api.md'), '# 02: API\n\n**Status:** ready-for-agent\n\n- [ ] Scenario "Get stats" passes\n');
+  let r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /slice finish add-text-stats-01-core: REFUSED - open work in add-text-stats-01-core - nothing archived\. Finish it [^\n]*\n  open: execution\/tickets\/02-api\.md: Status "ready-for-agent", not done$/m);
+  assert.doesNotMatch(r.out, /01-counts\.md|CRITICAL in/);
+  assert.doesNotMatch(r.out, /\$ openspec archive/);
+  // the ticket is done, but verify recorded a CRITICAL issue
+  W(dir, ex('tickets/02-api.md'), '# 02: API\n\n**Status:** done\n\n- [x] Scenario "Get stats" passes\n');
+  W(dir, ex('verify.md'), '# Verify\n\n### CRITICAL\n- Incomplete task: execution/tickets/02-api.md is not "Status: done".\n\n### Final Assessment\n\nReady.\n');
+  r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /^  CRITICAL in execution\/verify\.md: Incomplete task: execution\/tickets\/02-api\.md is not "Status: done"\.$/m);
+  W(dir, ex('verify.md'), '# Verify\n\n- CRITICAL: 1 - the export overwrites files\n');
+  assert.match(sdd('slice-finish', CORE_ID).out, /CRITICAL in execution\/verify\.md: - CRITICAL: 1 - the export overwrites files/);
+  // superpowers: unticked plan steps are open work (named with their task)
+  W(dir, ex('verify.md'), '# Verify\n\n- CRITICAL: none\n');
+  W(dir, ex('progress.md'), '# Ledger\n');
+  W(dir, ex(`plan-${CORE_ID}.md`), '# Plan\n\n### Task 1: Counts\n- [x] **Step 1:** write the test\n- [ ] **Step 2:** make it pass\n');
+  r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, new RegExp(`^  open: execution/plan-${CORE_ID}\\.md:5: unticked step in Task 1: Counts: \\*\\*Step 2:\\*\\* make it pass$`, 'm'));
+  fs.rmSync(path.join(dir, ex(`plan-${CORE_ID}.md`)));
+  // a flag placeholder left in the slice's delta
+  const delta = `openspec/changes/${CORE_ID}/specs/text-stats/spec.md`;
+  W(dir, delta, R(dir, delta) + '\n### Requirement: Placeholder\nThe system SHALL TODO(agent: the behaviour).\n');
+  r = sdd('slice-finish', CORE_ID);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /open: openspec\/changes\/add-text-stats-01-core\/specs\/text-stats\/spec\.md:\d+: TODO\(agent: \.\.\.\) placeholder left in the delta/);
+  assert.ok(!fs.existsSync(path.join(dir, 'openspec/changes/archive')) || !archived(dir, CORE_ID), 'nothing archived');
+  assert.match(R(dir, 'openspec/changes/add-text-stats/slices.md'), /### Slice: add-text-stats-01-core\n[\s\S]*?- status: in-progress/);
 });

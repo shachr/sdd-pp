@@ -52,13 +52,13 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 | `/sdd-spec-check <id>` (agent: adds the review for missing / invented / contradicted / restated, sets PASS or GAPS; accepts PASS with `--accept`) | `spec-check <id>` (mechanical report; kept as is when the delta and planning units match the accepted PASS), `spec-check <id> --check` (writes nothing) | `spec-check.mjs <id> --write` |
 | `/sdd-split-apply <id>` | `split apply <id>` | `split.mjs apply <id>` |
 | `/sdd-split-next <parent>` | `split next <parent>` | `split.mjs next <parent> --write-tickets` |
-| `/sdd-split-start <slice> [--undo]` | `split start <slice> [--undo]` | `split.mjs start <slice> [--undo]` |
-| `/sdd-slice-finish <slice>` | `slice-finish <slice>` | `split.mjs finish-check <slice>` (in progress? `execution/verify.md`, + `execution/progress.md` for Superpowers - refuses listing what is missing), `openspec archive <slice> -y`, `split.mjs finish-mark <slice>` (status done in the parent's `slices.md`, commit line) |
-| `/sdd-split-undo <parent> [--force]` | `split undo <parent> [--force]` | `split.mjs undo <parent> [--force]` |
-| `/sdd-split-archive <parent>` | `split archive <parent>` | `split.mjs finalize <parent>` (stops with "N slices not archived: ..." unless every slice is archived; marks them `status: done`; final loss check), then `openspec archive <parent> --skip-specs -y` |
+| `/sdd-slice-start <slice> [--undo]` | `slice-start <slice> [--undo]` | `split.mjs start <slice> [--undo]` |
+| `/sdd-slice-finish <slice>` | `slice-finish <slice>` | `split.mjs finish-check <slice>` (in progress? `execution/verify.md`, + `execution/progress.md` for Superpowers; no open ticket, unticked plan step, CRITICAL issue in verify.md or `TODO(agent:` placeholder - refuses listing what is missing or open), `openspec archive <slice> -y`, `split.mjs finish-mark <slice>` (status done in the parent's `slices.md`, commit line) |
+| `/sdd-split-undo <parent> [--force]` (the whole parent only; no per-slice undo) | `split undo <parent> [--force]` | `split.mjs undo <parent> [--force]` |
+| `/sdd-split-finish <parent>` | `split-finish <parent>` | `split.mjs finalize <parent>` (stops with "N slices not archived: ..." unless every slice is archived; marks them `status: done`; final loss check), then `openspec archive <parent> --skip-specs -y` |
 | - | `split loss <parent> [--final]` | `split.mjs loss` (the agent runs it during a split) |
 
-`/sdd-split-archive` exists because `/opsx:archive` is agent-driven (it moves the folder itself and cannot pass
+`/sdd-split-finish` exists because `/opsx:archive` is agent-driven (it moves the folder itself and cannot pass
 `--skip-specs`) and does not run the final loss check.
 
 Every command that writes files prints the exact `git add ... && git commit -m ...` line for what it wrote. `/sdd-next-steps` marks
@@ -119,10 +119,10 @@ See [small-changes.md](small-changes.md).
    `renamed_from:`, `split_from:`). Commit the parent and all children together as one planning PR.
 4. `/sdd-split-next <id>` → READY slices (all dependencies archived on main), parallel-safe
    pairs (no dependency, no shared capability), and `tickets/<slice>.md` for each ready slice.
-5. Per slice: `/sdd-split-start <slice>` (marks it in-progress, prints the next lines; commit the mark on main), a branch from main, a short design
+5. Per slice: `/sdd-slice-start <slice>` (marks it in-progress, prints the next lines; commit the mark on main), a branch from main, a short design
    session reading the parent's session file → `/sdd-handoff <slice>` → the normal flow → `/opsx:verify <slice>` → `/sdd-slice-finish <slice>`
    (checks verify.md / progress.md, `openspec archive <slice> -y`, status done in `slices.md`) committed in the slice's PR with its code → merge → `/sdd-split-next <id>` on main.
-6. All slices archived → `/sdd-split-archive <id>` (final loss check, then `openspec archive <id> --skip-specs -y`).
+6. All slices archived → `/sdd-split-finish <id>` (final loss check, then `openspec archive <id> --skip-specs -y`).
 
 Changed your mind before any slice is archived? `/sdd-split-undo <id>` restores the original change from `split_commit`
 (also after re-splits) and removes the slice folders, uncommitted; review `git status`, commit on main. It refuses with an
@@ -144,6 +144,8 @@ Changing the plan later: edit the child delta, add the split note to the child's
 - **Exercised in v9:** `implement-spec` and `subagent-driven-development` ran end to end, but the harness had no real sub-agent tool: the roles ran in-session, labelled (so sub-agents were never truly run). PR-based finishing is not exercised.
 - **Review independence:** the tool's own review runs in the implementing agent's environment; the independent review is CI's review on the PR.
 - **`/sdd-spec-check`'s review is agent judgement:** the script checks links and coverage mechanically and writes `PENDING`; missing / invented / contradicted behaviour and restated text are the agent's call, and the agent sets PASS or GAPS.
-- **Splitting:** tested on demo features (`handoff-flows-v5` to `-v9` and two fresh e2e runs). The loss check matches names; for an unmatched name it lists rename candidates and the agent judges semantic equivalence (`renamed_from`), so that step is agent judgement. "In progress" is set by `/sdd-split-start <slice>` in the parent's `slices.md` (commit it on main); the next report does not scan branches. Line estimates are the agent's guesses.
-- **`openspec status` / `openspec list` don't show implementation progress:** with no tasks stage, `status` says "All planning artifacts complete!" right after `/sdd-handoff`, and `list` shows "No tasks". Real progress is the tool's own tracking (ticket `Status:` / plan step checkboxes). `/opsx:verify` reports Task Completion as not applicable.
+- **Splitting:** tested on demo features (`handoff-flows-v5` to `-v9` and two fresh e2e runs). The loss check matches names; for an unmatched name it lists rename candidates and the agent judges semantic equivalence (`renamed_from`), so that step is agent judgement. "In progress" is set by `/sdd-slice-start <slice>` in the parent's `slices.md` (commit it on main); the next report does not scan branches. Line estimates are the agent's guesses.
+- **`openspec status` / `openspec list` don't show implementation progress:** with no tasks stage, `status` says "All planning artifacts complete!" right after `/sdd-handoff`, and `list` shows "No tasks". Real progress is the tool's own tracking (ticket `Status:` / plan step checkboxes). `/opsx:verify` would report Task Completion as not applicable; the handoff-driven instruction overrides that (it checks ticket Status / plan boxes / progress.md), but verify is agent judgement - `/sdd-slice-finish` enforces it for slices (refuses open tickets, unticked plan steps, CRITICAL issues in verify.md). An unsplit change's `/opsx:archive` does not.
+- **Undo is whole-parent only:** `/sdd-split-undo <parent>` restores the original change; there is no per-slice undo (re-split a slice with `/sdd-split-check <slice>` + `/sdd-split-apply`, or release a taken slice with `/sdd-slice-start <slice> --undo`).
+- **Parallel-safe is by dependency and capability, not by file:** two parallel-safe slices can still edit the same code file. `/sdd-split-next` warns (best effort) when both slices' planning names the same path (e.g. `src/cli.js`); paths not written in the planning are not seen.
 - **Undocumented OpenSpec key:** the project default lives in a toolkit-owned file (`.openspec-handoff/project.json`), so OpenSpec itself does not know about the tool.

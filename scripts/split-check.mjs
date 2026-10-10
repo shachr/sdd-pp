@@ -131,8 +131,8 @@ async function main() {
   }
   console.log(values.json ? JSON.stringify(r, null, 2) : formatSplitCheck(r));
   if (values.write && r.kind === 'change' && !values.json) {
-    const c = `openspec/changes/${positionals[0]}/execution`;
-    console.log(`Commit with the deltas: git add ${c}/split-check.md${r.proposal ? ` ${c}/split-proposal.md` : ''} && git commit -m "split-check(${positionals[0]})"`);
+    // the whole change (proposal, deltas, design session, split files): /sdd-split-apply needs it committed as its baseline
+    console.log(`Commit the change with its deltas (/sdd-split-apply needs them committed - that commit is the loss-check baseline): git add -A openspec/changes/${positionals[0]} && git commit -m "split-check(${positionals[0]})"`);
   }
   return 0;
 }
