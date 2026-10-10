@@ -2,7 +2,7 @@
 
 Test projects used to develop and prove this toolkit, each with its full git history (merged in subtree-style).
 
-These are historical runs and predate the current toolkit: they still use `install.sh`, the `implementation_model` / `reviewer_model` handoff fields and the Ollama fallback reviewer (see `docs/decisions.md` section 13).
+v1-v7 are historical runs and predate the current toolkit: they still use `install.sh`, the `implementation_model` / `reviewer_model` handoff fields and the Ollama fallback reviewer (see `docs/decisions.md` section 13). v8 is the first run of the current toolkit (Node installer `npx github:shachr/sdd-pp init`, no reviewer/model fields).
 
 | Folder | What it shows |
 |---|---|
@@ -13,6 +13,7 @@ These are historical runs and predate the current toolkit: they still use `insta
 | `handoff-flows-v5/` | v5: first split of a large change into slices (parent tracks requirement names) |
 | `handoff-flows-v6/` | v6: split with the parent as a pure control plane (git-baseline loss check) |
 | `handoff-flows-v7/` | v7: clean test: parent design session names are harmless |
+| `handoff-flows-v8/` | v8: first full run of the Node installer + no reviewer/model fields |
 
 Absolute paths such as `/home/box/...` or `/workspace/...` in logs and reviews refer to the machine the runs were made on.
 
