@@ -42,7 +42,8 @@ approves or edits them. Nothing is split automatically.
    (`archive/2026-10-10-add-digest-01-core/`): keep the parent id and the slice part short.
    `split: <original> -> <new name> [<scenario>; ...]` cuts one requirement in two. `flag:` only when the
    slice gates user-visible behaviour; then a cleanup slice (`removes_flag: <flag>`, depending on the
-   flagged slice) is always planned.
+   flagged slice) is always planned. The flag requirement is not in the original delta: the flagged slice
+   adds it (split note `added:`), the cleanup slice removes it (`## REMOVED Requirements`).
 2. **Approval** - the engineer sets `approved_by:` (or edits the slices). `/split-check` shows the slices,
    which are ready first and which pairs can run in parallel.
 3. **Commit the deltas, then apply** - the commit holding the original deltas is the loss-check baseline.
@@ -94,7 +95,8 @@ approves or edits them. Nothing is split automatically.
 
 Changing the plan later: edit the child delta, add the split note to that child's proposal, rerun
 `split.mjs loss <parent>`, then update the tool files (regenerate open tickets / tasks only - never a done
-one; `git diff HEAD` shows a done ticket that was overwritten), then `/spec-check`.
+one; `git diff HEAD` shows a done ticket that was overwritten), then `/spec-check` - its "Spec changes since
+the last check" section names the requirements / scenarios that changed and the tickets / tasks citing them.
 
 `sdd-pp init` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `mark`
 commits); `split.mjs loss` warns if a union merge left a slice field twice.

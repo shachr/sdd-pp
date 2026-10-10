@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, run, initCli } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, run, initCli, makeFixture } from './helpers.mjs';
 
 const W = (dir, rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
 const R = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
@@ -52,6 +52,7 @@ test('split-check: counts only - one line when it fits, warns (exit 0) above 5 r
   let r = run('split-check.mjs', ['add-reports'], dir);
   assert.equal(r.code, 0);
   assert.equal(r.out.trim(), 'split-check add-reports: fits (3 requirements, 2 capabilities)');
+  assert.match(run('split-check.mjs', ['add-greeting-name'], makeFixture().dir).out, /fits \(2 requirements, 1 capability\)/);
   const big = project({ extra: true });
   r = run('split-check.mjs', ['add-reports', '--write'], big.dir);
   assert.equal(r.code, 0);

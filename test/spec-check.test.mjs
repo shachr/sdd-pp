@@ -55,3 +55,39 @@ test('requirement-link rule: plan tasks need a Covers line naming a delta requir
   assert.match(r.out, /plan task "Task 2: CLI wiring" names no delta requirement/);
   assert.match(r.out, /plan task "Task 2: CLI wiring" names scenario "Name typed twice"/);
 });
+
+test('spec changes since the last check: added / changed / renamed / removed, with the citing units (done marked); report-only', () => {
+  const { dir, changeDir } = makeFixture();
+  const delta = path.join(changeDir, 'specs', 'greeting', 'spec.md');
+  let r = run('spec-check.mjs', [CHANGE, '--write'], dir);
+  assert.match(r.out, /### Spec changes since the last check \(report-only\)\n\n- none: first check - baseline recorded in execution\/\.spec-check\.json/);
+  const snap = JSON.parse(fs.readFileSync(ex(changeDir, '.spec-check.json'), 'utf8'));
+  assert.match(snap.requirements['Greeting by name'].scenarios['Name given'], /^[0-9a-f]{12}$/);
+  r = run('spec-check.mjs', [CHANGE, '--write'], dir);
+  assert.match(r.out, /### Spec changes since the last check \(report-only; baseline [^)]+\)\n\n- none\n/);
+  // edit the delta after planning: change a scenario, rename a requirement (same content), add a scenario
+  replaceIn(delta, '- **THEN** the output is `Hello, Ada!`\n\n#### Scenario: Name with', '- **THEN** the output is `Hello, Ada!!`\n\n#### Scenario: Name with');
+  replaceIn(delta, '### Requirement: Blank name falls back to default', '### Requirement: Blank name uses the default');
+  fs.appendFileSync(delta, '\n#### Scenario: Empty name\n- **WHEN** the user runs `greet ""`\n- **THEN** the output is `Hello, World!`\n');
+  r = run('spec-check.mjs', [CHANGE, '--write'], dir);
+  assert.equal(r.code, 1, 'the stale citation of the old name is a mechanical gap; the change list itself is report-only');
+  assert.match(r.out, /- renamed: Requirement "Blank name uses the default" \(was "Blank name falls back to default"\) - cited by: story 2; 01: greet\(\) - name parameter \[done\]/);
+  assert.match(r.out, /- added: Scenario "Empty name" \(of "Blank name uses the default"\) - cited by: story 2; 01: greet\(\) - name parameter \[done\]/);
+  assert.match(r.out, /- changed: Scenario "Name given" \(of "Greeting by name"\) - cited by: story 1; 01: greet\(\) - name parameter \[done\]; 02: CLI - argv wiring \[done\]/);
+  assert.match(r.out, /Hint: re-run the tool's planning \(to-spec \+ to-tickets\) for the changed requirements \(no open unit cites them yet\); done units are protected - never overwrite them \(01: greet\(\) - name parameter; 02: CLI - argv wiring\): plan new work for what changed instead\. Then run \/spec-check again\./);
+  // gaps remain -> the baseline did not move, so the list shows again
+  r = run('spec-check.mjs', [CHANGE], dir);
+  assert.match(r.out, /- renamed: Requirement "Blank name uses the default"/);
+  // removal, with no mechanical gap (report-only: no GAPS from the change list)
+  const { dir: d2, changeDir: c2 } = makeFixture();
+  run('spec-check.mjs', [CHANGE, '--write'], d2);
+  const snapFile = ex(c2, '.spec-check.json');
+  const s2 = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
+  s2.requirements['Old requirement'] = { delta: 'specs/greeting/spec.md', hash: '000000000000', scenarios: {} };
+  fs.writeFileSync(snapFile, JSON.stringify(s2));
+  r = run('spec-check.mjs', [CHANGE, '--write'], d2);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /- removed: Requirement "Old requirement" - cited by: nothing yet/);
+  assert.match(r.out, /^PENDING: mechanical checks pass/m);
+  assert.equal(JSON.parse(fs.readFileSync(snapFile, 'utf8')).requirements['Old requirement'], undefined, 'baseline moved after a clean check');
+});

@@ -1,7 +1,7 @@
 ---
 change: <change-id>
 tool: <ai-hero | superpowers>
-harness: <claude-code | cursor | codex | opencode>
+harness: <optional: claude-code | cursor | codex | opencode | other>
 base_ref: <git rev-parse HEAD at handoff>
 execution_dir: execution/
 apply_mode: <implement | implement-spec | executing-plans | subagent-driven-development>
@@ -40,7 +40,7 @@ Implementation diff: `git diff <base_ref>...HEAD -- . ':!openspec'`
 ## Size check
 
 - Requirements in deltas: <n> (budget 5)
-- Tickets / plan tasks: <n> (budget 8)
+- Tickets / plan tasks: <n> expected (planning not run yet; budget 8)
 - Split decision: <fits | slice k of n>
 
 ## Notes for the implementer

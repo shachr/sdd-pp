@@ -74,6 +74,7 @@ the execution tool's: AI Hero's ticket `Status: done`, Superpowers' ledger and p
 
 Useful checks at any time:
 - `/tool <id>` shows which tool applies and why.
+- After editing a delta (any time after planning), run `/spec-check <id>`: it lists the requirements / scenarios added, changed, removed or renamed since the last check (content hashes in `execution/.spec-check.json`) and the tickets / plan tasks citing each - re-plan the open ones; done ones are protected. Report-only.
 - `/spec-check <id>` is the only plan-vs-spec check: requirement links (every story / ticket / task names a real delta requirement), coverage, and the agent review (missing / invented / contradicted; restated requirement text is advisory).
 
 ## Switching tools
@@ -119,8 +120,8 @@ info line (`i ...`) for an unchanged parent session and a warning only if the se
 commit; neither fails the check.
 
 Changing the plan later: edit the child delta, add the split note to the child's proposal, rerun
-`split.mjs loss`, then regenerate the tool's **open** tickets / tasks only (never a done one) and rerun
-`/spec-check`.
+`split.mjs loss`, then rerun `/spec-check`: its "Spec changes since the last check" section lists what
+changed and which tickets / tasks cite it; regenerate those **open** tickets / tasks only (never a done one).
 
 ## Known limitations
 

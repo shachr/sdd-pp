@@ -17,3 +17,14 @@ test('next-steps prints the tool sequence without running anything', () => {
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Next steps for add-greeting-name \(ai-hero, apply_mode: implement\)/);
 });
+
+test('next-steps: branch before implementation, what to commit, spec changes after a delta edit; superpowers: sdd-workspace, branch or worktree, why archive first', () => {
+  const ai = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement' });
+  assert.match(ai, /git switch -c change\/x, then commit openspec\/changes\/x\/execution\/ \(branch before implementation/);
+  assert.match(ai, /After any later delta edit, run \/spec-check again: it lists the requirements \/ scenarios added, changed, removed or renamed/);
+  const sp = nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'executing-plans' });
+  assert.match(sp, /a plain branch or a worktree \(using-git-worktrees; Superpowers recommends the worktree\), either works/);
+  assert.match(sp, /subagent-driven-development\/scripts\/sdd-workspace openspec\/changes\/x\/execution\/plan-x\.md/);
+  assert.match(sp, /<workspace>\/progress\.md\) to openspec\/changes\/x\/execution\/progress\.md/);
+  assert.match(sp, /Archive comes first because finishing merges or opens the PR/);
+});

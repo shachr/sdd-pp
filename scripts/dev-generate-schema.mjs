@@ -76,7 +76,9 @@ planning, in /spec-check, from the tool's tickets / plan; budget ~300 lines).
    this change into the parent (schema split-plan: a control plane with no requirement
    names) and creates one handoff-driven child per slice, named
    \`<change>-<nn>-<slice>\` (nn = two-digit order; the flag cleanup slice uses 99);
-   then \`split.mjs loss <parent>\` must pass.
+   then \`split.mjs loss <parent>\` must pass. A feature flag is not part of the
+   original delta: the flagged slice adds its requirement (split note "added:") and the
+   cleanup slice removes it (REMOVED Requirements).
    See .openspec-handoff/small-changes.md.
 `;
 
@@ -107,7 +109,7 @@ Front matter (YAML, all keys required unless marked optional):
 - \`change\`: this change id (folder name).
 - \`tool\`: \`ai-hero\` or \`superpowers\` - must match the design session file
   (exactly one session file; \`/tool <change>\` reports the tool to write).
-- \`harness\` (optional): the coding agent harness (claude-code, cursor, codex, opencode).
+- \`harness\` (optional): the coding agent harness (claude-code, cursor, codex, opencode, or other); may be omitted.
 - \`base_ref\`: git commit SHA the implementation starts from
   (\`git rev-parse HEAD\` at handoff). Used for review diffs.
 - \`execution_dir\`: always \`execution/\`.

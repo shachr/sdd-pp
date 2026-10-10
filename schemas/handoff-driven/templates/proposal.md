@@ -35,9 +35,10 @@
 
 ## Size Budget
 
-<!-- Keep the change PR-sized (.openspec-handoff/small-changes.md). Budget: <= 5 requirements,
-     <= 8 tickets/plan tasks, <= 400 changed lines. Over budget -> split into
-     several changes now and say which slice this is. -->
+<!-- Keep the change PR-sized (.openspec-handoff/small-changes.md). Budget: <= 5 requirements
+     and <= 2 capabilities, <= 8 tickets/plan tasks, ~300 changed lines of code + tests.
+     Do not split by hand: the split gate (/split-check, end of the specs stage) proposes
+     slices when the deltas are over budget. -->
 - Requirements in deltas: <!-- n -->
 - Expected tickets / plan tasks: <!-- n -->
 - Estimated changed lines: <!-- n -->

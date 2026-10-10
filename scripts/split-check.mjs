@@ -32,8 +32,8 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
   const caps = [...new Set(reqs.map((x) => x.capability))];
   const byCap = caps.map((c) => ({ capability: c, requirements: reqs.filter((x) => x.capability === c).map((x) => x.name) }));
   const over = [];
-  if (reqs.length > maxRequirements) over.push(`${reqs.length} requirements (> ${maxRequirements})`);
-  if (caps.length > maxCapabilities) over.push(`${caps.length} capabilities (> ${maxCapabilities})`);
+  if (reqs.length > maxRequirements) over.push(`${reqs.length} requirement${reqs.length === 1 ? '' : 's'} (> ${maxRequirements})`);
+  if (caps.length > maxCapabilities) over.push(`${caps.length} ${caps.length === 1 ? 'capability' : 'capabilities'} (> ${maxCapabilities})`);
   const out = { ...r, kind: 'change', requirements: reqs.length, capabilities: caps.length, byCap, over, status: over.length ? 'over' : 'fits' };
   // a new capability's delta needs "## Purpose", or archive writes a TBD placeholder into the main spec (warn-only)
   const specsDir = path.join(loc.dir, 'specs');
@@ -86,15 +86,17 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
 export function formatSplitCheck(r, { names = true } = {}) {
   if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /split-next ${r.change})`].join('\n');
   const warn = (r.warnings || []).map((w) => `  ! ${w}`);
-  if (r.status === 'fits') return [`split-check ${r.change}: fits (${r.requirements} requirements, ${r.capabilities} capabilities)`, ...warn].join('\n');
-  const out = [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (re-split: the new slices join parent ${r.parent}; no nested parents)` : ''}`, ''];
+  const reqs = `${r.requirements} requirement${r.requirements === 1 ? '' : 's'}`;
+  const caps = `${r.capabilities} ${r.capabilities === 1 ? 'capability' : 'capabilities'}`;
+  if (r.status === 'fits') return [`split-check ${r.change}: fits (${reqs}, ${caps})`, ...warn].join('\n');
+  const out = [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (this is a slice: a re-split adds new slices to parent ${r.parent} - /split-apply builds their ids, continuing its numbering; no nested parents)` : ''}`, ''];
   out.push(...warn);
   for (const c of r.byCap) out.push(names ? `- ${c.capability} (${c.requirements.length}): ${c.requirements.join('; ')}` : `- ${c.capability}: ${c.requirements.length} requirements`);
   if (!r.proposal) {
     out.push('', 'Next: propose slices in execution/split-proposal.md (front matter "approved_by:" left empty), show them to the engineer, and wait for approval or edits. Format:',
       '  ### Slice: <slice>   (the slice part only; split apply names the change <parent>-<nn>-<slice>)', '  - order: <nn>   (two digits, 01 = first; the flag cleanup slice uses 99; omit on a re-split to continue the numbering)', '  - goal: <one line, no requirement names>', '  - capabilities: <cap>, <cap>', '  - requirements: <exact name>; <exact name>',
       '  - split: <original name> -> <new name> [<scenario>; <scenario>]   (only to cut one requirement in two)',
-      '  - depends_on: none | <slice>, <slice>   (slice parts, or full ids of existing slices)', '  - flag: none | <flag>   (only when the slice gates user-visible behaviour)', '  - removes_flag: <flag>   (the cleanup slice; always planned when a flag exists)',
+      '  - depends_on: none | <slice>, <slice>   (slice parts, or full ids of existing slices)', '  - flag: none | <flag>   (only when the slice gates user-visible behaviour; its requirement is not in the original delta - this slice adds it, split note "added:")', '  - removes_flag: <flag>   (the cleanup slice, order 99; always planned when a flag exists; its delta REMOVES the flag requirement)',
       'Line estimates come after planning (/spec-check on each slice, budget ~300 lines of code + tests).');
     return out.join('\n');
   }

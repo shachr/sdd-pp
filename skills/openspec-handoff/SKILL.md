@@ -16,7 +16,7 @@ The change has been through the proposal phase: proposal + spec deltas (OpenSpec
 3. **Split gate.** The specs stage ends with `/split-check <id>` (`execution/split-check.md`). If it has not run, run it now. Over 5 requirements or 2 capabilities it is a warning (the ~300-line estimate comes later, after planning, in /spec-check): propose slices and wait for the engineer (the /split-check command); do not hand off a change the engineer decided to split. A split parent (`slices.md`, schema split-plan) is never handed off - hand off its slices.
 4. **Write `handoff.md`.** `openspec instructions handoff --change "<id>"` and its template. Fill:
    - `tool`: the tool `/tool <id>` reports (it must match the session file: `execution/grill.md` = ai-hero, `execution/brainstorm.md` = superpowers; exactly one of them)
-   - `harness`: claude-code, cursor, codex, opencode, ...
+   - `harness` (optional): claude-code, cursor, codex, opencode or other; omit it if unsure
    - `base_ref`: `git rev-parse HEAD` right now
    - `apply_mode`: the tool's own implement command - ai-hero: `implement` (one session) or `implement-spec` (subagents); superpowers: `executing-plans` (inline) or `subagent-driven-development`. Default to the subagent variant only if the harness has a subagent tool.
    - links to `proposal.md`, every `specs/**/spec.md` delta and the session file - links only
