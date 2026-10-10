@@ -100,7 +100,7 @@ test('Review focus: no words', () => { assert.equal(sentenceCount(''), 0); asser
 **Interfaces:**
 - Consumes: `wordCount`. Produces: `export function readingMinutes(text: unknown): number`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```js
 import { readingMinutes } from '../src/stats.mjs';
@@ -110,10 +110,10 @@ test('Short text reads in one minute', () => { assert.equal(readingMinutes('one'
 test('Review focus: reading time boundaries', () => { assert.equal(readingMinutes(''), 0); assert.equal(readingMinutes(words(201)), 2); });
 ```
 
-- [ ] **Step 2: Run test to verify it fails** - `npm test`, expected FAIL (`readingMinutes` not exported).
-- [ ] **Step 3: Implement `readingMinutes`** - `Math.ceil(wordCount(text) / WORDS_PER_MINUTE)` with `const WORDS_PER_MINUTE = 200`.
-- [ ] **Step 4: Run test to verify it passes** - `npm test`, expected PASS.
-- [ ] **Step 5: Commit** - `git commit -m "feat(text-stats): reading time (plan task 3)"`
+- [x] **Step 2: Run test to verify it fails** - `npm test`, expected FAIL (`readingMinutes` not exported).
+- [x] **Step 3: Implement `readingMinutes`** - `Math.ceil(wordCount(text) / WORDS_PER_MINUTE)` with `const WORDS_PER_MINUTE = 200`.
+- [x] **Step 4: Run test to verify it passes** - `npm test`, expected PASS.
+- [x] **Step 5: Commit** - `git commit -m "feat(text-stats): reading time (plan task 3)"`
 
 ## Execution Handoff
 
