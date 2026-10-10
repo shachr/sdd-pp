@@ -44,5 +44,5 @@ Archive this parent last: `split.mjs loss add-text-stats-cli --final`, then `ope
 - depends_on: add-stats-cli
 - flag: none
 - removes_flag: stats-cli
-- ticket: none
-- status: planned
+- ticket: tickets/remove-stats-cli-flag.md
+- status: in-progress
