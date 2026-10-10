@@ -18,14 +18,3 @@ The system SHALL print the counts as one JSON object with the keys "words", "sen
 #### Scenario: JSON flag
 - **WHEN** the user runs `textkit stats --json` with "Hi. How are you?" on standard input
 - **THEN** the output is {"words":4,"sentences":2,"readingMinutes":1} and the exit code is 0
-
-### Requirement: Stats command flag
-The system SHALL treat `textkit stats` as an unknown command unless the environment variable `TEXTKIT_STATS` is set to "1".
-
-#### Scenario: Flag off
-- **WHEN** the user runs `textkit stats` without `TEXTKIT_STATS=1`
-- **THEN** standard error contains "unknown command: stats" and the exit code is 2
-
-#### Scenario: Flag on
-- **WHEN** the user runs `textkit stats` with `TEXTKIT_STATS=1`
-- **THEN** the stats summary is printed and the exit code is 0

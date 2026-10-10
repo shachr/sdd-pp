@@ -15,11 +15,11 @@ Release the stats sub-command by removing its flag. Part of [add-text-stats-cli]
 
 ### New Capabilities
 
-- `stats-cli`
+_None._
 
 ### Modified Capabilities
 
-_None._
+- `stats-cli` (created by add-stats-cli; hand-corrected in this slice's session - the toolkit wrote "new" at split time, fixed in toolkit b712247)
 
 ## Impact
 
