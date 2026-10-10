@@ -17,7 +17,7 @@ Request (user, via the parent): "textkit needs a way to shorten text for preview
 - **Q2 - Cut mid-word or at a word boundary?** -> boundary first, hard cut as fallback; delta Scenarios "Cut at word boundary", "Long single word".
 - **Q3 - Text that already fits?** -> left alone; delta Requirement "Short text unchanged".
 - **Q4 - Configurable ellipsis?** -> yes, default the single character "…"; delta Scenario "Custom ellipsis".
-- **Q5 - Nonsense limits (0, negative, fractional, NaN)?** -> RangeError; delta Requirement "Limit validation".
+- **Q5 - Which limits are refused?** -> see delta; delta Requirement "Limit validation".
 
 ### Round 2 (frontier unlocked by Q1, Q2)
 
@@ -46,3 +46,7 @@ Names only - each is a scenario in the delta (`../specs/truncation/spec.md`):
 ## Domain docs
 
 - `GLOSSARY.md`: **Ellipsis** added. No ADR (nothing hard to reverse).
+
+## Ticket breakdown approval
+
+to-tickets quiz step: decisions were delegated, so Grok Bot approved the 2-ticket breakdown (01 core, 02 validation; 02 blocked by 01) on the user's behalf.
