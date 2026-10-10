@@ -33,3 +33,7 @@ test('Zero limit: RangeError', () => {
 test('Fractional limit: RangeError', () => {
   assert.throws(() => truncate('abc', 2.5), RangeError);
 });
+
+test('Negative limit: RangeError', () => {
+  assert.throws(() => truncate('abc', -1), RangeError);
+});

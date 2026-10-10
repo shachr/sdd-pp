@@ -35,3 +35,7 @@ execution_dir: execution/
 ## Notes for the implementer
 
 - Issue tracker for AI Hero skills is configured as the change folder (`docs/agents/issue-tracker.md`).
+
+## Reviews
+
+- qwen3:4b-instruct via code-review: [execution/reviews/20261009-231134-qwen3-4b-instruct.md](execution/reviews/20261009-231134-qwen3-4b-instruct.md)
