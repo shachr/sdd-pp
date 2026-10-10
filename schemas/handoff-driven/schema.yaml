@@ -17,7 +17,8 @@ artifacts:
       1. Resolve the execution tool chosen in the setup phase: `/tool <change>`
          (runs `node .openspec-handoff/scripts/sdd.mjs tool <change>`; project default in
          .openspec-handoff/project.json; a per-change override is recorded with
-         `/tool <change> --set <ai-hero|superpowers>`, which starts the session file).
+         `/tool <change> --set <ai-hero|superpowers>`; `/tool <change>` starts the session file
+         when it is missing, for the default as for --set).
          No tool set: ask the user once, then record it with --set.
       2. Run that tool's design session - the "Design session" part of its wrapper skill:
          - ai-hero -> skill `openspec-handoff-ai-hero`: grill-with-docs -> execution/grill.md

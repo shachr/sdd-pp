@@ -9,6 +9,9 @@ Thin wrapper: you run the real Superpowers skills unmodified. The OpenSpec chang
 
 Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
+- **Ignore OpenSpec's apply prompts.** `/opsx:propose` ends with "run /opsx-apply" and `openspec status` prints "Next: openspec instructions apply": this workflow never uses apply. After the proposal and specs, run `/handoff <id>`; after it, follow `/next-steps <id>`.
+- **No sub-agents in the harness?** If it has no sub-agent (Task) tool, use the inline variant (`executing-plans`; the brainstorming builder check and reviews are read in-session, as the skills allow) - or, when `apply_mode` requires the sub-agent variant, run each sub-agent role in-session and label it so in commits, reviews and the ledger (`[in-session, no sub-agent tool]`).
+
 **Location override (user preference, which brainstorming and writing-plans honour):** the written design goes to `execution/brainstorm.md` (not `docs/superpowers/specs/`); the plan goes to `execution/plan-<id>.md` (not `docs/superpowers/plans/`). The unique plan name gives the SDD workspace a unique name (`.superpowers/sdd/plan-<id>/`).
 
 ## Flow
@@ -30,7 +33,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches the proposal, before `proposal.md` is written.
 
-1. `/tool <id>` (runs `node .openspec-handoff/scripts/sdd.mjs tool <id>`) must say `superpowers` (project default, or `/tool <id> --set superpowers` for a per-change override). `--set` creates `execution/brainstorm.md` with front matter `tool: superpowers` / `session: brainstorming`; create it the same way if it does not exist.
+1. `/tool <id>` (runs `node .openspec-handoff/scripts/sdd.mjs tool <id>`) must say `superpowers` (project default, or `/tool <id> --set superpowers` for a per-change override). `/tool <id>` creates `execution/brainstorm.md` (front matter `tool: superpowers` / `session: brainstorming`) when it is missing, for the project default as for `--set`.
 2. Run `brainstorming` on the user's request (and the existing main specs it touches) as written: first message, questions, approaches, design sections, approval. If decisions were delegated, answer on the user's behalf and mark those answers as your calls.
    - **Size the Work**: pick "a project with a written design" (the engineer plans it with writing-plans after /handoff).
 3. **The Written Design** goes to `execution/brainstorm.md` (keep the front matter). Write it as brainstorming says (intent and why, goals / non-goals, constraints, the parts of the how they decided, what's left to the builder), and end with `## Scenarios found`: names only of the behaviours the session surfaced - each becomes a requirement or scenario in the delta.
@@ -57,7 +60,7 @@ After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must 
 
 ### Then
 
-1. `/spec-check <id>` (the only plan-vs-spec check); stop on GAPS. Planning ends here. There is no `tasks.md`: the plan's step checkboxes are the tracker (`openspec list` / `openspec status` do not see them - expected).
+1. `/spec-check <id>` (the only plan-vs-spec check); stop on GAPS. On PASS it accepts the result (`--accept`: the spec-change baseline `execution/.spec-check.json`). Commit the plan and `.spec-check.json` on branch `change/<id>`. Planning ends here. There is no `tasks.md`: the plan's step checkboxes are the tracker (`openspec list` / `openspec status` do not see them - expected).
 
 
 ## Slice of a split change
@@ -70,13 +73,17 @@ A change created by `/split-apply` (id `<parent>-<nn>-<slice>`) (its proposal li
 
 ## Updating tool files after a delta edit
 
-Superpowers `writing-plans` writes a whole plan; it has no update mode. Rerun it with the existing plan as input and **never reset a finished task** (all step checkboxes ticked) - refuse to overwrite it; replan only open tasks, keeping their `### Task N:` numbers stable where possible.
-If a finished task was reset anyway (`git diff HEAD -- <plan>` shows it), restore the plan with `git checkout HEAD -- <plan>` and replan again.
-After any delta edit (a /spec-check gap, a split note, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `/spec-check <id>` again: its "Spec changes since the last check" section lists each requirement / scenario added, changed, removed or renamed and the tickets / tasks citing it - re-plan the open ones, never overwrite done ones (report-only).
+**One order after any delta edit** (a /spec-check gap, a split note, a re-split, a changed scenario):
+1. Edit the delta, then `openspec validate <id> --strict`.
+2. `/spec-check <id>`: its "Spec changes since the last check" section lists each requirement / scenario added, changed, removed or renamed since the last accepted PASS, with the units citing it, and a hint naming the open units to re-plan. The list stays on every run until a PASS is accepted - it is never reset by re-running.
+3. Re-plan ONLY the open units the report names (below). Done units are never touched; a change that affects done work becomes a new plan task. Where a planned decision changed, write `superseded by delta edit: <reason>` next to it in the planning output; the design session file stays as-is (it is the record; the delta wins).
+4. `/spec-check <id>` until PASS; the command then accepts it (`spec-check.mjs <id> --accept`), and you commit `execution/.spec-check.json` with the planning files.
+
+Superpowers `writing-plans` writes a whole plan; it has no update mode. For step 3, rerun it with the existing plan as input and change only the open tasks the report names (keep their `### Task N:` numbers); changes no open task covers become new tasks numbered after the last. **Never reset a finished task** (all step checkboxes ticked) - refuse to overwrite it. If one was reset anyway (`git diff HEAD -- <plan>` shows it), restore the plan with `git checkout HEAD -- <plan>` and replan again.
 
 ## Implementation (the engineer runs `executing-plans` / `subagent-driven-development`)
 
 1. Execute with the `apply_mode` skill. Tick each plan step checkbox (`- [x]`) as it is done, committed with the task (Superpowers' own completion: the ledger and the plan's step checkboxes).
-2. Final whole-branch review with `requesting-code-review` - Superpowers' own review step; fix Critical/Important. If it writes a file, keep it in `execution/reviews/`. CI also runs a code review on the PR, so no review file or label is required.
+2. Final whole-branch review with `requesting-code-review` - Superpowers' own review step; fix Critical/Important. BASE_SHA: `base_ref` in `handoff.md`; the requirements are this change folder (`proposal.md`, the `specs/**/spec.md` deltas, the plan). If it writes a file, keep it in `execution/reviews/`. CI also runs a code review on the PR, so no review file or label is required.
 3. The SDD workspace is the directory Superpowers' `subagent-driven-development/scripts/sdd-workspace <plan>` prints (`.superpowers/sdd/plan-<id>/`, git-ignored); its ledger is `<workspace>/progress.md`. Before deleting the workspace, copy the ledger lines to `execution/progress.md`.
 4. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written, on the change branch, committed with the code; then `finishing-a-development-branch` (merge / PR with the archive in it). Archive first because finishing merges or opens the PR, and the archive must already be in it.

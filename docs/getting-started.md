@@ -43,7 +43,7 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 | `/split-check <id>` (agent: proposes slices) | `split-check <id>` (counts only) | `split-check.mjs <id> --write` |
 | `/handoff <id>` (agent skill) | - | writes handoff.md, then `next-steps.mjs` |
 | `/next-steps <id>` | `next <id>` | `next-steps.mjs <id>` |
-| `/spec-check <id>` (agent: adds the review for missing / invented / contradicted / restated, sets PASS or GAPS) | `spec-check <id>` (mechanical report) | `spec-check.mjs <id> --write` |
+| `/spec-check <id>` (agent: adds the review for missing / invented / contradicted / restated, sets PASS or GAPS; accepts PASS with `--accept`) | `spec-check <id>` (mechanical report) | `spec-check.mjs <id> --write` |
 | `/split-apply <id>` | `split apply <id>` | `split.mjs apply <id>` |
 | `/split-next <parent>` | `split next <parent>` | `split.mjs next <parent> --write-tickets` |
 | `/split-mark <parent> <slice> <in-progress\|planned>` | `split mark ...` | `split.mjs mark ...` |
@@ -74,7 +74,7 @@ the execution tool's: AI Hero's ticket `Status: done`, Superpowers' ledger and p
 
 Useful checks at any time:
 - `/tool <id>` shows which tool applies and why.
-- After editing a delta (any time after planning), run `/spec-check <id>`: it lists the requirements / scenarios added, changed, removed or renamed since the last check (content hashes in `execution/.spec-check.json`) and the tickets / plan tasks citing each - re-plan the open ones; done ones are protected. Report-only.
+- After editing a delta (any time after planning), one order: edit the delta -> `openspec validate <id> --strict` -> `/spec-check <id>` (its "Spec changes since the last check" section lists what changed since the last accepted PASS and the tickets / tasks citing it; the list stays on every run until a PASS is accepted) -> re-plan ONLY the open units it names (done units are never touched; a change affecting done work becomes a new ticket / task; the planning output notes `superseded by delta edit: <reason>`, the design session file stays as-is) -> `/spec-check` until PASS, which it accepts (`--accept`); commit `execution/.spec-check.json` with the planning files. The change list is report-only (never a gap by itself); its baseline (content hashes in `execution/.spec-check.json`, accepted time in local time with offset) moves only on an accepted PASS.
 - `/spec-check <id>` is the only plan-vs-spec check: requirement links (every story / ticket / task names a real delta requirement), coverage, and the agent review (missing / invented / contradicted; restated requirement text is advisory).
 
 ## Switching tools
@@ -120,8 +120,7 @@ info line (`i ...`) for an unchanged parent session and a warning only if the se
 commit; neither fails the check.
 
 Changing the plan later: edit the child delta, add the split note to the child's proposal, rerun
-`split.mjs loss`, then rerun `/spec-check`: its "Spec changes since the last check" section lists what
-changed and which tickets / tasks cite it; regenerate those **open** tickets / tasks only (never a done one).
+`split.mjs loss`, then the one order: edit the delta -> `openspec validate <id> --strict` -> `/spec-check <id>` (its "Spec changes since the last check" section lists what changed since the last accepted PASS and the tickets / tasks citing it; the list stays on every run until a PASS is accepted) -> re-plan ONLY the open units it names (done units are never touched; a change affecting done work becomes a new ticket / task; the planning output notes `superseded by delta edit: <reason>`, the design session file stays as-is) -> `/spec-check` until PASS, which it accepts (`--accept`); commit `execution/.spec-check.json` with the planning files.
 
 ## Known limitations
 

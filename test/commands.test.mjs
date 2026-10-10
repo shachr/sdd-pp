@@ -80,6 +80,35 @@ test('sdd-pp init --tool ai-hero installs docs/agents/issue-tracker.md if absent
   dir = mk();
   initCli(dir, '--tool', 'superpowers', '--no-claude', '--no-cursor');
   assert.ok(!fs.existsSync(path.join(dir, 'docs/agents/issue-tracker.md')));
+  assert.ok(!fs.existsSync(path.join(dir, 'AGENTS.md')));
+});
+
+test('sdd-pp init --tool ai-hero: triage-labels.md + a marked AGENTS.md block, idempotent on rerun (created, appended, refreshed in place)', () => {
+  const mk = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-ag-')); fs.mkdirSync(path.join(d, 'openspec')); return d; };
+  const agents = (d) => fs.readFileSync(path.join(d, 'AGENTS.md'), 'utf8');
+  const count = (t) => t.split('<!-- sdd-pp:agent-skills').length - 1;
+  let dir = mk();
+  let r = initCli(dir, '--tool', 'ai-hero', '--no-claude', '--no-cursor');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /AGENTS\.md created/);
+  assert.equal(fs.readFileSync(path.join(dir, 'docs/agents/triage-labels.md'), 'utf8'), fs.readFileSync(path.join(TOOLKIT, 'config/triage-labels-openspec.md'), 'utf8'));
+  const first = agents(dir);
+  assert.match(first, /docs\/agents\/issue-tracker\.md/); assert.match(first, /docs\/agents\/triage-labels\.md/);
+  r = initCli(dir, '--no-claude', '--no-cursor');
+  assert.match(r.stdout, /AGENTS\.md block unchanged/);
+  assert.equal(agents(dir), first, 'rerun leaves AGENTS.md byte-identical');
+  // an existing AGENTS.md: block appended once, user text kept; a stale block is refreshed in place
+  dir = mk();
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# My project\n\nRules here.\n');
+  initCli(dir, '--tool', 'ai-hero', '--no-claude', '--no-cursor');
+  initCli(dir, '--no-claude', '--no-cursor');
+  let t = agents(dir);
+  assert.match(t, /^# My project\n\nRules here\.\n\n<!-- sdd-pp:agent-skills/); assert.equal(count(t), 1);
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), t.replace('### Issue tracker', '### Issue tracker (old)') + '\nAfter.\n');
+  r = initCli(dir, '--no-claude', '--no-cursor');
+  assert.match(r.stdout, /AGENTS\.md block updated/);
+  t = agents(dir);
+  assert.equal(count(t), 1); assert.doesNotMatch(t, /\(old\)/); assert.match(t, /\nAfter\.\n$/);
 });
 
 test('sdd-pp <command> from inside a project runs its installed scripts: tool, next, spec-check, usage errors; no check', { skip: !fs.existsSync(OPENSPEC) }, () => {

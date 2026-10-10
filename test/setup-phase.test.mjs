@@ -33,6 +33,21 @@ test('execution-tool: project default, per-change override, refusal to switch af
   assert.equal(run('execution-tool.mjs', [CHANGE, '--set', 'nope'], dir).code, 2);
 });
 
+test('/tool <id> starts the session file for the project-default tool when missing (same format as --set; not with --json, not after handoff)', () => {
+  const { dir, changeDir } = makeFixture();
+  fs.rmSync(path.join(changeDir, 'handoff.md'));
+  fs.rmSync(path.join(ex(dir), 'grill.md'));
+  let r = run('execution-tool.mjs', [CHANGE, '--json'], dir);
+  assert.equal(r.code, 0); assert.equal(fs.existsSync(path.join(ex(dir), 'grill.md')), false, '--json (the handoff check) never creates it');
+  r = run('execution-tool.mjs', [CHANGE], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /ai-hero \(from \.openspec-handoff\/project\.json \(project default\)\) -> design session: grill-with-docs -> execution\/grill\.md \(created\)/);
+  assert.equal(fs.readFileSync(path.join(ex(dir), 'grill.md'), 'utf8'), `---\ntool: ai-hero\nsession: grill-with-docs\n---\n\n> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md\n\n# grill-with-docs session: ${CHANGE}\n`);
+  fs.appendFileSync(path.join(ex(dir), 'grill.md'), 'notes\n');
+  r = run('execution-tool.mjs', [CHANGE], dir);
+  assert.doesNotMatch(r.out, /created/); assert.match(fs.readFileSync(path.join(ex(dir), 'grill.md'), 'utf8'), /notes\n$/);
+});
+
 test('split-check: new capability delta without ## Purpose warns (archive would write TBD)', () => {
   const { dir, changeDir } = makeFixture();
   const cap = path.join(changeDir, 'specs', 'farewell', 'spec.md');

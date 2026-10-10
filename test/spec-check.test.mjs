@@ -56,38 +56,67 @@ test('requirement-link rule: plan tasks need a Covers line naming a delta requir
   assert.match(r.out, /plan task "Task 2: CLI wiring" names scenario "Name typed twice"/);
 });
 
-test('spec changes since the last check: added / changed / renamed / removed, with the citing units (done marked); report-only', () => {
+test('spec changes since the last accepted PASS: listed on every run until PASS is accepted; --accept guards; added / changed / renamed / removed with citing units (done marked)', () => {
   const { dir, changeDir } = makeFixture();
   const delta = path.join(changeDir, 'specs', 'greeting', 'spec.md');
+  const report = ex(changeDir, 'spec-check.md');
+  const snapFile = ex(changeDir, '.spec-check.json');
+  const setPass = (d = report) => fs.writeFileSync(d, fs.readFileSync(d, 'utf8').replace(/^PENDING: .*$/m, 'PASS'));
   let r = run('spec-check.mjs', [CHANGE, '--write'], dir);
-  assert.match(r.out, /### Spec changes since the last check \(report-only\)\n\n- none: first check - baseline recorded in execution\/\.spec-check\.json/);
-  const snap = JSON.parse(fs.readFileSync(ex(changeDir, '.spec-check.json'), 'utf8'));
+  assert.match(r.out, /### Spec changes since the last check \(report-only\)\n\n- none: no accepted baseline yet - on PASS, \/spec-check accepts it/);
+  assert.equal(fs.existsSync(snapFile), false, '--write never records the baseline');
+  r = run('spec-check.mjs', [CHANGE, '--accept'], dir);
+  assert.equal(r.code, 1); assert.match(r.out, /Result is "PENDING: .*", not exactly PASS - baseline unchanged/);
+  setPass();
+  r = run('spec-check.mjs', [CHANGE, '--accept'], dir);
+  assert.equal(r.code, 0, r.out); assert.match(r.out, /PASS accepted - baseline execution\/\.spec-check\.json/);
+  assert.match(fs.readFileSync(report, 'utf8'), /^PASS$/m, '--accept does not rewrite the report');
+  const snap = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
+  assert.match(snap.accepted_at, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/, 'local time with offset');
   assert.match(snap.requirements['Greeting by name'].scenarios['Name given'], /^[0-9a-f]{12}$/);
   r = run('spec-check.mjs', [CHANGE, '--write'], dir);
-  assert.match(r.out, /### Spec changes since the last check \(report-only; baseline [^)]+\)\n\n- none\n/);
+  assert.match(r.out, /### Spec changes since the last check \(report-only; baseline accepted [^)]+[+-]\d\d:\d\d\)\n\n- none\n/);
   // edit the delta after planning: change a scenario, rename a requirement (same content), add a scenario
   replaceIn(delta, '- **THEN** the output is `Hello, Ada!`\n\n#### Scenario: Name with', '- **THEN** the output is `Hello, Ada!!`\n\n#### Scenario: Name with');
   replaceIn(delta, '### Requirement: Blank name falls back to default', '### Requirement: Blank name uses the default');
   fs.appendFileSync(delta, '\n#### Scenario: Empty name\n- **WHEN** the user runs `greet ""`\n- **THEN** the output is `Hello, World!`\n');
-  r = run('spec-check.mjs', [CHANGE, '--write'], dir);
-  assert.equal(r.code, 1, 'the stale citation of the old name is a mechanical gap; the change list itself is report-only');
-  assert.match(r.out, /- renamed: Requirement "Blank name uses the default" \(was "Blank name falls back to default"\) - cited by: story 2; 01: greet\(\) - name parameter \[done\]/);
-  assert.match(r.out, /- added: Scenario "Empty name" \(of "Blank name uses the default"\) - cited by: story 2; 01: greet\(\) - name parameter \[done\]/);
-  assert.match(r.out, /- changed: Scenario "Name given" \(of "Greeting by name"\) - cited by: story 1; 01: greet\(\) - name parameter \[done\]; 02: CLI - argv wiring \[done\]/);
-  assert.match(r.out, /Hint: re-run the tool's planning \(to-spec \+ to-tickets\) for the changed requirements \(no open unit cites them yet\); done units are protected - never overwrite them \(01: greet\(\) - name parameter; 02: CLI - argv wiring\): plan new work for what changed instead\. Then run \/spec-check again\./);
-  // gaps remain -> the baseline did not move, so the list shows again
-  r = run('spec-check.mjs', [CHANGE], dir);
-  assert.match(r.out, /- renamed: Requirement "Blank name uses the default"/);
-  // removal, with no mechanical gap (report-only: no GAPS from the change list)
+  for (let k = 0; k < 3; k++) {
+    r = run('spec-check.mjs', [CHANGE, '--write'], dir);
+    assert.equal(r.code, 1, 'the stale citation of the old name is a mechanical gap; the change list itself is report-only');
+    assert.match(r.out, /- renamed: Requirement "Blank name uses the default" \(was "Blank name falls back to default"\) - cited by: story 2; 01: greet\(\) - name parameter \[done\]/);
+    assert.match(r.out, /- added: Scenario "Empty name" \(of "Blank name uses the default"\) - cited by: story 2; 01: greet\(\) - name parameter \[done\]/);
+    assert.match(r.out, /- changed: Scenario "Name given" \(of "Greeting by name"\) - cited by: story 1; 01: greet\(\) - name parameter \[done\]; 02: CLI - argv wiring \[done\]/);
+    assert.match(r.out, /Hint: re-plan ONLY new work for the changes above with the tool's planning \(to-spec \+ to-tickets\) - no open unit cites them\. Done units are never touched \(01: greet\(\) - name parameter; 02: CLI - argv wiring\): a change that affects done work becomes a new ticket\. Where a planned decision changed, note "superseded by delta edit: <reason>"/);
+    assert.match(fs.readFileSync(report, 'utf8'), /- renamed: Requirement "Blank name uses the default"/, 'the saved report keeps the list');
+  }
+  assert.deepEqual(JSON.parse(fs.readFileSync(snapFile, 'utf8')), snap, 'baseline unchanged until accepted');
+  setPass();
+  r = run('spec-check.mjs', [CHANGE, '--accept'], dir);
+  assert.equal(r.code, 1); assert.match(r.out, /mechanical finding\(s\) - fix them/);
+  // removal, with no mechanical gap: listed (report-only, PENDING) until a PASS is accepted, then gone
   const { dir: d2, changeDir: c2 } = makeFixture();
-  run('spec-check.mjs', [CHANGE, '--write'], d2);
-  const snapFile = ex(c2, '.spec-check.json');
-  const s2 = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
+  const rep2 = ex(c2, 'spec-check.md'), snap2 = ex(c2, '.spec-check.json');
+  run('spec-check.mjs', [CHANGE, '--write'], d2); setPass(rep2);
+  assert.equal(run('spec-check.mjs', [CHANGE, '--accept'], d2).code, 0);
+  const s2 = JSON.parse(fs.readFileSync(snap2, 'utf8'));
   s2.requirements['Old requirement'] = { delta: 'specs/greeting/spec.md', hash: '000000000000', scenarios: {} };
-  fs.writeFileSync(snapFile, JSON.stringify(s2));
-  r = run('spec-check.mjs', [CHANGE, '--write'], d2);
+  fs.writeFileSync(snap2, JSON.stringify(s2));
+  for (let k = 0; k < 2; k++) {
+    r = run('spec-check.mjs', [CHANGE, '--write'], d2);
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /- removed: Requirement "Old requirement" - cited by: nothing yet/);
+    assert.match(r.out, /^PENDING: mechanical checks pass/m);
+  }
+  // a delta edit after the saved PASS: --accept refuses
+  setPass(rep2);
+  const d2delta = path.join(c2, 'specs', 'greeting', 'spec.md');
+  const before = fs.readFileSync(d2delta, 'utf8');
+  replaceIn(d2delta, '- **THEN** the output is `Hello, Ada!`\n', '- **THEN** the output is `Hello, Ada!!`\n');
+  r = run('spec-check.mjs', [CHANGE, '--accept'], d2);
+  assert.equal(r.code, 1); assert.match(r.out, /the delta changed since the saved report/);
+  fs.writeFileSync(d2delta, before);
+  r = run('spec-check.mjs', [CHANGE, '--accept'], d2);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /- removed: Requirement "Old requirement" - cited by: nothing yet/);
-  assert.match(r.out, /^PENDING: mechanical checks pass/m);
-  assert.equal(JSON.parse(fs.readFileSync(snapFile, 'utf8')).requirements['Old requirement'], undefined, 'baseline moved after a clean check');
+  r = run('spec-check.mjs', [CHANGE, '--write'], d2);
+  assert.match(r.out, /### Spec changes since the last check \(report-only; baseline accepted [^)]+\)\n\n- none\n/);
 });

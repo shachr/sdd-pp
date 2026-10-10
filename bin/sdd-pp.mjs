@@ -12,6 +12,32 @@ import { spawnSync } from 'node:child_process';
 export const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TOOLS = ['ai-hero', 'superpowers'];
 /** Workflow subcommands, run by the project's installed scripts/sdd.mjs (see scripts/sdd.mjs). */
+export const AGENTS_BEGIN = '<!-- sdd-pp:agent-skills (managed by sdd-pp init; edits inside are replaced) -->';
+export const AGENTS_END = '<!-- /sdd-pp:agent-skills -->';
+const AGENTS_BODY = `## Agent skills
+
+### Issue tracker
+
+Each feature is an OpenSpec change: its proposal + delta specs are the spec; design, spec and tickets live in its change folder under \`openspec/changes/<change-id>/execution/\`. See \`docs/agents/issue-tracker.md\`.
+
+### Triage labels
+
+A ticket's \`Status:\` line carries the triage role. See \`docs/agents/triage-labels.md\`.`;
+
+/** Create AGENTS.md or add / refresh the marked agent-skills block (idempotent). Returns what it did. */
+export function agentsBlock(file) {
+  const block = `${AGENTS_BEGIN}\n${AGENTS_BODY}\n${AGENTS_END}`;
+  if (!fs.existsSync(file)) { fs.writeFileSync(file, `# Agents\n\n${block}\n`); return 'created'; }
+  const cur = fs.readFileSync(file, 'utf8');
+  const i = cur.indexOf(AGENTS_BEGIN), j = cur.indexOf(AGENTS_END);
+  if (i >= 0 && j > i) {
+    const next = cur.slice(0, i) + block + cur.slice(j + AGENTS_END.length);
+    if (next === cur) return 'block unchanged';
+    fs.writeFileSync(file, next); return 'block updated';
+  }
+  fs.writeFileSync(file, cur.replace(/\n*$/, '\n\n') + block + '\n'); return 'block appended';
+}
+
 export const RUN_COMMANDS = ['spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split'];
 
 /** The sdd.mjs to run from `start`: the project's installed copy (nearest .openspec-handoff/scripts), else this package's. */
@@ -25,7 +51,7 @@ export function sddScript(start = process.cwd()) {
 
 export const USAGE = `Usage: sdd-pp init [dir] [options]      install into <dir> (default: the current directory)
        sdd-pp <command> ...              from inside a project (runs its installed .openspec-handoff/scripts):
-         spec-check <id>                 coverage report -> execution/spec-check.md
+         spec-check <id> [--accept]      coverage report -> execution/spec-check.md (--accept: baseline after PASS)
          split-check <id>                split gate counts -> execution/split-check.md
          next <id>                       print the change's next steps again
          tool <id> [--set <tool>]        show / set the change's execution tool (tool --default <tool>: project default)
@@ -39,7 +65,8 @@ export const USAGE = `Usage: sdd-pp init [dir] [options]      install into <dir>
 Options for init:
   --tool <ai-hero|superpowers>  setup phase: the project's default execution tool (.openspec-handoff/project.json);
                                 changes may override it. A re-install without --tool keeps the existing default.
-                                ai-hero also installs docs/agents/issue-tracker.md (OpenSpec as the tracker) if absent.
+                                ai-hero also installs docs/agents/issue-tracker.md (OpenSpec as the tracker) and
+                                docs/agents/triage-labels.md if absent, and a marked agent-skills block in AGENTS.md.
   --claude / --no-claude        install skills + commands into .claude/   (default: on)
   --cursor / --no-cursor        install skills + commands into .cursor/   (default: on)
   --opencode / --no-opencode    install skills + commands into .opencode/ (default: only if .opencode/ exists)
@@ -132,6 +159,12 @@ export function init(dir, opts = {}, log = console.log) {
       fs.copyFileSync(S('config/issue-tracker-openspec.md'), it);
       log('  docs/agents/issue-tracker.md (AI Hero issue tracker = OpenSpec change folders)');
     } else log('  docs/agents/issue-tracker.md (kept existing)');
+    const tl = T('docs/agents/triage-labels.md');
+    if (!fs.existsSync(tl)) {
+      fs.copyFileSync(S('config/triage-labels-openspec.md'), tl);
+      log('  docs/agents/triage-labels.md (ticket Status values)');
+    } else log('  docs/agents/triage-labels.md (kept existing)');
+    log(`  AGENTS.md ${agentsBlock(T('AGENTS.md'))} (agent skills block -> docs/agents/; no /setup-matt-pocock-skills needed)`);
   }
 
   if (appendLine(T('.gitignore'), '.superpowers/')) log('  .gitignore += .superpowers/ (Superpowers SDD scratch)');

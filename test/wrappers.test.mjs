@@ -72,9 +72,23 @@ test('wrappers and templates: spec changes after a delta edit, flag requirement 
   const read = (p) => fs.readFileSync(path.join(TOOLKIT, p), 'utf8');
   for (const w of ['openspec-handoff-ai-hero', 'openspec-handoff-superpowers']) {
     const s = read(`skills/${w}/SKILL.md`);
-    assert.match(s, /then `\/spec-check <id>` again: its "Spec changes since the last check" section lists/);
+    assert.match(s, /\*\*One order after any delta edit\*\*/);
+    assert.match(s, /1\. Edit the delta, then `openspec validate <id> --strict`\.\n2\. `\/spec-check <id>`: .*The list stays on every run until a PASS is accepted/);
+    assert.match(s, /3\. Re-plan ONLY the open units the report names .*Done units are never touched; a change that affects done work becomes a new (ticket|plan task)\. .*`superseded by delta edit: <reason>`.*the design session file stays as-is/);
+    assert.match(s, /4\. `\/spec-check <id>` until PASS; the command then accepts it .*commit `execution\/\.spec-check\.json`/);
     assert.match(s, /`openspec list` \/ `openspec status` do not see/);
+    assert.match(s, /\*\*Ignore OpenSpec's apply prompts\.\*\*.*follow `\/next-steps <id>`/);
+    assert.match(s, /\*\*No sub-agents in the harness\?\*\*/);
+    assert.match(s, /`\/tool <id>` creates `execution\/(grill|brainstorm)\.md` .*when it is missing/);
+    assert.match(s, /`base_ref` in `handoff\.md`/);
   }
+  assert.match(read('skills/openspec-handoff-ai-hero/SKILL.md'), /integration branch is `change\/<id>`; each ticket's `Status: done` \+ checkboxes go in the ticket-branch commit/);
+  for (const h of ['claude', 'cursor', 'opencode']) {
+    const c = read(`commands/${h}/spec-check.md`);
+    assert.match(c, /8\. \*\*Accept PASS\*\* .*spec-check\.mjs <change-id> --accept/);
+    assert.match(c, /the one order: \(delta edited, `openspec validate <change-id> --strict` passed\) -> re-plan ONLY the open units the report names/);
+  }
+  assert.match(read('README.md'), /Ignore OpenSpec's apply prompts/);
   for (const h of ['claude', 'cursor', 'opencode']) assert.match(read(`commands/${h}/split-check.md`), /The flag requirement is never in the original delta: the flagged slice adds it/);
   assert.match(read('schemas/split-plan/schema.yaml') + read('schemas/handoff-driven/schema.yaml'), /A feature flag is not part of the\s+original delta/);
   assert.match(read('schemas/handoff-driven/templates/handoff.md'), /harness: <optional: claude-code \| cursor \| codex \| opencode \| other>/);

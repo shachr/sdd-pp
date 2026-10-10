@@ -45,7 +45,7 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 | `schemas/handoff-driven/` | Custom OpenSpec schema (`schema.yaml` + templates incl. `handoff.md`) - story 1 |
 | `schemas/split-plan/` | Parent of a split change: proposal → slices (no specs; OpenSpec sets `skip_specs: true`; archived last with `--skip-specs`) |
 | `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/split-check.md` | `/split-check <id>`: split gate at the end of the specs stage (counts requirements and capabilities, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children named `<parent>-<nn>-<slice>`, cleanup slice `99`, re-split into the same parent continues the numbering; records `split_commit`), `loss` (exactly-once vs the original deltas at `split_commit` via git show, split notes, rename candidates, `--final` against main specs), `next` (ready / in progress / parallel-safe slices, tickets), `mark` (in-progress status) |
-| `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + agent review for missing / invented / contradicted behaviour and restated text (advisory); the agent sets PASS / GAPS. Also reports spec changes since the last check (hash per requirement / scenario in `execution/.spec-check.json`) with the units citing each - report-only. The only plan-vs-spec check; writes `execution/spec-check.md` |
+| `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + agent review for missing / invented / contradicted behaviour and restated text (advisory); the agent sets PASS / GAPS. Also reports spec changes since the last accepted PASS (hash per requirement / scenario in `execution/.spec-check.json`, moved only by `--accept` after PASS) with the units citing each - report-only. The only plan-vs-spec check; writes `execution/spec-check.md` |
 | `scripts/sdd.mjs` + `commands/*/{next-steps,tool,split-apply,split-next,split-mark,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|mark\|loss\|archive` (archive = final loss check + `openspec archive --skip-specs -y`). The agent slash commands and the `sdd-pp` CLI subcommands both call it |
 | `scripts/execution-tool.mjs` | Setup phase: `--default <tool>` (project), `<id> --set <tool>` (per-change override; starts the session file), `<id>` (resolve: handoff.md > session front matter > project default). Refuses a switch once a session exists (`docs/switching-tools.md`) |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
@@ -102,8 +102,10 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
    -> prints the next steps (/next-steps reprints them) and STOPS. The engineer then runs them:
       ai-hero:     /to-spec (reads grill.md) -> execution/spec.md, /to-tickets -> execution/tickets/
       superpowers: writing-plans (reads brainstorm.md) -> execution/plan-<id>.md
-/spec-check add-greeting-name             # the only plan-vs-spec check; stops on GAPS -> execution/spec-check.md
-# implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply)
+/spec-check add-greeting-name             # the only plan-vs-spec check; stops on GAPS -> execution/spec-check.md; PASS is accepted (--accept)
+# after a later delta edit: openspec validate -> /spec-check (changes + citing units) -> re-plan only those -> /spec-check until PASS
+# implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply).
+# Ignore OpenSpec's apply prompts ("run /opsx-apply", "Next: openspec instructions apply"): use /next-steps <id>.
 /implement  |  /implement-spec  |  executing-plans  |  subagent-driven-development
    -> ticket Status/checkboxes or plan step checkboxes; the tool's own code review (CI also reviews the PR)
 /opsx:verify add-greeting-name            # save the report to execution/verify.md
@@ -138,7 +140,7 @@ The tool's own review (`ai-hero → code-review`, two-axis Standards + Spec; `su
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 45 tests: installer CLI, commands, /spec-check, split gate, slice naming, git-baseline loss check, split notes, renames, ready report, real OpenSpec CLI, e2e
+npm test               # 50 tests: installer CLI, commands, /spec-check, split gate, slice naming, git-baseline loss check, split notes, renames, ready report, real OpenSpec CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```
