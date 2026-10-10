@@ -93,3 +93,14 @@ test('openspec/ planning files and paths outside diff_paths do not count toward 
   const r = run('check-handoff.mjs', [CHANGE, '--json'], dir);
   assert.equal(JSON.parse(r.stdout).metrics.lines, 0, r.out);
 });
+
+test('archived change: found under changes/archive by name or dated name; size not measured', () => {
+  const { dir, changeDir } = makeFixture();
+  fs.mkdirSync(path.join(dir, 'openspec', 'changes', 'archive'), { recursive: true });
+  fs.renameSync(changeDir, path.join(dir, 'openspec', 'changes', 'archive', `2026-10-09-${CHANGE}`));
+  for (const id of [CHANGE, `2026-10-09-${CHANGE}`]) {
+    const r = run('check-handoff.mjs', [id], dir);
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /archived change: diff size not measured/);
+  }
+});
