@@ -23,7 +23,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 | Planning (engineer) | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
 | Implementation | `using-git-worktrees` as Superpowers recommends | branch `change/<id>` |
 | Implementation | `executing-plans` or `subagent-driven-development` (`apply_mode`) - not `/opsx:apply` | code + tests; `.superpowers/sdd/plan-<id>/` (git-ignored); `execution/progress.md` |
-| Implementation | `requesting-code-review` (final whole-branch review) | `execution/reviews/code-review.md` |
+| Implementation | `requesting-code-review` (final whole-branch review) | any file it writes goes in `execution/reviews/` (optional) |
 | Verify / archive | `/opsx:verify`, `finishing-a-development-branch`, `/opsx:archive` | `execution/verify.md` |
 
 ## Design session (proposal phase)
@@ -77,7 +77,7 @@ After any delta edit (a /spec-check gap, a split note, a re-split): `openspec va
 
 ## Implementation (the engineer runs `executing-plans` / `subagent-driven-development`)
 
-1. Execute with the `apply_mode` skill. Tick each plan step checkbox (`- [x]`) as it is done, committed with the task (that is the progress `check-handoff` reads).
-2. Final whole-branch review with `requesting-code-review` -> `execution/reviews/code-review.md`. **Reviewer: a fresh session of your own coding agent** - dispatch it as a fresh subagent from `code-reviewer.md`, or run the filled `code-reviewer.md` in a new session, and write "fresh session" at the top of the review file. If that is impossible, run it here and write "self-review" at the top instead (check-handoff warns when the review says neither). Fix Critical/Important.
-3. Before deleting the SDD workspace, write `execution/progress.md` (source-of-truth line, ledger lines). `openspec validate <id> --strict`; `check-handoff <id> --expect-complete` (fails while a plan step is unticked).
+1. Execute with the `apply_mode` skill. Tick each plan step checkbox (`- [x]`) as it is done, committed with the task (Superpowers' own completion: the ledger and the plan's step checkboxes).
+2. Final whole-branch review with `requesting-code-review` - Superpowers' own review step; fix Critical/Important. If it writes a file, keep it in `execution/reviews/`. CI also runs a code review on the PR, so no review file or label is required.
+3. Before deleting the SDD workspace, write `execution/progress.md` (source-of-truth line, ledger lines).
 4. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written, on the change branch, committed with the code; then `finishing-a-development-branch` (merge / PR with the archive in it).

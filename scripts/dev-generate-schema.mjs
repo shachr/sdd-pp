@@ -97,8 +97,7 @@ next steps for the tool - \`node .openspec-handoff/scripts/next-steps.mjs <chang
 (reprint: \`/next-steps <change>\`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
 writing-plans), /spec-check, implementation, the tool's code review, /opsx:verify
 and /opsx:archive are the engineer's next steps, run through the tool's wrapper
-skill; before verify, \`/check-handoff <change>\` (openspec validate --strict +
-check-handoff --expect-complete). There is no OpenSpec tasks artifact: progress lives in the tool's own
+skill. The code review is the tool's own review step (CI also reviews the PR). There is no OpenSpec tasks artifact: progress lives in the tool's own
 tracking (ticket Status/checkboxes, plan step checkboxes).
 
 handoff.md is the contract between OpenSpec (requirements) and the

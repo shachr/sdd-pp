@@ -13,10 +13,9 @@ import { nextSteps } from '../scripts/next-steps.mjs';
 const ENV = { ...process.env, PATH: `${path.dirname(OPENSPEC)}${path.delimiter}${process.env.PATH}` };
 const sddPp = (cwd, ...args) => { const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', env: ENV }); return { code: r.status, out: r.stdout + r.stderr }; };
 const labels = (argv) => plan(argv).map(([l]) => l);
-const NEW = { 'check-handoff': 'check', 'next-steps': 'next', tool: 'tool', 'split-apply': 'split apply', 'split-next': 'split next', 'split-mark': 'split mark', 'split-archive': 'split archive' };
+const NEW = { 'next-steps': 'next', tool: 'tool', 'split-apply': 'split apply', 'split-next': 'split next', 'split-mark': 'split mark', 'split-archive': 'split archive' };
 
 test('sdd.mjs plan: each command maps to the scripts it runs', () => {
-  assert.deepEqual(labels(['check', 'x']), ['openspec validate x --strict', 'check-handoff.mjs x --expect-complete']);
   assert.deepEqual(labels(['spec-check', 'x']), ['spec-check.mjs x --write']);
   assert.deepEqual(labels(['split-check', 'x']), ['split-check.mjs x --write']);
   assert.deepEqual(labels(['next', 'x']), ['next-steps.mjs x']);
@@ -28,7 +27,7 @@ test('sdd.mjs plan: each command maps to the scripts it runs', () => {
   assert.deepEqual(labels(['split', 'mark', 'p', 's', 'in-progress']), ['split.mjs mark p s in-progress']);
   assert.deepEqual(labels(['split', 'loss', 'p', '--final']), ['split.mjs loss p --final']);
   assert.deepEqual(labels(['split', 'archive', 'p']), ['split.mjs loss p --final', 'openspec archive p --skip-specs -y']);
-  for (const bad of [[], ['check'], ['split'], ['split', 'bogus', 'p'], ['split', 'apply'], ['nope', 'x'], ['check', '--strict']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
+  for (const bad of [[], ['check', 'x'], ['split'], ['split', 'bogus', 'p'], ['split', 'apply'], ['nope', 'x'], ['next', '--strict']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
 });
 
 test('agent slash commands: claude, cursor, opencode each run sdd.mjs; argument hint / usage on every command', () => {
@@ -50,7 +49,8 @@ test('agent slash commands: claude, cursor, opencode each run sdd.mjs; argument 
 test('next-steps and the init summary use the commands, not node script paths', () => {
   for (const [tool, mode] of [['ai-hero', 'implement'], ['superpowers', 'executing-plans']]) {
     const s = nextSteps({ id: 'x', tool, applyMode: mode, parent: 'p' });
-    assert.match(s, /\/check-handoff x /);
+    assert.match(s, /\/opsx:verify x - save the report verbatim/);
+    assert.doesNotMatch(s, /check-handoff/);
     assert.match(s, /On main: \/split-next p /);
     assert.doesNotMatch(s, /node \.openspec-handoff|\.mjs/);
   }
@@ -59,7 +59,9 @@ test('next-steps and the init summary use the commands, not node script paths', 
   const r = initCli(dir, '--tool', 'ai-hero', '--no-cursor');
   assert.equal(r.status, 0, r.stderr);
   assert.doesNotMatch(r.stdout.split('Done. Next')[1], /node \.openspec-handoff/);
-  assert.match(r.stdout, /\/check-handoff <id>[\s\S]*\/split-archive <parent>/);
+  assert.match(r.stdout, /\/opsx:verify <id> \(save to execution\/verify\.md\)[\s\S]*\/split-archive <parent>/);
+  assert.doesNotMatch(r.stdout, /check-handoff/);
+  for (const h of ['.claude', '.cursor']) assert.ok(!fs.existsSync(path.join(dir, h, 'commands/check-handoff.md')), 'no /check-handoff command');
   for (const name of Object.keys(NEW)) assert.ok(fs.existsSync(path.join(dir, '.claude/commands', `${name}.md`)), name);
   assert.ok(fs.existsSync(path.join(dir, '.openspec-handoff/scripts/sdd.mjs')));
 });
@@ -80,7 +82,7 @@ test('sdd-pp init --tool ai-hero installs docs/agents/issue-tracker.md if absent
   assert.ok(!fs.existsSync(path.join(dir, 'docs/agents/issue-tracker.md')));
 });
 
-test('sdd-pp <command> from inside a project runs its installed scripts: tool, next, check, spec-check, usage errors', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('sdd-pp <command> from inside a project runs its installed scripts: tool, next, spec-check, usage errors; no check', { skip: !fs.existsSync(OPENSPEC) }, () => {
   const { dir } = makeFixture();
   assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
   // the project's copy is the one that runs (marker in the installed sdd.mjs)
@@ -91,20 +93,35 @@ test('sdd-pp <command> from inside a project runs its installed scripts: tool, n
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /\[installed sdd\][\s\S]*add-greeting-name: ai-hero/);
   r = sddPp(sub, 'next', CHANGE);
-  assert.match(r.out, /Next steps for add-greeting-name \(ai-hero[\s\S]*\/check-handoff add-greeting-name/);
+  assert.match(r.out, /Next steps for add-greeting-name \(ai-hero[\s\S]*\/opsx:verify add-greeting-name - save/);
   r = sddPp(sub, 'check', CHANGE);
-  assert.match(r.out, /\$ openspec validate add-greeting-name --strict[\s\S]*\$ check-handoff\.mjs add-greeting-name --expect-complete[\s\S]*check-handoff add-greeting-name:/);
-  assert.equal(r.code, 0, r.out);
+  assert.equal(r.code, 2, 'sdd-pp check is gone'); assert.match(r.out, /unknown command "check"/);
   r = sddPp(sub, 'spec-check', CHANGE);
   assert.match(r.out, /Spec check: add-greeting-name/);
   assert.ok(fs.existsSync(path.join(dir, 'openspec/changes', CHANGE, 'execution/spec-check.md')));
-  r = sddPp(sub, 'check');
-  assert.equal(r.code, 2); assert.match(r.out, /check <id>/);
+  r = sddPp(sub, 'next');
+  assert.equal(r.code, 2); assert.match(r.out, /next <id>/);
   r = sddPp(sub, 'split', 'bogus', 'x');
   assert.equal(r.code, 2); assert.match(r.out, /unknown split command "bogus"/);
-  // a failing step stops the chain and passes its exit code through
-  fs.writeFileSync(path.join(dir, 'openspec/changes', CHANGE, 'specs/greeting/spec.md'), '## ADDED Requirements\n\nnot a requirement\n');
-  r = sddPp(sub, 'check', CHANGE);
+  // a failing step stops the chain and passes its exit code through (split archive: loss check, then openspec archive)
+  r = sddPp(sub, 'split', 'archive', CHANGE);
   assert.notEqual(r.code, 0);
-  assert.doesNotMatch(r.out, /\$ check-handoff\.mjs/);
+  assert.doesNotMatch(r.out, /\$ openspec archive/);
+});
+
+test('verify gets no review instruction: the schema apply instruction (what /opsx:verify reads) never mentions a review file', { skip: !fs.existsSync(OPENSPEC) }, () => {
+  const { dir } = makeFixture();
+  assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode').status, 0);
+  const r = spawnSync(OPENSPEC, ['instructions', 'apply', '--change', CHANGE, '--json'], { cwd: dir, encoding: 'utf8' });
+  const j = JSON.parse(r.stdout);
+  assert.match(j.instruction, /\/next-steps <change>/);
+  assert.doesNotMatch(j.instruction, /review|CRITICAL|check-handoff/i);
+});
+
+test('check-handoff: review files need no Source of truth link (v8 finding 11)', () => {
+  const { dir, changeDir } = makeFixture();
+  fs.mkdirSync(path.join(changeDir, 'execution/reviews'), { recursive: true });
+  fs.writeFileSync(path.join(changeDir, 'execution/reviews/code-review.md'), '# Code review\n\nNo findings.\n');
+  const r = spawnSync(process.execPath, [path.join(TOOLKIT, 'scripts/check-handoff.mjs'), CHANGE], { cwd: dir, encoding: 'utf8' });
+  assert.doesNotMatch(r.stdout + r.stderr, /code-review\.md: must start with a "Source of truth"/);
 });

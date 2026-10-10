@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // sdd: one entry point for the workflow's checks, so nobody types the individual scripts.
-// The agent slash commands (/check-handoff, /split-apply, /split-next, /split-archive, /split-mark,
+// The agent slash commands (/split-apply, /split-next, /split-archive, /split-mark,
 // /next-steps, /tool) and the `sdd-pp` CLI subcommands both run this file; it only runs the scripts
 // below and passes their output and exit code through.
-//   check <id>                      openspec validate <id> --strict  +  check-handoff.mjs <id> --expect-complete
 //   spec-check <id>                 spec-check.mjs <id> --write
 //   split-check <id>                split-check.mjs <id> --write
 //   next <id>                       next-steps.mjs <id>
@@ -21,7 +20,6 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 export const USAGE = `usage: sdd <command> ...
-  check <id>                       openspec validate <id> --strict + check-handoff <id> --expect-complete
   spec-check <id>                  coverage report -> execution/spec-check.md (the agent's /spec-check adds the contradiction review)
   split-check <id>                 split gate counts -> execution/split-check.md
   next <id>                        print the change's next steps again
@@ -39,7 +37,6 @@ export function plan(argv) {
   const openspec = (args) => [`openspec ${args.join(' ')}`, 'openspec', args];
   const need = (n, what) => { if (rest.length < n || rest.slice(0, n).some((a) => a.startsWith('-'))) throw new SddUsage(`${what}\n\n${USAGE}`); };
   switch (cmd) {
-    case 'check': need(1, 'check <id>'); return [openspec(['validate', rest[0], '--strict']), node('check-handoff.mjs', [rest[0], '--expect-complete', ...rest.slice(1)])];
     case 'spec-check': need(1, 'spec-check <id>'); return [node('spec-check.mjs', [rest[0], '--write', ...rest.slice(1)])];
     case 'split-check': need(1, 'split-check <id>'); return [node('split-check.mjs', [rest[0], '--write', ...rest.slice(1)])];
     case 'next': case 'next-steps': need(1, 'next <id>'); return [node('next-steps.mjs', rest)];

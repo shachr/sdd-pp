@@ -9,11 +9,10 @@ import { findParentOf } from './lib/split.mjs';
 
 export function nextSteps({ id, tool, applyMode, parent = null }) {
   const c = `openspec/changes/${id}`;
-  const review = (n, what) => `${n}. ${what} in a FRESH session of your own coding agent (a sub-agent, or a new session that sees only the review prompt) -> ${c}/execution/reviews/code-review.md. Write "fresh session" at the top of the review; if it could not run in a fresh session, write "self-review" instead. Fix Critical/Important findings.`;
+  const review = (n, what) => `${n}. ${what} - the tool's own review step; fix what it finds. CI also runs a code review on the PR.`;
   const finish = (n) => [
-    `${n}. /check-handoff ${id} (openspec validate --strict + check-handoff --expect-complete)`,
-    `${n + 1}. /opsx:verify ${id} - save the report verbatim to ${c}/execution/verify.md`,
-    `${n + 2}. /opsx:archive ${id} on the change branch, and commit the archive in this change's PR together with its code (the change is complete when its archived folder is on main).`,
+    `${n}. /opsx:verify ${id} - save the report verbatim to ${c}/execution/verify.md`,
+    `${n + 1}. /opsx:archive ${id} on the change branch, and commit the archive in this change's PR together with its code (the change is complete when its archived folder is on main).`,
   ];
   if (tool === 'ai-hero') {
     const impl = applyMode === 'implement-spec' ? '/implement-spec (sub-agents)' : '/implement (single session)';
@@ -25,8 +24,8 @@ export function nextSteps({ id, tool, applyMode, parent = null }) {
       `4. ${impl} with tdd, ticket by ticket; set "Status: done" and tick the ticket's checkboxes as each lands.`,
       review(5, '/code-review (Standards + Spec reviewers)'),
       ...finish(6),
-      `9. Merge the PR (branch change/${id}) into main.`,
-      ...afterArchive(parent, 10),
+      `8. Merge the PR (branch change/${id}) into main.`,
+      ...afterArchive(parent, 9),
     ].join('\n');
   }
   const impl = applyMode === 'subagent-driven-development' ? 'subagent-driven-development' : 'executing-plans';
@@ -37,8 +36,8 @@ export function nextSteps({ id, tool, applyMode, parent = null }) {
     `3. ${impl} on branch change/${id} (workspace .superpowers/sdd/plan-${id}/); tick the plan's step checkboxes as each task lands; copy the ledger to ${c}/execution/progress.md before deleting the workspace.`,
     review(4, 'requesting-code-review (final whole-branch review, code-reviewer.md)'),
     ...finish(5),
-    `8. finishing-a-development-branch (merge / PR into main, with the archive in it)`,
-    ...afterArchive(parent, 9),
+    `7. finishing-a-development-branch (merge / PR into main, with the archive in it)`,
+    ...afterArchive(parent, 8),
   ].join('\n');
 }
 

@@ -130,8 +130,9 @@ export function checkChange(change, config, opts = {}) {
   }
 
   // 4. execution artifacts link back to the source of truth
-  //    (execution/verify.md is the /opsx:verify report saved verbatim - its format is OpenSpec's)
-  for (const f of change.execution.filter((x) => x.endsWith('.md') && !x.endsWith('.prompt.md') && x !== 'execution/verify.md')) {
+  //    (execution/verify.md is the /opsx:verify report saved verbatim - its format is OpenSpec's;
+  //     execution/reviews/ is whatever the tool's own review writes, if anything - decisions section 15)
+  for (const f of change.execution.filter((x) => x.endsWith('.md') && !x.endsWith('.prompt.md') && x !== 'execution/verify.md' && !x.startsWith('execution/reviews/'))) {
     if (!/proposal\.md/.test(change.read(f))) errors.push(`${f}: must start with a "Source of truth" line linking proposal.md`);
   }
 
@@ -162,9 +163,6 @@ export function checkChange(change, config, opts = {}) {
   const prog = executionProgress(change, h.tool);
   metrics.progress = prog ? `${prog.done}/${prog.total} ${prog.kind} done (${prog.boxes.done}/${prog.boxes.total} checkboxes)` : 'not planned yet';
   if (useGit && !change.archived) for (const e of resetDoneWork(change, h.tool)) errors.push(`done work reset: ${e}`);
-  const review = change.read('execution/reviews/code-review.md');
-  // the code review is the tool's own review in a FRESH session of the engineer's coding agent; otherwise "self-review"
-  if (review && !/\bfresh\b/i.test(review) && !/self-review/i.test(review)) warnings.push('execution/reviews/code-review.md: say at the top how it ran - "fresh session" (default: a sub-agent or new session of your own coding agent) or "self-review" (same session)');
   if (opts.expectComplete) {
     if (!prog) errors.push(`--expect-complete: no ${h.tool === 'ai-hero' ? 'tickets in execution/tickets/' : `plan in execution/plan-${change.id}.md`} - planning has not run`);
     else if (prog.open.length) errors.push(`--expect-complete: ${prog.open.length} ${prog.kind} not done: ${prog.open.join('; ')}${h.tool === 'ai-hero' ? ' (set "Status: done" and tick every checkbox)' : ' (tick every step checkbox)'}`);

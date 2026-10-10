@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 export const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TOOLS = ['ai-hero', 'superpowers'];
 /** Workflow subcommands, run by the project's installed scripts/sdd.mjs (see scripts/sdd.mjs). */
-export const RUN_COMMANDS = ['check', 'spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split'];
+export const RUN_COMMANDS = ['spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split'];
 
 /** The sdd.mjs to run from `start`: the project's installed copy (nearest .openspec-handoff/scripts), else this package's. */
 export function sddScript(start = process.cwd()) {
@@ -25,7 +25,6 @@ export function sddScript(start = process.cwd()) {
 
 export const USAGE = `Usage: sdd-pp init [dir] [options]      install into <dir> (default: the current directory)
        sdd-pp <command> ...              from inside a project (runs its installed .openspec-handoff/scripts):
-         check <id>                      openspec validate <id> --strict + check-handoff <id> --expect-complete
          spec-check <id>                 coverage report -> execution/spec-check.md
          split-check <id>                split gate counts -> execution/split-check.md
          next <id>                       print the change's next steps again
@@ -142,9 +141,8 @@ Done. Next (agent slash commands; the same checks run from a shell as \`npx <too
   /tool <id> --set superpowers       per-change tool override, before the design session
   /split-check <id>                  split gate at the end of the specs stage (runs automatically; rerunnable)
   /handoff <id>                      last OpenSpec stage: handoff.md + prints the next steps (/next-steps <id> reprints them)
-  ... planning, /spec-check <id>, implement, code review (as the next steps say)
-  /check-handoff <id>                openspec validate --strict + check-handoff --expect-complete
-  /opsx:verify <id>, /opsx:archive <id>
+  ... planning, /spec-check <id>, implement (the tool's own completion), code review (as the next steps say)
+  /opsx:verify <id> (save to execution/verify.md), /opsx:archive <id>
   Split changes: /split-apply <id>, /split-next <parent>, /split-mark <parent> <slice> in-progress, /split-archive <parent>
 Also install the execution toolkits themselves (not bundled):
   AI Hero:     npx skills add mattpocock/skills   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)

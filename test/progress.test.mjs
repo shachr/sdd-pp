@@ -60,11 +60,12 @@ test('superpowers progress: plan step checkboxes per task', () => {
 
 test('next-steps prints the tool sequence without running anything', () => {
   const ai = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement-spec' });
-  const order = ['/to-spec', 'grill.md', '/to-tickets', '/spec-check x', '/implement-spec', '/code-review', 'FRESH session of your own coding agent', 'self-review', '--expect-complete', '/opsx:verify x', 'execution/verify.md', '/opsx:archive x', 'together with its code', 'Merge the PR'];
+  const order = ['/to-spec', 'grill.md', '/to-tickets', '/spec-check x', '/implement-spec', '/code-review', "the tool's own review step", 'CI also runs a code review on the PR', '/opsx:verify x', 'execution/verify.md', '/opsx:archive x', 'together with its code', 'Merge the PR'];
   let at = -1; for (const s of order) { const i = ai.indexOf(s, at + 1); assert.ok(i > at, `ai-hero: ${s} out of order`); at = i; }
   const sp = nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'subagent-driven-development' });
-  const order2 = ['writing-plans', 'brainstorm.md', 'plan-x.md', '/spec-check x', 'subagent-driven-development', 'requesting-code-review', 'self-review', '/opsx:verify x', '/opsx:archive x', 'together with its code', 'finishing-a-development-branch'];
+  const order2 = ['writing-plans', 'brainstorm.md', 'plan-x.md', '/spec-check x', 'subagent-driven-development', 'requesting-code-review', 'CI also runs a code review on the PR', '/opsx:verify x', '/opsx:archive x', 'together with its code', 'finishing-a-development-branch'];
   at = -1; for (const s of order2) { const i = sp.indexOf(s, at + 1); assert.ok(i > at, `superpowers: ${s} out of order`); at = i; }
+  for (const t of [ai, sp]) assert.doesNotMatch(t, /fresh session|self-review|code-review\.md|check-handoff|expect-complete/i);
   const { dir } = makeFixture();
   const r = run('next-steps.mjs', [CHANGE], dir);
   assert.equal(r.code, 0, r.out);
@@ -89,14 +90,12 @@ test('superpowers: a finished plan task reset after a planning re-run is an erro
   assert.match(JSON.parse(r.stdout).errors.join('\n'), /done work reset: .*"Task 1: greet\(name\)" was finished at HEAD and has unticked steps now/);
 });
 
-test('code review that says neither "fresh session" nor "self-review" is a warning', () => {
+test('code review: no file, label or Source-of-truth line is required (decisions section 15)', () => {
   const { dir } = makeFixture();
+  const none = JSON.parse(check(dir, '--no-git').stdout);
+  assert.doesNotMatch([...none.errors, ...none.warnings].join('\n'), /review/i);
   fs.mkdirSync(path.join(ex(dir), 'reviews'), { recursive: true });
-  const f = path.join(ex(dir), 'reviews', 'code-review.md');
-  fs.writeFileSync(f, '# Code review\n\nNo findings.\n');
-  assert.match(JSON.parse(check(dir).stdout).warnings.join('\n'), /say at the top how it ran - "fresh session".* or "self-review"/);
-  for (const label of ['Reviewer: fresh session (sub-agent)', 'self-review (same session)']) {
-    fs.writeFileSync(f, `# Code review\n\n${label}\n`);
-    assert.doesNotMatch(JSON.parse(check(dir).stdout).warnings.join('\n'), /say at the top how it ran/);
-  }
+  fs.writeFileSync(path.join(ex(dir), 'reviews', 'code-review.md'), '# Code review\n\nNo findings.\n');
+  const r = JSON.parse(check(dir, '--no-git').stdout);
+  assert.doesNotMatch([...r.errors, ...r.warnings].join('\n'), /code-review\.md/);
 });
