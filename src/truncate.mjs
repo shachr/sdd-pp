@@ -11,7 +11,7 @@ export function truncate(text, maxLength, { ellipsis = '…' } = {}) {
   if (s.length <= maxLength) return s;
   const room = maxLength - ellipsis.length;
   let kept = s.slice(0, room);
-  const cutMidWord = !/\s/.test(s[room] ?? ' ');
+  const cutMidWord = !/\s/.test(s[room]); // room < s.length here, so s[room] exists
   if (cutMidWord && /\s/.test(kept)) kept = kept.slice(0, kept.search(/\s\S*$/));
   return kept.trimEnd() + ellipsis;
 }
