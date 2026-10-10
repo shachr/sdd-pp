@@ -24,19 +24,14 @@ const COMMANDS = {
   },
 };
 
-// Feature flag stats-cli: `stats` stays dark (an unknown command) until TEXTKIT_STATS=1.
-const STATS_FLAG = 'TEXTKIT_STATS';
-const visible = (name, io) => name !== 'stats' || io.env?.[STATS_FLAG] === '1';
-const commandNames = (io) => Object.keys(COMMANDS).filter((n) => visible(n, io));
-
 function usageError(io, message) {
-  io.stderr.write(`${message ? `${message}\n` : ''}usage: textkit <command> [text]\ncommands: ${commandNames(io).join(', ')}\n`);
+  io.stderr.write(`${message ? `${message}\n` : ''}usage: textkit <command> [text]\ncommands: ${Object.keys(COMMANDS).join(', ')}\n`);
   return USAGE_ERROR;
 }
 
 export function run(argv, io) {
   const [name, ...args] = argv;
   if (name === undefined) return usageError(io);
-  if (!Object.hasOwn(COMMANDS, name) || !visible(name, io)) return usageError(io, `unknown command: ${name}`);
+  if (!Object.hasOwn(COMMANDS, name)) return usageError(io, `unknown command: ${name}`);
   return COMMANDS[name](args, io);
 }

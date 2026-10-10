@@ -34,10 +34,10 @@
 **Files:**
 - Modify: `src/cli.mjs`, `test/cli-stats.test.mjs`
 
-- [ ] **Step 1: Change the tests first** - drop the "Flag off" / "Flag on" tests and `env: ON`; add a test that the usage lists `stats`. Run `npm test`: expected FAIL (stats is still hidden without the variable).
-- [ ] **Step 2: Delete `STATS_FLAG`, `visible`, `commandNames`** and use `Object.keys(COMMANDS)` in the usage and the lookup.
-- [ ] **Step 3: Run `npm test`** - expected PASS; `rg TEXTKIT_STATS src test` empty.
-- [ ] **Step 4: Commit** - `git commit -m "feat(stats-cli): release stats - remove the flag (plan task 1)"`
+- [x] **Step 1: Change the tests first** - drop the "Flag off" / "Flag on" tests and `env: ON`; add a test that the usage lists `stats`. Run `npm test`: expected FAIL (stats is still hidden without the variable).
+- [x] **Step 2: Delete `STATS_FLAG`, `visible`, `commandNames`** and use `Object.keys(COMMANDS)` in the usage and the lookup.
+- [x] **Step 3: Run `npm test`** - expected PASS; `rg TEXTKIT_STATS src test` empty.
+- [x] **Step 4: Commit** - `git commit -m "feat(stats-cli): release stats - remove the flag (plan task 1)"`
 
 ## Execution Handoff
 
