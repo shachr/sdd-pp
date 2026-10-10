@@ -13,6 +13,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, loadConfig, UsageError } from './lib/change.mjs';
 import { changeDeltas, changeLocation, dependencyClosure, findParentOf, lintSlices, nameSlices, parseSlices, SPLIT_MAX_CAPABILITIES, SPLIT_MAX_REQUIREMENTS } from './lib/split.mjs';
+import { isMain } from './lib/main.mjs';
 
 const lc = (s) => s.trim().toLowerCase();
 
@@ -132,6 +133,6 @@ async function main() {
   return 0;
 }
 
-if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(new URL(import.meta.url).pathname)) {
+if (isMain(import.meta.url)) {
   main().then((c) => process.exit(c)).catch((e) => { console.error(`split-check: ${e.message}`); process.exit(e instanceof UsageError ? 2 : 1); });
 }

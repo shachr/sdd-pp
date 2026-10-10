@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run, initCli } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run, initCli, OPENSPEC_SKIP } from './helpers.mjs';
 import { parseFrontMatter } from '../scripts/lib/change.mjs';
 
 test('every skill has front matter whose name matches its folder', () => {
@@ -23,7 +23,7 @@ test('wrappers name the real upstream skills', () => {
   for (const s of ['brainstorming', 'writing-plans', 'subagent-driven-development', 'executing-plans', 'requesting-code-review']) assert.match(sp, new RegExp('`' + s + '`'));
 });
 
-test('sdd-pp init installs schema, scripts, skills and commands into an openspec project', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('sdd-pp init installs schema, scripts, skills and commands into an openspec project', { skip: OPENSPEC_SKIP }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handoff-install-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
   let r = spawnSync(OPENSPEC, ['init', '--tools', 'none', '--no-animation', '.'], { cwd: dir, encoding: 'utf8' });

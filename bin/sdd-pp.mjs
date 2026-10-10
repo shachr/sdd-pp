@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { spawnSync } from 'node:child_process';
+import { isMain } from '../scripts/lib/main.mjs';
 
 export const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TOOLS = ['ai-hero', 'superpowers'];
@@ -229,4 +230,4 @@ export function main(argv = process.argv.slice(2)) {
   }
 }
 
-if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url))) process.exitCode = main();
+if (isMain(import.meta.url)) process.exitCode = main();

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run, initCli } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run, initCli, OPENSPEC_SKIP } from './helpers.mjs';
 
 const ex = (dir) => path.join(dir, 'openspec', 'changes', CHANGE, 'execution');
 const warns = (dir) => JSON.parse(run('split-check.mjs', [CHANGE, '--json'], dir).stdout).warnings.join('\n');
@@ -61,7 +61,7 @@ test('split-check: new capability delta without ## Purpose warns (archive would 
   assert.doesNotMatch(warns(dir), /specs\/greeting\/spec\.md: new capability/);
 });
 
-test('sdd-pp init --tool writes the project default; a later install keeps it', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('sdd-pp init --tool writes the project default; a later install keeps it', { skip: OPENSPEC_SKIP }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handoff-tool-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
   spawnSync(OPENSPEC, ['init', '--tools', 'none', '--no-animation', '.'], { cwd: dir });

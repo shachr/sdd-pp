@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, CLI, run, initCli } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CLI, run, initCli, OPENSPEC_SKIP } from './helpers.mjs';
 import { nameSlices, parseSliceId } from '../scripts/lib/split.mjs';
 
 const W = (dir, rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
@@ -92,7 +92,7 @@ test('re-split into the same parent continues the numbering', () => {
   assert.match(R(dir, 'openspec/changes/add-text-stats/slices.md'), /### Slice: add-text-stats-99-remove-flag\n[\s\S]*?- depends_on: add-text-stats-03-cli-output, add-text-stats-04-cli-flag/);
 });
 
-test('sdd-pp split apply | next | start | archive from inside the project (archive = final loss check + openspec archive --skip-specs)', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('sdd-pp split apply | next | start | archive from inside the project (archive = final loss check + openspec archive --skip-specs)', { skip: OPENSPEC_SKIP }, () => {
   const { dir, g } = project(CORE + '### Slice: cli\n- order: 02\n- goal: Command line tool\n- capabilities: stats-cli\n- requirements: CLI output; CLI flag\n- depends_on: core\n- flag: none\n');
   assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
   g('add', '-A'); g('commit', '-qm', 'install');

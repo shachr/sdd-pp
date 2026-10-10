@@ -79,8 +79,9 @@ With `--tool ai-hero` it also installs `docs/agents/issue-tracker.md` (OpenSpec 
 when the project has none.
 
 Also works from a local checkout (`npx /path/to/sdd-pp init . --tool superpowers`, or `node /path/to/sdd-pp/bin/sdd-pp.mjs init ...`)
-and, once published to npm (not yet), as `npx sdd-pp init`. It is plain Node (no bash, plain copies, no symlinks), so it runs on
-Windows, macOS and Linux. Options:
+and, once published to npm (not yet), as `npx sdd-pp init`. It is plain Node (no bash, plain copies, no symlinks). Path handling is
+tested on Linux, including project paths with spaces, and written to be Windows-safe (drive letters, backslashes, CRLF `slices.md`),
+but it has not yet been run on Windows. Options:
 
 ```text
 sdd-pp init [dir] [--tool ai-hero|superpowers] [--claude|--no-claude] [--cursor|--no-cursor]
@@ -149,8 +150,9 @@ The tool's own review (`ai-hero → code-review`, two-axis Standards + Spec; `su
 ## Develop / test
 
 ```bash
-npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 50 tests: installer CLI, commands, /spec-check, split gate, slice naming, git-baseline loss check, split notes, renames, ready report, real OpenSpec CLI, e2e
+npm install            # required: installs @fission-ai/openspec 1.14.1 locally; 13 tests run the real OpenSpec CLI
+npm test               # installer CLI, commands, paths with spaces, /spec-check, split gate, slice naming, git-baseline loss check, split notes, renames, ready report, real OpenSpec CLI, e2e
+                       # without npm install the run FAILS (openspec-required test); SDD_SKIP_OPENSPEC=1 npm test skips those 13 on purpose
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```

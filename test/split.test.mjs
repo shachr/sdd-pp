@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, run, initCli, makeFixture } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, run, initCli, makeFixture, OPENSPEC_SKIP } from './helpers.mjs';
 
 const W = (dir, rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
 const R = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
@@ -286,7 +286,7 @@ test('next + start: ready when all depends_on are archived; in-progress is the e
   assert.match(R(dir, `${C}/tickets/add-reports-02-filters.md`), /add-reports-02-filters is committed in the slice's own PR with its code, merged to main/);
 });
 
-test('final loss check uses main specs + archived children; OpenSpec archives the parent with --skip-specs', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('final loss check uses main specs + archived children; OpenSpec archives the parent with --skip-specs', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = splitProject();
   run('split.mjs', ['apply', 'add-reports'], dir);
   addFlag(dir);
@@ -362,4 +362,32 @@ test('parallel slice branches: sdd-pp init union merge for slices.md keeps both 
   W(dir, s, text.replace('- ticket: tickets/add-reports-01-totals.md', '- ticket: tickets/add-reports-01-totals.md\n- ticket: none'));
   const r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.match(r.out, /slice "add-reports-01-totals" has "ticket:" twice \(a union merge of two branches\?\)/);
+});
+
+test('next-steps CLI for a slice (ends with /split-next <parent>) and for a split parent (no handoff, points at /split-next)', () => {
+  const { dir } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  W(dir, 'openspec/changes/add-reports-01-totals/handoff.md', '---\ntool: ai-hero\napply_mode: implement\n---\n\n# Handoff\n');
+  let r = run('next-steps.mjs', ['add-reports-01-totals'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^Next steps for add-reports-01-totals \(ai-hero, apply_mode: implement\)/);
+  assert.match(r.out, /On main: \/split-next add-reports /);
+  r = run('next-steps.mjs', ['add-reports'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.out.trim(), 'add-reports is a split parent: no handoff or implementation. Run: /split-next add-reports');
+});
+
+test('split start off main: marks it but notes that readiness is read from this checkout and the mark belongs on main; CRLF slices.md stays CRLF', () => {
+  const { dir, git } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  git('add', '-A'); git('commit', '-qm', 'plan');
+  git('switch', '-qc', 'feature');
+  const f = `${C}/slices.md`;
+  W(dir, f, R(dir, f).replace(/\r?\n/g, '\r\n'));
+  const r = run('split.mjs', ['start', 'add-reports-01-totals'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /note: you are on feature; readiness is read from this checkout and the mark belongs on main\./);
+  const t = R(dir, f);
+  assert.match(t, /### Slice: add-reports-01-totals\r\n[\s\S]*?- status: in-progress\r\n/);
+  assert.doesNotMatch(t, /[^\r]\n/, 'no bare LF lines in a CRLF file');
 });

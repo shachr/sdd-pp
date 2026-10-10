@@ -6,6 +6,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, loadChange, UsageError, SESSION_FILES, APPLY_MODES } from './lib/change.mjs';
 import { findParentOf } from './lib/split.mjs';
+import { isMain } from './lib/main.mjs';
 
 export function nextSteps({ id, tool, applyMode, parent = null }) {
   const c = `openspec/changes/${id}`;
@@ -72,6 +73,6 @@ function main() {
   return 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   try { process.exit(main()); } catch (e) { console.error(`next-steps: ${e.message}`); process.exit(e instanceof UsageError ? 2 : 1); }
 }

@@ -22,6 +22,7 @@ import {
   baselineDeltas, changeDeltas, dependencyClosure, changeLocation, findParentOf, lintSlices, mainSpecRequirements,
   nameLeaks, nameSlices, parentDir, parseSlices, parseSplitNotes, readiness, SLICE_STATUSES,
 } from './lib/split.mjs';
+import { isMain } from './lib/main.mjs';
 
 const lc = (s) => s.trim().toLowerCase();
 const today = () => new Date().toISOString().slice(0, 10);
@@ -299,13 +300,15 @@ export function writeTickets(root, r) {
 
 function setSliceField(dir, id, key, value) {
   const f = path.join(dir, 'slices.md');
-  const lines = fs.readFileSync(f, 'utf8').split('\n');
+  const text = fs.readFileSync(f, 'utf8');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n'; // keep CRLF files (Windows checkouts) CRLF
+  const lines = text.split(/\r?\n/);
   const start = lines.findIndex((l) => new RegExp(`^###\\s+Slice:\\s*${id}\\s*$`).test(l));
   if (start < 0) throw new UsageError(`no slice "${id}" in ${f}`);
   let i = start + 1; let set = false;
   for (; i < lines.length && /^-\s+[a-z_]+:/.test(lines[i]); i++) if (lines[i].startsWith(`- ${key}:`)) { lines[i] = `- ${key}: ${value}`; set = true; }
   if (!set) lines.splice(i, 0, `- ${key}: ${value}`);
-  fs.writeFileSync(f, lines.join('\n'));
+  fs.writeFileSync(f, lines.join(eol));
 }
 
 function markSlice(root, parentId, sliceId, status) {
@@ -395,7 +398,7 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
   let splitCommit = null;
   if (!resplit) {
     // the loss-check baseline: the original deltas, committed and unchanged
-    const rel = path.relative(root, path.join(src, 'specs'));
+    const rel = path.relative(root, path.join(src, 'specs')).split(path.sep).join('/'); // git pathspec: forward slashes
     let dirty; let tracked;
     try {
       dirty = git(root, ['status', '--porcelain', '--', rel]).trim();
@@ -572,7 +575,7 @@ async function main() {
   return 0;
 }
 
-if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(new URL(import.meta.url).pathname)) {
+if (isMain(import.meta.url)) {
   main().then((c) => process.exit(c)).catch((e) => {
     console.error(`split: ${e.message}`);
     process.exit(e instanceof UsageError ? 2 : 1);

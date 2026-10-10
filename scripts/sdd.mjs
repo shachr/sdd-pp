@@ -16,6 +16,7 @@
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './lib/main.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -71,7 +72,7 @@ export function run(argv, { cwd = process.cwd(), log = (s) => console.log(s) } =
   return 0;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   if (!argv.length || argv[0] === '--help' || argv[0] === '-h') { console.log(USAGE); process.exit(argv.length ? 0 : 2); }
   try { process.exit(run(argv)); } catch (e) { console.error(`sdd: ${e.message}`); process.exit(e instanceof SddUsage ? 2 : 1); }

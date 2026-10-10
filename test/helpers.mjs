@@ -2,10 +2,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-export const TOOLKIT = path.resolve(new URL('..', import.meta.url).pathname);
+export const TOOLKIT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 export const CHANGE = 'add-greeting-name';
 export const OPENSPEC = path.join(TOOLKIT, 'node_modules', '.bin', 'openspec');
+/** Skip reason for the tests that need the real OpenSpec CLI (devDependency). openspec-required.test.mjs
+ *  fails the run when it is missing, unless SDD_SKIP_OPENSPEC=1 says skipping is intended. */
+export const OPENSPEC_SKIP = fs.existsSync(OPENSPEC) ? false : 'OpenSpec CLI not installed - run npm install';
 
 /**
  * Copy example/ into a fresh git repo in a temp dir (symlinks dereferenced),

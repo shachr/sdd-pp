@@ -25,7 +25,7 @@ function main() {
     const cur = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
     fs.mkdirSync(path.dirname(f), { recursive: true });
     fs.writeFileSync(f, JSON.stringify({ ...cur, defaultTool: values.default }, null, 2) + '\n');
-    console.log(`project default execution tool: ${values.default} (${path.relative(root, f)})`);
+    console.log(`project default execution tool: ${values.default} (${path.relative(root, f).split(path.sep).join('/')})`);
     if (!positionals.length) return 0;
   }
   if (positionals.length !== 1) { console.error(usage); return 2; }

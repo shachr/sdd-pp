@@ -29,7 +29,7 @@ Example with Claude: `openspec init --tools claude`, the skills with `-a claude-
 (`--no-claude` / `--no-cursor` skip one), and for opencode (`.opencode/`) only when that folder already exists (e.g. after
 `openspec init --tools opencode`) or with `--opencode`.
 
-`sdd-pp init` is a plain Node CLI (no bash, no symlinks; works on Windows, macOS and Linux). `--tool` writes the project default to
+`sdd-pp init` is a plain Node CLI (no bash, no symlinks; path handling tested on Linux incl. paths with spaces and written to be Windows-safe, not yet run on Windows). `--tool` writes the project default to
 `.openspec-handoff/project.json`. Re-running `init` without `--tool` (to upgrade) keeps it. `npx sdd-pp init` will work once the
 package is published to npm (not yet). `sdd-pp --help` lists every option.
 With `--tool ai-hero`, `init` also installs `docs/agents/issue-tracker.md` (from `.openspec-handoff/issue-tracker-openspec.md`)

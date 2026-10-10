@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 export const TOOLS = ['ai-hero', 'superpowers'];
 /** The tools' own implement commands (handoff.md apply_mode); /opsx:apply is not used. */
@@ -102,7 +103,7 @@ export function git(root, args) {
 }
 
 export function loadConfig(root, explicit) {
-  const toolkitDefault = new URL('../../config/handoff-review.json', import.meta.url).pathname;
+  const toolkitDefault = fileURLToPath(new URL('../../config/handoff-review.json', import.meta.url));
   const candidates = [explicit, path.join(root, '.openspec-handoff', 'config.json'), toolkitDefault]
     .filter(Boolean);
   for (const c of candidates) {

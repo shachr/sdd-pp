@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, CLI, CHANGE, initCli, makeFixture } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CLI, CHANGE, initCli, makeFixture, OPENSPEC_SKIP } from './helpers.mjs';
 import { plan } from '../scripts/sdd.mjs';
 import { nextSteps } from '../scripts/next-steps.mjs';
 
@@ -121,7 +121,7 @@ test('sdd-pp init --tool ai-hero: triage-labels.md + a marked AGENTS.md block, i
   assert.equal(count(t), 1); assert.doesNotMatch(t, /\(old\)/); assert.match(t, /\nAfter\.\n$/);
 });
 
-test('sdd-pp <command> from inside a project runs its installed scripts: tool, next, spec-check, usage errors; no check', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('sdd-pp <command> from inside a project runs its installed scripts: tool, next, spec-check, usage errors; no check', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = makeFixture();
   assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
   // the project's copy is the one that runs (marker in the installed sdd.mjs)
@@ -148,11 +148,28 @@ test('sdd-pp <command> from inside a project runs its installed scripts: tool, n
   assert.doesNotMatch(r.out, /\$ openspec archive/);
 });
 
-test('verify gets no review instruction: the schema apply instruction (what /opsx:verify reads) never mentions a review file', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('verify gets no review instruction: the schema apply instruction (what /opsx:verify reads) never mentions a review file', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = makeFixture();
   assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode').status, 0);
   const r = spawnSync(OPENSPEC, ['instructions', 'apply', '--change', CHANGE, '--json'], { cwd: dir, encoding: 'utf8' });
   const j = JSON.parse(r.stdout);
   assert.match(j.instruction, /\/next-steps <change>/);
   assert.doesNotMatch(j.instruction, /review|CRITICAL|check-handoff/i);
+});
+
+test('reinstall removes retired commands (check-handoff.md, split-mark.md) for claude, cursor and opencode', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-retired-'));
+  fs.mkdirSync(path.join(dir, 'openspec'));
+  assert.equal(initCli(dir, '--opencode', '--no-set-default').status, 0);
+  const retired = ['check-handoff.md', 'split-mark.md'];
+  for (const h of ['.claude', '.cursor', '.opencode']) for (const c of retired) fs.writeFileSync(path.join(dir, h, 'commands', c), 'old\n');
+  const r = initCli(dir, '--no-set-default'); // .opencode/ exists, so it is reinstalled without --opencode
+  assert.equal(r.status, 0, r.stderr);
+  for (const h of ['.claude', '.cursor', '.opencode']) {
+    assert.ok(fs.existsSync(path.join(dir, h, 'commands', 'split-start.md')), `${h}: split-start.md installed`);
+    for (const c of retired) {
+      assert.ok(!fs.existsSync(path.join(dir, h, 'commands', c)), `${h}/${c} removed`);
+      assert.match(r.stdout, new RegExp(`${h.replace('.', '\\.')}/commands/${c.replace('.', '\\.')} \\(removed: retired\\)`));
+    }
+  }
 });
