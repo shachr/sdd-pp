@@ -87,7 +87,8 @@ export function checkChange(change, config, { useGit = true } = {}) {
   }
 
   // 4. execution artifacts link back to the source of truth
-  for (const f of change.execution.filter((x) => x.endsWith('.md') && !x.endsWith('.prompt.md'))) {
+  //    (execution/verify.md is the /opsx:verify report saved verbatim - its format is OpenSpec's)
+  for (const f of change.execution.filter((x) => x.endsWith('.md') && !x.endsWith('.prompt.md') && x !== 'execution/verify.md')) {
     if (!/proposal\.md/.test(change.read(f))) errors.push(`${f}: must start with a "Source of truth" line linking proposal.md`);
   }
 
