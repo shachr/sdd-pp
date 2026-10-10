@@ -14,7 +14,7 @@ execution_dir: execution/
 
 <!-- Links only. Never copy requirement text, scenarios or SHALL/MUST sentences. -->
 - Proposal: [proposal.md](proposal.md)
-- Design: [design.md](design.md)
+- Design: [design.md](design.md) <!-- or "skipped (conditional; not needed)" -->
 - Spec deltas:
   - [specs/<capability>/spec.md](specs/<capability>/spec.md)
 
