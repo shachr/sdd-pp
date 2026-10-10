@@ -116,3 +116,13 @@ test('archived change: found under changes/archive by name or dated name; size n
     assert.match(r.out, /archived change: diff size not measured/);
   }
 });
+
+test('slice with split notes: narrowed session without "## Overrides" warns (exit 0); with it, no warning', () => {
+  const { changeDir, dir } = makeFixture();
+  fs.appendFileSync(path.join(changeDir, 'proposal.md'), '\n## Split notes\n\n- dropped: Scenario "Whatever" - not needed in this slice\n');
+  let r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.match(r.out, /execution\/grill\.md: this slice has split notes but its narrowed session has no "## Overrides" section/);
+  fs.appendFileSync(path.join(changeDir, 'execution', 'grill.md'), '\n## Overrides\n\n- None (the delta matches the parent session)\n');
+  r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.doesNotMatch(r.out, /no "## Overrides" section/);
+});
