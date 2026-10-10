@@ -124,10 +124,10 @@ path first and edge scenarios second (only if the first slice is correct and shi
 |---|---|---|
 | `openspec validate <id> --strict` (CLI) | Structure of the deltas: headers, ≥1 scenario per requirement, Purpose length, ≤500-char requirement descriptions | Low - structural; passes on huge changes too |
 | `/opsx:verify <id>` (agent workflow, opt-in via `openspec config profile`; there is **no** `openspec verify` CLI command in 1.14.1) | Completeness (task tracking: *Not applicable* with this schema; every requirement implemented), correctness (code matches scenarios), coherence (code patterns; Design Adherence is *Not applicable* because the handoff-driven schema has no design artifact - design is reviewed by the execution tool) | High - an agent must read every artifact plus the code |
-| `check-handoff` (this toolkit) | Handoff fields, reference-not-duplicate, outputs inside the change folder, size budget | Warns on the budget (never fails on size) |
-| The tool's code review (fresh session of your coding agent) | `code-review` / `requesting-code-review` reviews the diff against the deltas | High - same as verify |
+| `check-handoff` (this toolkit; internal - `/handoff`'s lint, optional for CI) | Handoff fields, reference-not-duplicate, outputs inside the change folder, size budget | Warns on the budget (never fails on size) |
+| The tool's own code review (plus CI's review on the PR) | `code-review` / `requesting-code-review` reviews the diff against the deltas | High - same as verify |
 
-Run order: the tool's code review → fix → `check-handoff --expect-complete` → `openspec validate --strict` → `/opsx:verify` (report saved to `execution/verify.md`) → `/opsx:archive` (agent-driven sync) after merge.
+Run order: the tool's own completion (ticket Status / ledger) → the tool's own code review (CI also reviews the PR) → fix → `/opsx:verify` (report saved to `execution/verify.md`) → `/opsx:archive` (agent-driven sync).
 
 ## Small changes that don't need the full ceremony
 

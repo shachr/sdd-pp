@@ -24,7 +24,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 | Planning (engineer) | `to-tickets` | `execution/tickets/NN-<slug>.md` |
 | Planning (engineer) | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
 | Implementation | `implement` or `implement-spec` (`apply_mode`) + `tdd` - not `/opsx:apply` | code + tests; ticket `Status: done` + checkboxes |
-| Implementation | `code-review` (implement calls it) | `execution/reviews/code-review.md` |
+| Implementation | `code-review` (implement calls it) | any file it writes goes in `execution/reviews/` (optional) |
 | Verify / archive | `/opsx:verify`, then `/opsx:archive` | `execution/verify.md` |
 
 ## Design session (proposal phase)
@@ -88,6 +88,6 @@ After any delta edit (a /spec-check gap, a split note, a re-split): `openspec va
 
 ## Implementation (the engineer runs `implement` / `implement-spec`)
 
-1. Implement with the `apply_mode` command. Ticket done: `Status: done` + tick its scenario checkboxes in the same commit (that is the progress `check-handoff` reads).
-2. `code-review` -> `execution/reviews/code-review.md`. **Reviewer: a fresh session of your own coding agent** - run its Standards and Spec reviewers as fresh sub-agents, or in a new session that sees only the review briefs (no access to this conversation), and write "fresh session" at the top of the review file. If that is impossible, run it here and write "self-review" at the top instead (check-handoff warns when the review says neither). Fix Critical/Important findings. Then `openspec validate <id> --strict` and `check-handoff <id> --expect-complete` (fails while a ticket is open).
+1. Implement with the `apply_mode` command. Ticket done: `Status: done` + tick its scenario checkboxes in the same commit (AI Hero's own completion: a ticket is done when its Status says so).
+2. `code-review` - AI Hero's own review step (`implement` calls it); fix what it finds. If it writes a file, keep it in `execution/reviews/`. CI also runs a code review on the PR, so no review file or label is required.
 3. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written, on the change branch, and commit the archive in the change's PR with its code; then merge the PR.

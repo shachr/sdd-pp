@@ -29,12 +29,12 @@ Implementation diff: `git diff <base_ref>...HEAD -- . ':!openspec'`
 | ai-hero `to-spec` (reads `execution/grill.md`; user-facing sections link the proposal/delta) | `execution/spec.md` |
 | ai-hero `to-tickets` (scenarios cited by name) | `execution/tickets/NN-<slug>.md` |
 | `/spec-check` (end of planning) | `execution/spec-check.md` |
-| ai-hero `implement` / `implement-spec` (apply_mode) + `tdd`, then `code-review` | code + tests; `execution/reviews/code-review.md` |
+| ai-hero `implement` / `implement-spec` (apply_mode) + `tdd`, then `code-review` | code + tests; review notes, if any, in `execution/reviews/` |
 | superpowers `brainstorming` (proposal phase; stopped before writing-plans) | `execution/brainstorm.md` |
 | superpowers `writing-plans` (reads `execution/brainstorm.md`) | `execution/plan-<change-id>.md` |
 | `/spec-check` (end of planning) | `execution/spec-check.md` |
 | superpowers `executing-plans` / `subagent-driven-development` (apply_mode) ledger | `execution/progress.md` |
-| superpowers `requesting-code-review` (final review) | `execution/reviews/code-review.md` |
+| superpowers `requesting-code-review` (final review) | review notes, if any, in `execution/reviews/` |
 | `/opsx:verify` report | `execution/verify.md` |
 
 ## Size check

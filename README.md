@@ -23,7 +23,7 @@ openspec/changes/<id>/
     spec.md, tickets/            (AI Hero to-spec reading grill.md, to-tickets - after handoff; tickets track progress)
     plan-<id>.md, progress.md    (Superpowers writing-plans reading brainstorm.md - after handoff; plan checkboxes track progress)
     spec-check.md                (/spec-check: planning output vs proposal + delta, end of planning)
-    reviews/code-review.md       (the tool's own code review, in a fresh session; "self-review" otherwise)
+    reviews/                     (optional: whatever the tool's own review writes)
     verify.md                    (/opsx:verify report, saved before archive)
     split-check.md, split-proposal.md   (/split-check split gate, end of the specs stage; the proposal is removed at apply)
 
@@ -54,9 +54,9 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 | `schemas/split-plan/` | Parent of a split change: proposal → slices (no specs; OpenSpec sets `skip_specs: true`; archived last with `--skip-specs`) |
 | `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/split-check.md` | `/split-check <id>`: split gate at the end of the specs stage (counts requirements and capabilities, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children named `<parent>-<nn>-<slice>`, cleanup slice `99`, re-split into the same parent continues the numbering; records `split_commit`), `loss` (exactly-once vs the original deltas at `split_commit` via git show, split notes, rename candidates, `--final` against main specs), `next` (ready / in progress / parallel-safe slices, tickets), `mark` (in-progress status) |
 | `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + contradictions (agent); writes `execution/spec-check.md` |
-| `scripts/sdd.mjs` + `commands/*/{check-handoff,next-steps,tool,split-apply,split-next,split-mark,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `check` (validate --strict + check-handoff --expect-complete), `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|mark\|loss\|archive` (archive = final loss check + `openspec archive --skip-specs -y`). The agent slash commands and the `sdd-pp` CLI subcommands both call it |
+| `scripts/sdd.mjs` + `commands/*/{next-steps,tool,split-apply,split-next,split-mark,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|mark\|loss\|archive` (archive = final loss check + `openspec archive --skip-specs -y`). The agent slash commands and the `sdd-pp` CLI subcommands both call it |
 | `scripts/execution-tool.mjs` | Setup phase: `--default <tool>` (project), `<id> --set <tool>` (per-change override; starts the session file), `<id>` (resolve: handoff.md > session front matter > project default). Refuses a switch once a session exists (`docs/switching-tools.md`) |
-| `scripts/check-handoff.mjs` | Lint: execution tool set and consistent (handoff.md vs session file; one session file; error), proposal.md implementation-detail heuristic (warning), new capability without `## Purpose` (warning), handoff fields, reference-not-duplicate (errors: verbatim copies, delta headers, SHALL; warnings: token-overlap paraphrases and User-Stories-style sections with no link to the proposal/delta - errors with `strictDuplication`), requirement links (every user story / ticket / plan task names an existing delta requirement: error), `apply_mode`, ownership (no OpenSpec design.md), outputs in change folder, PR size (warn-only: ~300 changed lines of code + tests, lockfiles / generated / tooling excluded) |
+| `scripts/check-handoff.mjs` | **Internal / optional (e.g. CI):** `/handoff` runs it as its lint; not a flow step. Lint: execution tool set and consistent (handoff.md vs session file; one session file; error), proposal.md implementation-detail heuristic (warning), new capability without `## Purpose` (warning), handoff fields, reference-not-duplicate (errors: verbatim copies, delta headers, SHALL; warnings: token-overlap paraphrases and User-Stories-style sections with no link to the proposal/delta - errors with `strictDuplication`), requirement links (every user story / ticket / plan task names an existing delta requirement: error), `apply_mode`, ownership (no OpenSpec design.md), outputs in change folder, PR size (warn-only: ~300 changed lines of code + tests, lockfiles / generated / tooling excluded) |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
 | `commands/{claude,cursor}/handoff.md` | `/handoff` - story 2 |
 | `config/handoff-review.json` | review skill per tool, size thresholds, split limits |
@@ -114,8 +114,7 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
 /spec-check add-greeting-name             # stops on GAPS -> execution/spec-check.md
 # implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply)
 /implement  |  /implement-spec  |  executing-plans  |  subagent-driven-development
-   -> ticket Status/checkboxes or plan step checkboxes; tool's code review in a fresh session of your own agent ("self-review" if not) -> execution/reviews/code-review.md
-/check-handoff add-greeting-name          # openspec validate --strict + check-handoff --expect-complete
+   -> ticket Status/checkboxes or plan step checkboxes; the tool's own code review (CI also reviews the PR)
 /opsx:verify add-greeting-name            # save the report to execution/verify.md
 /opsx:archive add-greeting-name           # agent-driven sync, then move; handoff + execution archive with the change
 ```
@@ -123,7 +122,6 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
 The same checks from a shell, from anywhere inside the project (runs the project's installed scripts):
 
 ```bash
-npx github:shachr/sdd-pp check <id>                  # = /check-handoff <id>
 npx github:shachr/sdd-pp next <id>                   # = /next-steps <id>
 npx github:shachr/sdd-pp tool <id> [--set <tool>]    # = /tool <id>
 npx github:shachr/sdd-pp spec-check <id>             # mechanical part of /spec-check
@@ -132,7 +130,7 @@ npx github:shachr/sdd-pp split apply|next|mark|loss|archive ...   # = /split-app
 ```
 
 Under the hood (agent commands and CLI both run `.openspec-handoff/scripts/sdd.mjs`):
-`check` = `openspec validate <id> --strict` + `check-handoff.mjs <id> --expect-complete`; `next` = `next-steps.mjs`;
+`next` = `next-steps.mjs`;
 `tool` = `execution-tool.mjs`; `spec-check` / `split-check` = `spec-check.mjs` / `split-check.mjs` with `--write`;
 `split apply|mark|loss` = `split.mjs apply|mark|loss`; `split next` = `split.mjs next --write-tickets`;
 `split archive` = `split.mjs loss <parent> --final` + `openspec archive <parent> --skip-specs -y`.
@@ -141,10 +139,9 @@ The scripts still take `--root` / `--json` when run directly. See `docs/getting-
 ### Code review
 
 The tool's own review (`ai-hero → code-review`, two-axis Standards + Spec; `superpowers → requesting-code-review`,
-`code-reviewer.md` template; `config.reviewSkills`) runs in a **fresh session of the engineer's coding agent** (a sub-agent or a
-new session). Write "fresh session" at the top of `execution/reviews/code-review.md`, or "self-review" when it ran in the same
-session; check-handoff warns when the review says neither. There is no separate reviewer model, runner or local fallback
-(`docs/decisions.md` section 13).
+`code-reviewer.md` template; `config.reviewSkills`) is the code review step; CI also runs a code review on the PR. No review file or label is required and nothing checks for one
+(any file the tool writes goes in `execution/reviews/`). There is no separate reviewer model, runner or local fallback
+(`docs/decisions.md` sections 13 and 15).
 
 ## Develop / test
 

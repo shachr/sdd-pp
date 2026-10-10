@@ -44,7 +44,6 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 | `/handoff <id>` (agent skill) | - | writes handoff.md, `check-handoff.mjs`, `next-steps.mjs` |
 | `/next-steps <id>` | `next <id>` | `next-steps.mjs <id>` |
 | `/spec-check <id>` (agent: adds the contradiction review) | `spec-check <id>` (mechanical report) | `spec-check.mjs <id> --write` |
-| `/check-handoff <id>` | `check <id>` | `openspec validate <id> --strict`, then `check-handoff.mjs <id> --expect-complete` |
 | `/split-apply <id>` | `split apply <id>` | `split.mjs apply <id>` |
 | `/split-next <parent>` | `split next <parent>` | `split.mjs next <parent> --write-tickets` |
 | `/split-mark <parent> <slice> <in-progress\|planned>` | `split mark ...` | `split.mjs mark ...` |
@@ -65,19 +64,17 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 | 3a | Planning (you run it) | `/to-spec` (reads grill.md) → `execution/spec.md`, `/to-tickets` → `execution/tickets/` | `writing-plans` (reads brainstorm.md) → `execution/plan-<id>.md` |
 | 4 | `/spec-check <id>` → `execution/spec-check.md` | stops on GAPS: fix, re-run | same |
 | 5 | Implement with the tool's own command (`apply_mode`), **not** `/opsx:apply`. Progress lives in the tool's tracking, not a `tasks.md` | `/implement` or `/implement-spec`, with `tdd`; ticket `Status: done` + ticked checkboxes | `executing-plans` or `subagent-driven-development` (branch `change/<id>`); tick plan step checkboxes; copy the ledger to `execution/progress.md` |
-| 6 | Tool's code review in a **fresh session of your own coding agent** → `execution/reviews/code-review.md` | `code-review` (Standards + Spec sub-agents) | `requesting-code-review` (`code-reviewer.md`) |
-| 7 | `/check-handoff <id>`: `openspec validate <id> --strict` + `check-handoff <id> --expect-complete` (fails while a ticket / plan step is open) | | |
-| 8 | `/opsx:verify <id>`; save the report verbatim to `execution/verify.md` | | then `finishing-a-development-branch` |
-| 9 | `/opsx:archive <id>` on the change branch: syncs the delta into `openspec/specs/`, moves the change to `archive/`; commit it in the change's PR with the code, then merge | | |
+| 6 | The tool's own code review (CI also runs a review on the PR) | `code-review` (Standards + Spec sub-agents) | `requesting-code-review` (`code-reviewer.md`) |
+| 7 | `/opsx:verify <id>`; save the report verbatim to `execution/verify.md` | | then `finishing-a-development-branch` |
+| 8 | `/opsx:archive <id>` on the change branch: syncs the delta into `openspec/specs/`, moves the change to `archive/`; commit it in the change's PR with the code, then merge | | |
 
-The code review is the tool's own review in a **fresh session of your own coding agent** (a sub-agent, or a new
-session that sees only the filled review brief); write "fresh session" at the top of the review file. If that is
-impossible, run it in the same session and write "self-review" at the top instead (check-handoff warns when the
-review says neither). There is no separate reviewer model or local fallback.
+The code review is the tool's own review step (AI Hero `code-review`, Superpowers `requesting-code-review`); CI
+also runs a code review on the PR. No review file or label is required and nothing checks for one. Completion is
+the execution tool's: AI Hero's ticket `Status: done`, Superpowers' ledger and plan steps (there is no separate gate).
 
 Useful checks at any time:
 - `/tool <id>` shows which tool applies and why.
-- `check-handoff <id>` errors on missing/inconsistent tool settings, copied requirement text and unlinked units. It warns on paraphrases, implementation detail in proposal.md and a missing `## Purpose`.
+- `check-handoff.mjs` is internal: `/handoff` runs it as its lint (and the wrappers rerun it after planning or a delta edit). It is optional for CI (`node .openspec-handoff/scripts/check-handoff.mjs <id> [--expect-complete]`); it is not a step of the flow. It errors on missing/inconsistent tool settings, copied requirement text and unlinked units, and warns on paraphrases, implementation detail in proposal.md and a missing `## Purpose`.
 
 ## Switching tools
 
@@ -129,7 +126,7 @@ Changing the plan later: edit the child delta, add the split note to the child's
 
 - **Pilot:** proven only on toy changes (two ~50-line utilities in a demo repo, `handoff-flows-v3`). There has been no real-project use yet.
 - **Not exercised:** `implement-spec` and `subagent-driven-development` (the test harness had no sub-agent tool), and PR-based finishing.
-- **Review independence:** a fresh session of the same coding agent is independent of the implementing conversation, not of the model. A "self-review" is weaker still; triage findings either way.
+- **Review independence:** the tool's own review runs in the implementing agent's environment; the independent review is CI's review on the PR.
 - **Heuristic lints:** the paraphrase lint and the proposal implementation-detail lint are token/keyword heuristics, warnings only. Expect false positives and misses. Session records written before the delta naturally trigger paraphrase warnings.
 - **`/spec-check` contradictions are agent judgement:** the script checks coverage mechanically and exits 0 if it cannot see a contradiction. Whether it stops depends on the agent's review.
 - **Splitting:** tested on demo features (`handoff-flows-v5`, `-v6`). The loss check matches names; for an unmatched name it lists rename candidates and the agent judges semantic equivalence (`renamed_from`), so that step is agent judgement. "In progress" is a manual mark in the parent's `slices.md`; the next report does not scan branches. Line estimates are the agent's guesses.
