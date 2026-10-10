@@ -226,7 +226,11 @@ export function formatNext(r) {
   const unsafe = r.pairs.filter((p) => p.bothReady && !p.safe);
   out.push(`Parallel-safe now (both ready, no dependency, no shared capability): ${safe.map((p) => `${p.a} ∥ ${p.b}`).join(', ') || 'none'}`);
   if (unsafe.length) out.push(`Ready but NOT parallel-safe: ${unsafe.map((p) => `${p.a} / ${p.b} (${p.shared.length ? `shared capability ${p.shared.join(', ')}` : 'dependency'})`).join(', ')}`);
-  const later = r.pairs.filter((p) => !p.bothReady && p.safe);
+  const active = r.pairs.filter((p) => p.active && p.safe);
+  if (active.length) out.push(`Parallel-safe with work in progress (taken or ready, no dependency, no shared capability): ${active.map((p) => `${p.a} ∥ ${p.b}`).join(', ')}`);
+  const activeUnsafe = r.pairs.filter((p) => p.active && !p.safe);
+  if (activeUnsafe.length) out.push(`NOT parallel-safe with work in progress: ${activeUnsafe.map((p) => `${p.a} / ${p.b} (${p.independent ? `shared capability ${p.shared.join(', ')}` : 'dependency'})`).join('; ')}`);
+  const later = r.pairs.filter((p) => !p.bothReady && !p.active && p.safe);
   if (later.length) out.push(`Parallel-safe later: ${later.map((p) => `${p.a} ∥ ${p.b}`).join(', ')}`);
   return out.join('\n');
 }

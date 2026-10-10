@@ -264,7 +264,7 @@ export function readiness(root, plan) {
   for (let i = 0; i < open.length; i++) for (let j = i + 1; j < open.length; j++) {
     const a = open[i]; const b = open[j];
     const sh = shared(a, b);
-    pairs.push({ a: a.id, b: b.id, independent: independent(a, b), shared: sh, safe: independent(a, b) && !sh.length, bothReady: a.ready && b.ready });
+    pairs.push({ a: a.id, b: b.id, independent: independent(a, b), shared: sh, safe: independent(a, b) && !sh.length, bothReady: a.ready && b.ready, active: (a.ready || a.status === 'in progress') && (b.ready || b.status === 'in progress') && !(a.ready && b.ready) });
   }
   return { rows, ready, pairs };
 }

@@ -211,6 +211,7 @@ test('next + mark: ready when all depends_on are archived; in-progress is the en
   assert.match(r.out, /\| add-report-totals \| in progress \|/);
   assert.match(r.out, /Ready now: add-csv-export/);
   assert.match(r.out, /In progress \(engineer's mark\): add-report-totals/);
+  assert.match(r.out, /Parallel-safe with work in progress \(taken or ready, no dependency, no shared capability\): add-report-totals ∥ add-csv-export/);
   r = run('split.mjs', ['mark', 'add-reports', 'nope', 'in-progress'], dir);
   assert.equal(r.code, 2);
   archive(dir, 'add-report-totals');
