@@ -64,7 +64,7 @@ test('split-check shows the ids split apply will create; split apply builds them
   let { dir, c, g } = project(CORE + CLI_ + CLEAN);
   let r = run('split-check.mjs', [P], dir);
   assert.match(r.out, /\| add-text-stats-01-core \|[\s\S]*\| add-text-stats-02-cli \|[\s\S]*\| add-text-stats-99-remove-flag \|/);
-  assert.match(r.out, /Approved\. Apply[^\n]*\/split-apply add-text-stats/);
+  assert.match(r.out, /Approved\. Apply[^\n]*\/sdd-split-apply add-text-stats/);
   r = run('split.mjs', ['apply', P], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /children: add-text-stats-01-core, add-text-stats-02-cli, add-text-stats-99-remove-flag/);
@@ -85,7 +85,7 @@ test('split-check shows the ids split apply will create; split apply builds them
 test('re-split into the same parent continues the numbering', () => {
   const { dir } = project(CORE + CLI_ + CLEAN);
   run('split.mjs', ['apply', P], dir);
-  W(dir, 'openspec/changes/add-text-stats-02-cli/execution/split-proposal.md', '---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: cli-output\n- goal: Statistics on the console\n- capabilities: stats-cli\n- requirements: CLI output\n- depends_on: none\n- flag: stats-cli\n\n### Slice: cli-flag\n- goal: Flag\n- capabilities: stats-cli\n- requirements: CLI flag\n- depends_on: cli-output\n- flag: stats-cli\n');
+  W(dir, 'openspec/changes/add-text-stats-02-cli/execution/split-proposal.md', '---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: cli-output\n- goal: Statistics on the console\n- capabilities: stats-cli\n- requirements: CLI output\n- depends_on: none\n- flag: stats-cli\n\n### Slice: cli-flag\n- goal: Flag\n- capabilities: stats-cli\n- requirements: CLI flag; Feature flag stats-cli\n- depends_on: cli-output\n- flag: stats-cli\n');
   const r = run('split.mjs', ['apply', 'add-text-stats-02-cli'], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /re-split into parent add-text-stats; children: add-text-stats-03-cli-output, add-text-stats-04-cli-flag/);
@@ -111,20 +111,27 @@ test('sdd-pp split apply | next | start | archive from inside the project (archi
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /split start add-text-stats-01-core: in-progress in openspec\/changes\/add-text-stats\/slices\.md \(parent add-text-stats\)/);
   assert.match(r.out, /git switch -c change\/add-text-stats-01-core main/);
-  assert.match(r.out, /\/handoff add-text-stats-01-core/);
+  assert.match(r.out, /\/sdd-handoff add-text-stats-01-core/);
   r = sdd('split', 'archive', P);
   assert.equal(r.code, 1, 'refused while slices are not archived');
-  assert.match(r.out, /not archived yet/);
-  assert.doesNotMatch(r.out, /\$ openspec archive/);
+  assert.match(r.out, /split archive add-text-stats: REFUSED - 2 slice\(s\) not archived: add-text-stats-01-core \(in progress\), add-text-stats-02-cli \(planned\)/);
+  assert.doesNotMatch(r.out, /loss-check|\$ openspec archive/, 'stops before the final loss check');
   for (const id of ['add-text-stats-01-core', 'add-text-stats-02-cli']) {
     const a = spawnSync(OPENSPEC, ['archive', id, '--yes'], { cwd: dir, encoding: 'utf8' });
     assert.equal(a.status, 0, a.stdout + a.stderr);
   }
   r = sdd('split', 'next', P);
-  assert.match(r.out, /all slices done; archive the parent: \/split-archive add-text-stats/);
+  assert.match(r.out, /all slices done; archive the parent: \/sdd-split-archive add-text-stats/);
+  // slices.md says done for archived slices, and the commit line is printed
+  assert.match(r.out, /slices\.md: status done for add-text-stats-01-core, add-text-stats-02-cli \(archived folder present\)/);
+  assert.match(r.out, /Commit on main: git add openspec\/changes\/add-text-stats && git commit -m "split: next add-text-stats \(done: add-text-stats-01-core, add-text-stats-02-cli\)"/);
+  const sl = R(dir, 'openspec/changes/add-text-stats/slices.md');
+  assert.match(sl, /### Slice: add-text-stats-01-core\n[\s\S]*?- status: done/);
+  assert.match(sl, /### Slice: add-text-stats-02-cli\n[\s\S]*?- status: done/);
+  assert.doesNotMatch(sdd('split', 'next', P).out, /status done for/, 'marked once');
   r = sdd('split', 'archive', P);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /\$ split\.mjs loss add-text-stats --final[\s\S]*PASS[\s\S]*\$ openspec archive add-text-stats --skip-specs -y/);
+  assert.match(r.out, /\$ split\.mjs finalize add-text-stats[\s\S]*final, before archiving the parent\): PASS[\s\S]*git commit -m "split: archive parent add-text-stats"[\s\S]*\$ openspec archive add-text-stats --skip-specs -y/);
   const arch = fs.readdirSync(path.join(dir, 'openspec/changes/archive'));
   assert.ok(arch.some((a) => /^\d{4}-\d\d-\d\d-add-text-stats$/.test(a)), arch.join(', '));
   assert.ok(arch.some((a) => /^\d{4}-\d\d-\d\d-add-text-stats-01-core$/.test(a)));

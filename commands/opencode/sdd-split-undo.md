@@ -1,5 +1,5 @@
 ---
-description: "Undo a split: restore the original change from split_commit and remove the slice folders (refuses with archived slices; in-progress slices need --force); nothing is committed (usage: /split-undo <parent-id> [--force])"
+description: "Undo a split: restore the original change from split_commit and remove the slice folders (refuses with archived slices; in-progress slices need --force); nothing is committed (usage: /sdd-split-undo <parent-id> [--force])"
 ---
 
 Run this one command from the project root and show its output verbatim:

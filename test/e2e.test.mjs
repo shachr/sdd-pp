@@ -1,5 +1,5 @@
 // End to end in a fresh project: openspec init -> sdd-pp init (Node CLI) -> new change -> artifacts
-// in schema order -> handoff -> planning -> /spec-check -> implementation -> the tool's code review
+// in schema order -> handoff -> planning -> /sdd-spec-check -> implementation -> the tool's code review
 // -> openspec validate --strict -> openspec archive.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -55,7 +55,7 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
     .replace(/^base_ref:.*$/m, `base_ref: ${base}`)
     .replace(/\n## Reviews[\s\S]*$/, '\n');
   fs.writeFileSync(path.join(changeDir, 'handoff.md'), handoff);
-  assert.match(sh(process.execPath, ['.openspec-handoff/scripts/next-steps.mjs', ID]), /1\. \/to-spec[\s\S]*\/spec-check[\s\S]*\/opsx:archive/);
+  assert.match(sh(process.execPath, ['.openspec-handoff/scripts/next-steps.mjs', ID]), /1\. \/to-spec[\s\S]*\/sdd-spec-check[\s\S]*\/opsx:archive/);
 
   // execution planning (AI Hero grill-with-docs + to-tickets, redirected into the change folder) + implementation
   copy('execution/spec.md'); copy('execution/tickets');

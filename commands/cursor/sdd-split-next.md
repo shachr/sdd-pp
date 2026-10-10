@@ -1,8 +1,8 @@
 ---
-name: /split-next
-id: split-next
+name: /sdd-split-next
+id: sdd-split-next
 category: Workflow
-description: "Split change status: ready / parallel-safe slices; writes tickets for READY slices (usage: /split-next <parent-id>)"
+description: "Split change status: ready / parallel-safe slices; writes tickets for READY slices (usage: /sdd-split-next <parent-id>)"
 ---
 
 Arguments: <parent-id> - as given after the command.

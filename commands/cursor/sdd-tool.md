@@ -1,8 +1,8 @@
 ---
-name: /tool
-id: tool
+name: /sdd-tool
+id: sdd-tool
 category: Workflow
-description: "Show the change's execution tool, or set a per-change override (--set) before its design session (usage: /tool <change-id> [--set ai-hero|superpowers])"
+description: "Show the change's execution tool, or set a per-change override (--set) before its design session (usage: /sdd-tool <change-id> [--set ai-hero|superpowers])"
 ---
 
 Arguments: <change-id> [--set ai-hero|superpowers] - as given after the command.

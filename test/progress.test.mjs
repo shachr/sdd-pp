@@ -6,10 +6,10 @@ import { nextSteps } from '../scripts/next-steps.mjs';
 
 test('next-steps prints the tool sequence without running anything', () => {
   const ai = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement-spec' });
-  const order = ['/to-spec', 'grill.md', '/to-tickets', '/spec-check x', '/implement-spec', '/code-review', "the tool's own review step", 'CI also runs a code review on the PR', '/opsx:verify x', 'execution/verify.md', '/opsx:archive x', 'together with its code', 'Merge the PR'];
+  const order = ['/to-spec', 'grill.md', '/to-tickets', '/sdd-spec-check x', '/implement-spec', '/code-review', "the tool's own review step", 'CI also runs a code review on the PR', '/opsx:verify x', 'execution/verify.md', '/opsx:archive x', 'together with its code', 'Merge the PR'];
   let at = -1; for (const s of order) { const i = ai.indexOf(s, at + 1); assert.ok(i > at, `ai-hero: ${s} out of order`); at = i; }
   const sp = nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'subagent-driven-development' });
-  const order2 = ['writing-plans', 'brainstorm.md', 'plan-x.md', '/spec-check x', 'subagent-driven-development', 'requesting-code-review', 'CI also runs a code review on the PR', '/opsx:verify x', '/opsx:archive x', 'together with its code', 'finishing-a-development-branch'];
+  const order2 = ['writing-plans', 'brainstorm.md', 'plan-x.md', '/sdd-spec-check x', 'subagent-driven-development', 'requesting-code-review', 'CI also runs a code review on the PR', '/opsx:verify x', '/opsx:archive x', 'together with its code', 'finishing-a-development-branch'];
   at = -1; for (const s of order2) { const i = sp.indexOf(s, at + 1); assert.ok(i > at, `superpowers: ${s} out of order`); at = i; }
   for (const t of [ai, sp]) assert.doesNotMatch(t, /fresh session|self-review|code-review\.md|check-handoff|expect-complete/i);
   const { dir } = makeFixture();
@@ -20,18 +20,19 @@ test('next-steps prints the tool sequence without running anything', () => {
 
 test('next-steps: branch before implementation, what to commit, spec changes after a delta edit; superpowers: sdd-workspace, branch or worktree, why archive first', () => {
   const ai = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement' });
-  assert.match(ai, /git switch -c change\/x, then commit openspec\/changes\/x\/execution\/ including \.spec-check\.json \(branch before implementation/);
-  assert.match(ai, /On PASS, \/spec-check accepts it \(--accept\)/);
-  assert.match(ai, /After any later delta edit, one order: openspec validate x --strict -> \/spec-check x \(lists .* since the last accepted PASS .*\) -> re-plan ONLY the open units it names \(done units are never touched; a change affecting done work becomes a new ticket; note "superseded by delta edit: <reason>" .*\) -> \/spec-check until PASS\./);
+  assert.match(ai, /git switch -c change\/x, then commit openspec\/changes\/x\/execution\/ including \.spec-check\.json \(git add openspec\/changes\/x\/execution && git commit -m "plan\(x\)"; branch before implementation/);
+  assert.match(ai, /On PASS, \/sdd-spec-check accepts it \(--accept\)/);
+  assert.match(ai, /After any later delta edit, one order: openspec validate x --strict -> \/sdd-spec-check x \(lists .* since the last accepted PASS .*\) -> re-plan ONLY the open units it names \(done units are never touched; a change affecting done work becomes a new ticket; note "superseded by delta edit: <reason>" .*\) -> \/sdd-spec-check until PASS\./);
   assert.match(ai, /Review the diff since base_ref in openspec\/changes\/x\/handoff\.md .*the spec is the change folder/);
   const spec = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement-spec' });
   assert.match(spec, /its integration branch is change\/x; each ticket gets its own branch \/ worktree, and its "Status: done" \+ ticked checkboxes go in that ticket-branch commit with its code, before the branch is merged into change\/x/);
   assert.match(spec, /No sub-agent tool in the harness: use \/implement instead/);
-  assert.match(nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'subagent-driven-development' }), /no sub-agent tool in the harness: use executing-plans instead/);
+  assert.match(nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'subagent-driven-development' }), /no sub-agent tool in the harness: use executing-plans instead/i);
   const sp = nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'executing-plans' });
   assert.match(sp, /a plain branch or a worktree \(using-git-worktrees; Superpowers recommends the worktree\), either works/);
   assert.match(sp, /subagent-driven-development\/scripts\/sdd-workspace openspec\/changes\/x\/execution\/plan-x\.md/);
-  assert.match(sp, /<workspace>\/progress\.md\) to openspec\/changes\/x\/execution\/progress\.md/);
+  assert.match(sp, /copy the ledger <workspace>\/progress\.md to openspec\/changes\/x\/execution\/progress\.md and commit it/);
+  assert.match(sp, /workspace \(\.superpowers\/sdd\/plan-x\/, git-ignored\) and ledger are shared by executing-plans and subagent-driven-development; the script that prints the workspace lives in the subagent-driven-development skill folder for both/);
   assert.match(sp, /Archive comes first because finishing merges or opens the PR/);
 });
 

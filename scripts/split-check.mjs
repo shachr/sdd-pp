@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// split-check: the split gate at the end of the specs stage (before /handoff). Rerunnable, warn-only.
+// split-check: the split gate at the end of the specs stage (before /sdd-handoff). Rerunnable, warn-only.
 // It counts the change's delta requirements and capabilities: above split.maxRequirements (5) or
 // split.maxCapabilities (2) it warns and asks for a split proposal in execution/split-proposal.md,
-// which it lints; the engineer approves it (approved_by:) and /split-apply (split.mjs apply) performs it.
+// which it lints; the engineer approves it (approved_by:) and /sdd-split-apply (split.mjs apply) performs it.
 // Nothing is split automatically. Line estimates are NOT made here: the ~300-line budget is
-// checked after planning (/spec-check, from the tool's tickets / plan).
+// checked after planning (/sdd-spec-check, from the tool's tickets / plan).
 // On a slice it is the same check (a re-split joins the same parent); on a parent it lints slices.md.
 // Usage: node split-check.mjs <change-id> [--root <dir>] [--write] [--json]
 // Exit: 0 (warn-only), 2 usage error.
@@ -85,12 +85,12 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
 
 /** names: false for the file written into the change (it becomes the parent, which carries no requirement names). */
 export function formatSplitCheck(r, { names = true } = {}) {
-  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /split-next ${r.change})`].join('\n');
+  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /sdd-split-next ${r.change})`].join('\n');
   const warn = (r.warnings || []).map((w) => `  ! ${w}`);
   const reqs = `${r.requirements} requirement${r.requirements === 1 ? '' : 's'}`;
   const caps = `${r.capabilities} ${r.capabilities === 1 ? 'capability' : 'capabilities'}`;
   if (r.status === 'fits') return [`split-check ${r.change}: fits (${reqs}, ${caps})`, ...warn].join('\n');
-  const out = [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (this is a slice: a re-split adds new slices to parent ${r.parent} - /split-apply builds their ids, continuing its numbering; no nested parents)` : ''}`, ''];
+  const out = [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (this is a slice: a re-split adds new slices to parent ${r.parent} - /sdd-split-apply builds their ids, continuing its numbering; no nested parents)` : ''}`, ''];
   out.push(...warn);
   for (const c of r.byCap) out.push(names ? `- ${c.capability} (${c.requirements.length}): ${c.requirements.join('; ')}` : `- ${c.capability}: ${c.requirements.length} requirements`);
   if (!r.proposal) {
@@ -98,7 +98,7 @@ export function formatSplitCheck(r, { names = true } = {}) {
       '  ### Slice: <slice>   (the slice part only; split apply names the change <parent>-<nn>-<slice>)', '  - order: <nn>   (two digits, 01 = first; the flag cleanup slice uses 99; omit on a re-split to continue the numbering)', '  - goal: <one line, no requirement names>', '  - capabilities: <cap>, <cap>', '  - requirements: <exact name>; <exact name>',
       '  - split: <original name> -> <new name> [<scenario>; <scenario>]   (only to cut one requirement in two)',
       '  - depends_on: none | <slice>, <slice>   (slice parts, or full ids of existing slices)', '  - flag: none | <flag>   (only when the slice gates user-visible behaviour; its requirement is not in the original delta - this slice adds it, split note "added:")', '  - removes_flag: <flag>   (the cleanup slice, order 99; always planned when a flag exists; its delta REMOVES the flag requirement)',
-      'Line estimates come after planning (/spec-check on each slice, budget ~300 lines of code + tests).');
+      'Line estimates come after planning (/sdd-spec-check on each slice, budget ~300 lines of code + tests).');
     return out.join('\n');
   }
   const p = r.proposal;
@@ -113,7 +113,7 @@ export function formatSplitCheck(r, { names = true } = {}) {
   out.push('', `Ready first: ${p.ready.join(', ') || 'none'}`, `Parallel-safe pairs (no dependency, no shared capability): ${p.parallelSafe.join(', ') || 'none'}`);
   for (const e of p.errors) out.push(`✗ ${e}`);
   for (const w of p.warnings) out.push(`! ${w}`);
-  out.push('', p.approvedBy ? `Approved. Apply (after committing the deltas - that commit is the loss-check baseline): /split-apply ${r.change}` : 'Waiting for the engineer: approve or edit the slices, then set "approved_by:" and run /split-apply.');
+  out.push('', p.approvedBy ? `Approved. Apply (after committing the deltas - that commit is the loss-check baseline): /sdd-split-apply ${r.change}` : 'Waiting for the engineer: approve or edit the slices, then set "approved_by:" and run /sdd-split-apply.');
   return out.join('\n');
 }
 
@@ -130,6 +130,10 @@ async function main() {
     fs.writeFileSync(f, `<!-- written by split-check.mjs (counts only; names stay in the deltas) -->\n\n${formatSplitCheck(r, { names: false })}\n`);
   }
   console.log(values.json ? JSON.stringify(r, null, 2) : formatSplitCheck(r));
+  if (values.write && r.kind === 'change' && !values.json) {
+    const c = `openspec/changes/${positionals[0]}/execution`;
+    console.log(`Commit with the deltas: git add ${c}/split-check.md${r.proposal ? ` ${c}/split-proposal.md` : ''} && git commit -m "split-check(${positionals[0]})"`);
+  }
   return 0;
 }
 

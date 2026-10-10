@@ -1,4 +1,4 @@
-// /spec-check: the only plan-vs-spec check (requirement links, coverage; the agent review is in the command).
+// /sdd-spec-check: the only plan-vs-spec check (requirement links, coverage; the agent review is in the command).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -61,9 +61,9 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   const delta = path.join(changeDir, 'specs', 'greeting', 'spec.md');
   const report = ex(changeDir, 'spec-check.md');
   const snapFile = ex(changeDir, '.spec-check.json');
-  const setPass = (d = report) => fs.writeFileSync(d, fs.readFileSync(d, 'utf8').replace(/^PENDING: .*$/m, 'PASS'));
+  const setPass = (d = report) => fs.writeFileSync(d, fs.readFileSync(d, 'utf8').replace(/^PENDING: .*$/m, 'PASS').replace(/<!-- \/sdd-spec-check: the agent reads[^>]*-->/, '- Missing: none\n- Invented: none\n- Contradicted: none\n- Restated: none'));
   let r = run('spec-check.mjs', [CHANGE, '--write'], dir);
-  assert.match(r.out, /### Spec changes since the last check \(report-only\)\n\n- none: no accepted baseline yet - on PASS, \/spec-check accepts it/);
+  assert.match(r.out, /### Spec changes since the last check \(report-only\)\n\n- none: no accepted baseline yet - on PASS, \/sdd-spec-check accepts it/);
   assert.equal(fs.existsSync(snapFile), false, '--write never records the baseline');
   r = run('spec-check.mjs', [CHANGE, '--accept'], dir);
   assert.equal(r.code, 1); assert.match(r.out, /Result is "PENDING: .*", not exactly PASS - baseline unchanged/);
@@ -74,8 +74,27 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   const snap = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
   assert.match(snap.accepted_at, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/, 'local time with offset');
   assert.match(snap.requirements['Greeting by name'].scenarios['Name given'], /^[0-9a-f]{12}$/);
+  // re-run after the accepted PASS with nothing changed: the saved review + PASS are kept, nothing written
+  const accepted = fs.readFileSync(report, 'utf8');
   r = run('spec-check.mjs', [CHANGE, '--write'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /spec-check add-greeting-name: unchanged since the accepted PASS \(delta and planning units match\) - kept the saved review and PASS in openspec\/changes\/add-greeting-name\/execution\/spec-check\.md; nothing written\./);
+  assert.equal(fs.readFileSync(report, 'utf8'), accepted, 'review + PASS kept byte-identical');
+  assert.match(accepted, /- Contradicted: none\n[\s\S]*^PASS$/m);
+  // --check: the fresh report, nothing written
+  r = run('spec-check.mjs', [CHANGE, '--check'], dir);
   assert.match(r.out, /### Spec changes since the last check \(report-only; baseline accepted [^)]+[+-]\d\d:\d\d\)\n\n- none\n/);
+  assert.match(r.out, /\(check only: nothing written\)/);
+  assert.equal(fs.readFileSync(report, 'utf8'), accepted);
+  // a planning unit changed (same delta): the report is rewritten for a new review
+  const t1 = path.join(ex(changeDir, 'tickets'), '01-greet-accepts-a-name.md');
+  const t1text = fs.readFileSync(t1, 'utf8');
+  fs.appendFileSync(t1, '\nNote: also log the name.\n');
+  r = run('spec-check.mjs', [CHANGE, '--write'], dir);
+  assert.doesNotMatch(r.out, /kept the saved review/);
+  assert.match(fs.readFileSync(report, 'utf8'), /^PENDING: mechanical checks pass/m);
+  assert.match(r.out, /Wrote openspec\/changes\/add-greeting-name\/execution\/spec-check\.md\. After the agent review sets PASS and --accept records it, commit with the planning files: git add openspec\/changes\/add-greeting-name\/execution\/spec-check\.md openspec\/changes\/add-greeting-name\/execution\/\.spec-check\.json && git commit -m "spec-check\(add-greeting-name\): PASS"/);
+  fs.writeFileSync(t1, t1text);
   // edit the delta after planning: change a scenario, rename a requirement (same content), add a scenario
   replaceIn(delta, '- **THEN** the output is `Hello, Ada!`\n\n#### Scenario: Name with', '- **THEN** the output is `Hello, Ada!!`\n\n#### Scenario: Name with');
   replaceIn(delta, '### Requirement: Blank name falls back to default', '### Requirement: Blank name uses the default');
@@ -117,6 +136,6 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   fs.writeFileSync(d2delta, before);
   r = run('spec-check.mjs', [CHANGE, '--accept'], d2);
   assert.equal(r.code, 0, r.out);
-  r = run('spec-check.mjs', [CHANGE, '--write'], d2);
+  r = run('spec-check.mjs', [CHANGE, '--check'], d2);
   assert.match(r.out, /### Spec changes since the last check \(report-only; baseline accepted [^)]+\)\n\n- none\n/);
 });

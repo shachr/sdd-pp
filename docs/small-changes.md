@@ -11,16 +11,16 @@ Size never fails a change. It is checked at two points and only warns:
 
 | Point | What is measured | Budget | Tool |
 |---|---|---|---|
-| 1. **Split gate** - end of the specs stage, before handoff (automatic, rerunnable) | Requirements and capabilities in the deltas (counted, no estimate) | ≤ 5 requirements, ≤ 2 capabilities | `/split-check <id>` → `execution/split-check.md` |
-| 2. **Line estimate after planning** | `Estimate: ~N lines` per AI Hero ticket / Superpowers plan task, summed | ~300 lines of code + tests | `/spec-check <id>` ("Size" section) |
+| 1. **Split gate** - end of the specs stage, before handoff (automatic, rerunnable) | Requirements and capabilities in the deltas (counted, no estimate) | ≤ 5 requirements, ≤ 2 capabilities | `/sdd-split-check <id>` → `execution/split-check.md` |
+| 2. **Line estimate after planning** | `Estimate: ~N lines` per AI Hero ticket / Superpowers plan task, summed | ~300 lines of code + tests | `/sdd-spec-check <id>` ("Size" section) |
 
 Thresholds: `.openspec-handoff/config.json` → `split.maxRequirements`, `split.maxCapabilities` (gate),
 `split.limitLines` (estimate after planning). The real PR diff is not measured by this toolkit (decisions section 16).
-Over budget after planning: re-split the change with `/split-check <id>`; a slice is re-split into its existing parent and `/split-apply` builds the new slice ids (continuing the numbering).
+Over budget after planning: re-split the change with `/sdd-split-check <id>`; a slice is re-split into its existing parent and `/sdd-split-apply` builds the new slice ids (continuing the numbering).
 
 ## Splitting a change (the gate)
 
-Over 5 requirements or 2 capabilities, `/split-check` asks the agent to **propose slices**; the engineer
+Over 5 requirements or 2 capabilities, `/sdd-split-check` asks the agent to **propose slices**; the engineer
 approves or edits them. Nothing is split automatically.
 
 1. **Proposal** - `execution/split-proposal.md` (`approved_by:` empty until approval), one block per slice:
@@ -35,7 +35,7 @@ approves or edits them. Nothing is split automatically.
    - flag: none
    ```
 
-   The proposal lists only the slice part (`core`) and its two-digit `order`; `/split-apply` names the
+   The proposal lists only the slice part (`core`) and its two-digit `order`; `/sdd-split-apply` names the
    child `<parent>-<nn>-<slice>` (`add-digest-01-core`; the flag cleanup slice always gets `99`, e.g.
    `add-digest-99-remove-flag`). A full id that does not follow the convention is refused with the expected
    name; `depends_on` may use slice parts. Names get long and the archive adds a date prefix
@@ -43,11 +43,14 @@ approves or edits them. Nothing is split automatically.
    `split: <original> -> <new name> [<scenario>; ...]` cuts one requirement in two. `flag:` only when the
    slice gates user-visible behaviour; then a cleanup slice (`removes_flag: <flag>`, depending on the
    flagged slice) is always planned. The flag requirement is not in the original delta: the flagged slice
-   adds it (split note `added:`), the cleanup slice removes it (`## REMOVED Requirements`).
-2. **Approval** - the engineer sets `approved_by:` (or edits the slices). `/split-check` shows the slices,
+   adds it (split note `added:`), the cleanup slice removes it (`## REMOVED Requirements`). `/sdd-split-apply` scaffolds
+   both: the flagged slice gets `Requirement: Feature flag <flag>` (with `TODO(agent: ...)` placeholders the agent fills) and
+   its `added:` note; the `-99-` slice gets the REMOVED block. The 99 slice needs no split note (its removal is the plan, not
+   a difference from the original).
+2. **Approval** - the engineer sets `approved_by:` (or edits the slices). `/sdd-split-check` shows the slices,
    which are ready first and which pairs can run in parallel.
 3. **Commit the deltas, then apply** - the commit holding the original deltas is the loss-check baseline.
-   `/split-apply <id>` refuses while the deltas are uncommitted, then:
+   `/sdd-split-apply <id>` refuses while the deltas are uncommitted, then:
    - the original change becomes the **parent** (schema `split-plan`, artifacts proposal → slices), a
      **control plane**: `proposal.md` (why and scope) and `slices.md` with front matter
      `parent / approved_by / split_at / split_commit` and one block per slice: id, goal, capabilities,
@@ -57,9 +60,12 @@ approves or edits them. Nothing is split automatically.
    - one **child** change per slice (schema `handoff-driven`) with the original requirement blocks copied
      verbatim into live deltas (exact names; `## Purpose` for new capabilities) and an empty
      `## Split notes` section in its proposal.md. A requirement cut in two carries
-     `<!-- split_from: <original name> -->` under its header.
+     `<!-- split_from: <original name> -->` under its header. Each slice proposal gets a `## Size Budget`
+     (requirements, capabilities, expected tickets, estimated lines, `Split decision: slice of <parent>`), and the
+     parent proposal's `Split decision:` line is updated to `split into N slices (ids) - see slices.md`.
 4. **Split notes** - every deliberate difference from the original lives in the proposal of the child that
-   made it, never in the parent:
+   made it, never in the parent. A note is needed only for **renames, drops, adds and splits** of a requirement or
+   scenario - rewording text under an unchanged name needs none (the loss check matches names):
 
    ```markdown
    ## Split notes
@@ -78,35 +84,35 @@ approves or edits them. Nothing is split automatically.
    equivalent pair is recorded as `renamed_from` and passes; otherwise the original is missing until it is
    restored or recorded as `dropped`.
 6. **One planning PR** - parent + all children (proposal + specs only, no handoff) committed together.
-   `/split-next <parent>` writes `tickets/<slice>.md` (Jira-pasteable, no requirement
+   `/sdd-split-next <parent>` writes `tickets/<slice>.md` (Jira-pasteable, no requirement
    names) for READY slices.
 7. **Slices** - a slice is READY when all its `depends_on` are done; **done = the child's archived folder is
    on main**. Two slices are **parallel-safe** only when neither depends on the other (transitively) and
-   they share no capability. To take a slice: `/split-start <slice>` (finds the parent, refuses unless READY;
+   they share no capability. To take a slice: `/sdd-split-start <slice>` (finds the parent, refuses unless READY;
    `--undo` releases it), committed on main - **in progress is a manual mark**; the next report trusts it and does not scan branches. Then a
    branch from main, a short design session narrowed to the slice (reading the parent's
-   `execution/grill.md` / `brainstorm.md`), `/handoff <slice>`, and the usual flow. `/opsx:archive <slice>`
+   `execution/grill.md` / `brainstorm.md`), `/sdd-handoff <slice>`, and the usual flow. `/opsx:archive <slice>`
    runs on the slice branch and the archive is **committed in the slice's own PR with its code**; after the
-   merge, `/split-next <parent>` on main.
-8. **Parent last** - when every slice is done: `/split-archive <parent>` runs `split.mjs loss <parent> --final`
+   merge, `/sdd-split-next <parent>` on main.
+8. **Parent last** - when every slice is done: `/sdd-split-archive <parent>` runs `split.mjs loss <parent> --final`
    (also checks the final names against the main specs), then `openspec archive <parent> --skip-specs -y`
    (must not sync specs; `/opsx:archive` cannot pass `--skip-specs`).
    Never run `/opsx:verify` on a parent.
-9. **Undo** - `/split-undo <parent>` puts the original change back exactly as it was at `split_commit` (the first
+9. **Undo** - `/sdd-split-undo <parent>` puts the original change back exactly as it was at `split_commit` (the first
    split, so re-splits are undone too) and removes `slices.md`, `tickets/` and every slice folder listed in `slices.md`.
-   Nothing is committed: review `git status`, commit on main, then `/split-check <id>` again or continue unsplit.
+   Nothing is committed: review `git status`, commit on main, then `/sdd-split-check <id>` again or continue unsplit.
    Refused when a slice is archived, the parent is archived, `split_commit` is unknown, or `openspec/changes` has
    uncommitted changes; a slice in progress needs `--force` (someone may be working on it). Files added to the parent
    after `split_commit` are listed (still in git history).
 
 Changing the plan later: edit the child delta, add the split note to that child's proposal, rerun
-`split.mjs loss <parent>`, then the one order: edit the delta -> `openspec validate <id> --strict` -> `/spec-check <id>` (its "Spec changes since the last check" section lists what changed since the last accepted PASS and the tickets / tasks citing it; the list stays on every run until a PASS is accepted) -> re-plan ONLY the open units it names (done units are never touched; a change affecting done work becomes a new ticket / task; the planning output notes `superseded by delta edit: <reason>`, the design session file stays as-is) -> `/spec-check` until PASS, which it accepts (`--accept`); commit `execution/.spec-check.json` with the planning files. (`git diff HEAD` shows a done ticket that was overwritten.)
+`split.mjs loss <parent>`, then the one order: edit the delta -> `openspec validate <id> --strict` -> `/sdd-spec-check <id>` (its "Spec changes since the last check" section lists what changed since the last accepted PASS and the tickets / tasks citing it; the list stays on every run until a PASS is accepted) -> re-plan ONLY the open units it names (done units are never touched; a change affecting done work becomes a new ticket / task; the planning output notes `superseded by delta edit: <reason>`, the design session file stays as-is) -> `/sdd-spec-check` until PASS, which it accepts (`--accept`); commit `execution/.spec-check.json` with the planning files. (`git diff HEAD` shows a done ticket that was overwritten.)
 
-`sdd-pp init` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `/split-start`
+`sdd-pp init` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `/sdd-split-start`
 commits); `split.mjs loss` warns if a union merge left a slice field twice.
 
-**Re-split**: run `/split-check <slice>` on a slice that turns out too big (more requirements, or over the
-line estimate after planning); `/split-apply <slice>` replaces it in the **same** parent (no nested
+**Re-split**: run `/sdd-split-check <slice>` on a slice that turns out too big (more requirements, or over the
+line estimate after planning); `/sdd-split-apply <slice>` replaces it in the **same** parent (no nested
 parents), numbers the new slices after the parent's highest (`-03-`, `-04-`, ...), rewires `depends_on`, and carries the old slice's split notes into the new children.
 
 ## When to split
@@ -127,7 +133,7 @@ path first and edge scenarios second (only if the first slice is correct and shi
 |---|---|---|
 | `openspec validate <id> --strict` (CLI) | Structure of the deltas: headers, ≥1 scenario per requirement, Purpose length, ≤500-char requirement descriptions | Low - structural; passes on huge changes too |
 | `/opsx:verify <id>` (agent workflow, opt-in via `openspec config profile`; there is **no** `openspec verify` CLI command in 1.14.1) | Completeness (task tracking: *Not applicable* with this schema; every requirement implemented), correctness (code matches scenarios), coherence (code patterns; Design Adherence is *Not applicable* because the handoff-driven schema has no design artifact - design is reviewed by the execution tool) | High - an agent must read every artifact plus the code |
-| `/spec-check <id>` (this toolkit; the only plan-vs-spec check) | Requirement links (every story / ticket / task names a real requirement), coverage, and an agent review for missing / invented / contradicted behaviour and restated requirement text (advisory) | Line estimate after planning (warn-only) |
+| `/sdd-spec-check <id>` (this toolkit; the only plan-vs-spec check) | Requirement links (every story / ticket / task names a real requirement), coverage, and an agent review for missing / invented / contradicted behaviour and restated requirement text (advisory) | Line estimate after planning (warn-only) |
 | The tool's own code review (plus CI's review on the PR) | `code-review` / `requesting-code-review` reviews the diff against the deltas | High - same as verify |
 
 Run order: the tool's own completion (ticket Status / ledger) → the tool's own code review (CI also reviews the PR) → fix → `/opsx:verify` (report saved to `execution/verify.md`) → `/opsx:archive` (agent-driven sync).
@@ -147,7 +153,7 @@ Add rules to `openspec/config.yaml` so every artifact instruction repeats the bu
 ```yaml
 rules:
   proposal:
-    - Include a Size Budget section (<= 5 requirements, <= 2 capabilities, ~300 changed lines of code + tests); /split-check counts after the specs, /spec-check estimates lines after planning
+    - Include a Size Budget section (<= 5 requirements, <= 2 capabilities, ~300 changed lines of code + tests); /sdd-split-check counts after the specs, /sdd-spec-check estimates lines after planning
   handoff:
     - Record the Size Budget; at most 8 tickets / plan tasks
 ```

@@ -13,7 +13,7 @@
     }
   },
   "split": {
-    "$comment": "Warn-only. /split-check at the end of the specs stage counts delta requirements and capabilities (warn above maxRequirements / maxCapabilities). The ~limitLines estimate (code + tests) is checked after planning by /spec-check from the tool's tickets / plan tasks. The real PR diff is not measured by this toolkit.",
+    "$comment": "Warn-only. /sdd-split-check at the end of the specs stage counts delta requirements and capabilities (warn above maxRequirements / maxCapabilities). The ~limitLines estimate (code + tests) is checked after planning by /sdd-spec-check from the tool's tickets / plan tasks. The real PR diff is not measured by this toolkit.",
     "maxRequirements": 5,
     "maxCapabilities": 2,
     "limitLines": 300

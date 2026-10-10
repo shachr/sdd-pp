@@ -8,15 +8,17 @@
 //   - UNKNOWN:   a unit names a requirement or scenario that is not in the delta
 //   - UNSOURCED: a unit (story, ticket, task) names no delta requirement at all
 // Missing / invented / contradicted behaviour and restated (instead of cited) requirement text need
-// judgement: the /spec-check command has the agent fill "Agent review" and set the Result line
+// judgement: the /sdd-spec-check command has the agent fill "Agent review" and set the Result line
 // (the script writes PENDING when the mechanical checks pass). This is the only plan-vs-spec check.
 // Spec changes (report-only, never a gap by itself): each run compares the delta requirements and
 // scenarios with the content hashes accepted at the last PASS (execution/.spec-check.json) and lists
 // what was added, changed, removed or renamed since, with the stories / tickets / plan tasks citing each.
 // The baseline moves ONLY on --accept (after the agent wrote PASS), so every run before that keeps
 // listing the same changes.
-// Usage: node spec-check.mjs <change-id> [--root <dir>] [--json] [--write] [--accept]
-//   --write   save the report to openspec/changes/<id>/execution/spec-check.md (never touches the baseline)
+// Usage: node spec-check.mjs <change-id> [--root <dir>] [--json] [--write | --check] [--accept]
+//   --check   check only: print the report, write nothing (exit code as usual)
+//   --write   save the report to openspec/changes/<id>/execution/spec-check.md (never touches the baseline);
+//             when the delta and the planning units match the accepted PASS, the saved review + PASS are kept
 //   --accept  the saved report says exactly PASS for the current delta: record the delta's hashes as the
 //             new baseline (execution/.spec-check.json; commit it with the planning files). Does not
 //             rewrite the report.
@@ -40,6 +42,7 @@ export function localStamp(d = new Date()) {
 /** Digest of a whole snapshot: ties a saved report to the delta it was computed from. */
 export const snapshotDigest = (snap) => hash(JSON.stringify(snap));
 const DIGEST_RE = /<!-- spec-check delta: ([0-9a-f]{12}) -->/;
+const UNITS_RE = /<!-- spec-check units: ([0-9a-f]{12}) -->/;
 
 /** Requirement and scenario blocks of every delta, hashed: { "<requirement>": { delta, hash, scenarios: { "<scenario>": hash } } }. */
 export function specSnapshot(change) {
@@ -145,7 +148,8 @@ export function specCheck(change, { limit = 300, previous = null } = {}) {
       return { ...c, citedBy: by.map((u) => ({ label: u.label, kind: u.kind, done: unitDone(u) })) };
     });
   }
-  return { change: change.id, tool, sources, units: units.length, rows, missing, unknown, unsourced, problems, gaps, size, snapshot, previousAt: previous?.accepted_at || previous?.checked_at || null, specChanges: specChangeList };
+  const unitsDigest = hash(JSON.stringify(units.map((u) => [u.file, u.label, u.text])));
+  return { change: change.id, tool, sources, units: units.length, unitsDigest, rows, missing, unknown, unsourced, problems, gaps, size, snapshot, previousAt: previous?.accepted_at || previous?.checked_at || null, specChanges: specChangeList };
 }
 
 export function formatReport(r) {
@@ -168,10 +172,10 @@ export function formatReport(r) {
     out.push('', '### Size (line estimate after planning, warn-only; the ~300-line budget is checked only here)', '');
     out.push(`- ${s.estimated}/${s.units} tickets / plan tasks carry an "Estimate: ~N lines" line; total ~${s.total} lines (code + tests), budget ~${s.limit}.`);
     if (s.missing.length) out.push(`- ! no estimate: ${s.missing.join('; ')}`);
-    if (s.total > s.limit) out.push(`- ! over budget: consider re-splitting with /split-check ${r.change} before implementing (a slice is re-split into its existing parent; /split-apply builds the new slice ids).`);
+    if (s.total > s.limit) out.push(`- ! over budget: consider re-splitting with /sdd-split-check ${r.change} before implementing (a slice is re-split into its existing parent; /sdd-split-apply builds the new slice ids).`);
   }
   out.push('', `### Spec changes since the last check (report-only${r.previousAt ? `; baseline accepted ${r.previousAt}` : ''})`, '');
-  if (!r.specChanges) out.push(`- none: no accepted baseline yet - on PASS, /spec-check accepts it (\`spec-check.mjs ${r.change} --accept\` records a content hash per requirement and scenario in ${SNAPSHOT}; commit it with the planning files)`);
+  if (!r.specChanges) out.push(`- none: no accepted baseline yet - on PASS, /sdd-spec-check accepts it (\`spec-check.mjs ${r.change} --accept\` records a content hash per requirement and scenario in ${SNAPSHOT}; commit it with the planning files)`);
   else if (!r.specChanges.length) out.push('- none');
   else {
     const q = (s) => `"${s}"`;
@@ -184,10 +188,10 @@ export function formatReport(r) {
     const open = [...new Set(r.specChanges.flatMap((c) => c.citedBy.filter((u) => !u.done && u.kind !== 'user story').map((u) => u.label)))];
     const done = [...new Set(r.specChanges.flatMap((c) => c.citedBy.filter((u) => u.done).map((u) => u.label)))];
     const tool = r.tool === 'superpowers' ? 'writing-plans' : 'to-spec + to-tickets';
-    out.push('', `Hint: re-plan ONLY ${open.length ? `these open units with the tool's planning (${tool}): ${open.join('; ')}` : `new work for the changes above with the tool's planning (${tool}) - no open unit cites them`}. Done units are never touched${done.length ? ` (${done.join('; ')}): a change that affects done work becomes a new ${r.tool === 'superpowers' ? 'plan task' : 'ticket'}` : ''}. Where a planned decision changed, note "superseded by delta edit: <reason>" in the planning output (the design session file stays as-is; the delta wins). Then /spec-check again until PASS - this list stays until PASS is accepted.`);
+    out.push('', `Hint: re-plan ONLY ${open.length ? `these open units with the tool's planning (${tool}): ${open.join('; ')}` : `new work for the changes above with the tool's planning (${tool}) - no open unit cites them`}. Done units are never touched${done.length ? ` (${done.join('; ')}): a change that affects done work becomes a new ${r.tool === 'superpowers' ? 'plan task' : 'ticket'}` : ''}. Where a planned decision changed, note "superseded by delta edit: <reason>" in the planning output (the design session file stays as-is; the delta wins). Then /sdd-spec-check again until PASS - this list stays until PASS is accepted.`);
   }
-  out.push('', '### Agent review', '', '<!-- /spec-check: the agent reads each unit against the requirement(s) it names and replaces this comment with four lists (bullets or "- none"): Missing, Invented, Contradicted, Restated (advisory). -->');
-  out.push('', `<!-- spec-check delta: ${snapshotDigest(r.snapshot)} -->`);
+  out.push('', '### Agent review', '', '<!-- /sdd-spec-check: the agent reads each unit against the requirement(s) it names and replaces this comment with four lists (bullets or "- none"): Missing, Invented, Contradicted, Restated (advisory). -->');
+  out.push('', `<!-- spec-check delta: ${snapshotDigest(r.snapshot)} -->`, `<!-- spec-check units: ${r.unitsDigest} -->`);
   out.push('', '### Result', '', r.gaps
     ? `GAPS: ${r.gaps} mechanical finding(s). Fix the design output (or the delta) before implementation.`
     : 'PENDING: mechanical checks pass. The agent review decides: write PASS if Missing, Invented and Contradicted are all "none", otherwise GAPS: <n> agent finding(s).');
@@ -197,10 +201,10 @@ export function formatReport(r) {
 async function main() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { root: { type: 'string' }, json: { type: 'boolean' }, write: { type: 'boolean' }, accept: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
+    options: { root: { type: 'string' }, json: { type: 'boolean' }, write: { type: 'boolean' }, check: { type: 'boolean' }, accept: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
   });
   if (values.help || positionals.length !== 1) {
-    console.log('usage: spec-check <change-id> [--root <dir>] [--json] [--write] [--accept]');
+    console.log('usage: spec-check <change-id> [--root <dir>] [--json] [--write | --check] [--accept]');
     return values.help ? 0 : 2;
   }
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
@@ -213,28 +217,43 @@ async function main() {
   const reportFile = path.join(change.dir, 'execution', 'spec-check.md');
   if (values.accept) return accept(change, r, reportFile, snapFile);
   const text = formatReport(r);
-  if (values.write) {
+  const c = `openspec/changes/${change.id}/execution`;
+  if (values.write && !values.check) {
+    // unchanged since the accepted PASS (same delta, same planning units, baseline = this delta): keep the saved review
+    let saved = null;
+    try { saved = fs.readFileSync(reportFile, 'utf8'); } catch { /* first run */ }
+    const savedResult = saved && (/^### Result\s*\n+([^\n]*)/m.exec(saved) || [])[1]?.trim();
+    if (!r.gaps && savedResult === 'PASS' && previous?.requirements
+      && snapshotDigest(previous.requirements) === snapshotDigest(r.snapshot)
+      && (DIGEST_RE.exec(saved) || [])[1] === snapshotDigest(r.snapshot) && (UNITS_RE.exec(saved) || [])[1] === r.unitsDigest) {
+      console.log(values.json ? JSON.stringify({ ...r, snapshot: undefined, kept: true }, null, 2) : `${saved}\nspec-check ${change.id}: unchanged since the accepted PASS (delta and planning units match) - kept the saved review and PASS in ${c}/spec-check.md; nothing written.`);
+      return 0;
+    }
     // the report only: the baseline moves on --accept (PASS), so re-runs keep listing unaccepted changes
     fs.mkdirSync(path.dirname(reportFile), { recursive: true });
     fs.writeFileSync(reportFile, text);
   }
   console.log(values.json ? JSON.stringify({ ...r, snapshot: undefined }, null, 2) : text);
+  if (!values.json) {
+    if (values.check || !values.write) console.log(`(check only: nothing written)`);
+    else console.log(`Wrote ${c}/spec-check.md. After the agent review sets PASS and --accept records it, commit with the planning files: git add ${c}/spec-check.md ${c}/.spec-check.json && git commit -m "spec-check(${change.id}): PASS"`);
+  }
   return r.gaps ? 1 : 0;
 }
 
 /** --accept: record the current delta as the baseline, only for a saved PASS report of this exact delta. */
 function accept(change, r, reportFile, snapFile) {
   const fail = (m) => { console.error(`spec-check --accept: ${m}`); return 1; };
-  if (r.gaps) return fail(`${r.gaps} mechanical finding(s) - fix them and run /spec-check again; baseline unchanged.`);
+  if (r.gaps) return fail(`${r.gaps} mechanical finding(s) - fix them and run /sdd-spec-check again; baseline unchanged.`);
   let saved = '';
-  try { saved = fs.readFileSync(reportFile, 'utf8'); } catch { return fail(`no saved report (${path.relative(change.dir, reportFile).split(path.sep).join('/')}) - run /spec-check first.`); }
+  try { saved = fs.readFileSync(reportFile, 'utf8'); } catch { return fail(`no saved report (${path.relative(change.dir, reportFile).split(path.sep).join('/')}) - run /sdd-spec-check first.`); }
   const result = (/^### Result\s*\n+([^\n]*)/m.exec(saved) || [])[1]?.trim();
   if (result !== 'PASS') return fail(`the saved report's Result is "${result || '(none)'}", not exactly PASS - baseline unchanged.`);
   const digest = (DIGEST_RE.exec(saved) || [])[1];
-  if (digest !== snapshotDigest(r.snapshot)) return fail('the delta changed since the saved report - run /spec-check again; baseline unchanged.');
+  if (digest !== snapshotDigest(r.snapshot)) return fail('the delta changed since the saved report - run /sdd-spec-check again; baseline unchanged.');
   const at = localStamp();
   fs.writeFileSync(snapFile, JSON.stringify({ accepted_at: at, requirements: r.snapshot }, null, 2) + '\n');
-  console.log(`spec-check ${change.id}: PASS accepted - baseline ${SNAPSHOT} (${at}); commit it with the planning files.`);
+  console.log(`spec-check ${change.id}: PASS accepted - baseline ${SNAPSHOT} (${at}); commit it with the planning files: git add openspec/changes/${change.id}/execution && git commit -m "spec-check(${change.id}): PASS"`);
   return 0;
 }
 

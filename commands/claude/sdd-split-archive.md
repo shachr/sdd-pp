@@ -1,5 +1,5 @@
 ---
-description: "Archive a split parent last: final loss check, then openspec archive <parent> --skip-specs -y"
+description: "Archive a split parent last: stops if a slice is not archived, marks slices done, final loss check, then openspec archive <parent> --skip-specs -y"
 argument-hint: <parent-id>
 allowed-tools: Bash(node .openspec-handoff/scripts/*)
 ---

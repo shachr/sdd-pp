@@ -1,4 +1,4 @@
-# openspec-handoff-workflow
+# sdd-pp
 
 > **Examples:** [`examples/`](examples/) holds the test projects used to prove this toolkit, with their history:
 > [v1 first runs](examples/handoff-flows/), [v2 clean handoff](examples/handoff-flows-v2/),
@@ -22,10 +22,10 @@ openspec/changes/<id>/
     brainstorm.md                (Superpowers brainstorming - proposal phase, stopped before writing-plans)
     spec.md, tickets/            (AI Hero to-spec reading grill.md, to-tickets - after handoff; tickets track progress)
     plan-<id>.md, progress.md    (Superpowers writing-plans reading brainstorm.md - after handoff; plan checkboxes track progress)
-    spec-check.md                (/spec-check: planning output vs proposal + delta, end of planning)
+    spec-check.md                (/sdd-spec-check: planning output vs proposal + delta, end of planning)
     reviews/                     (optional: whatever the tool's own review writes)
     verify.md                    (/opsx:verify report, saved before archive)
-    split-check.md, split-proposal.md   (/split-check split gate, end of the specs stage; the proposal is removed at apply)
+    split-check.md, split-proposal.md   (/sdd-split-check split gate, end of the specs stage; the proposal is removed at apply)
 
 A change too big for one PR (> 5 requirements or > 2 capabilities) is split after the engineer approves:
 openspec/changes/<parent>/     schema split-plan (proposal → slices), never handed off or verified
@@ -40,7 +40,7 @@ openspec/changes/<slice>/      one handoff-driven child per slice, live deltas (
 Phases: **setup** (pick the execution tool: `sdd-pp init --tool`, project default in `.openspec-handoff/project.json`)
 → **proposal** (the tool's design session writes `execution/grill.md` or `execution/brainstorm.md`; then OpenSpec writes
 proposal.md (what/why) + the delta) → **handoff** (OpenSpec's last stage: handoff.md + printed next steps) → the engineer follows them: planning (to-spec +
-to-tickets, or writing-plans) → `/spec-check` → the tool's own implement command → the tool's code review → `/opsx:verify` → `/opsx:archive`.
+to-tickets, or writing-plans) → `/sdd-spec-check` → the tool's own implement command → the tool's code review → `/opsx:verify` → `/opsx:archive`.
 Schema stages: **proposal → specs → handoff** (no tasks stage: progress is tracked by the tool's tickets / plan checkboxes). There is no OpenSpec design artifact, so
 `/opsx:verify` checks proposal + specs and reports Design Adherence as *Not applicable* (see `docs/decisions.md` C1).
 
@@ -52,12 +52,12 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 |---|---|
 | `schemas/handoff-driven/` | Custom OpenSpec schema (`schema.yaml` + templates incl. `handoff.md`) - story 1 |
 | `schemas/split-plan/` | Parent of a split change: proposal → slices (no specs; OpenSpec sets `skip_specs: true`; archived last with `--skip-specs`) |
-| `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/split-check.md` | `/split-check <id>`: split gate at the end of the specs stage (counts requirements and capabilities, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children named `<parent>-<nn>-<slice>`, cleanup slice `99`, re-split into the same parent continues the numbering; records `split_commit`), `loss` (exactly-once vs the original deltas at `split_commit` via git show, split notes, rename candidates, `--final` against main specs), `next` (ready / in progress / parallel-safe slices, tickets), `mark` (in-progress status) |
-| `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + agent review for missing / invented / contradicted behaviour and restated text (advisory); the agent sets PASS / GAPS. Also reports spec changes since the last accepted PASS (hash per requirement / scenario in `execution/.spec-check.json`, moved only by `--accept` after PASS) with the units citing each - report-only. The only plan-vs-spec check; writes `execution/spec-check.md` |
-| `scripts/sdd.mjs` + `commands/*/{next-steps,tool,split-apply,split-next,split-start,split-undo,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|start\|undo\|loss\|archive` (start = take a READY slice: finds the parent, marks it in-progress, prints the next lines; undo = original change back from split_commit, slices removed; archive = final loss check + `openspec archive --skip-specs -y`). The agent slash commands and the `sdd-pp` CLI subcommands both call it |
+| `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/sdd-split-check.md` | `/sdd-split-check <id>`: split gate at the end of the specs stage (counts requirements and capabilities, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children named `<parent>-<nn>-<slice>`, cleanup slice `99`, re-split into the same parent continues the numbering; records `split_commit`), `loss` (exactly-once vs the original deltas at `split_commit` via git show, split notes, rename candidates, `--final` against main specs), `next` (ready / in progress / parallel-safe slices, tickets; writes `status: done` for archived slices), `start` (take a READY slice: in-progress), `undo` (original change back from split_commit), `finalize` (run by `/sdd-split-archive`: stops unless every slice is archived) |
+| `scripts/spec-check.mjs` + `commands/*/sdd-spec-check.md` | `/sdd-spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + agent review for missing / invented / contradicted behaviour and restated text (advisory); the agent sets PASS / GAPS. Also reports spec changes since the last accepted PASS (hash per requirement / scenario in `execution/.spec-check.json`, moved only by `--accept` after PASS) with the units citing each - report-only. The only plan-vs-spec check; writes `execution/spec-check.md` |
+| `scripts/sdd.mjs` + `commands/*/sdd-{next-steps,tool,split-apply,split-next,split-start,split-undo,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|start\|undo\|loss\|archive` (start = take a READY slice: finds the parent, marks it in-progress, prints the next lines; undo = original change back from split_commit, slices removed; archive = stops unless every slice is archived, marks them done, final loss check + `openspec archive --skip-specs -y`). Every file-writing command prints the exact `git add ... && git commit` line. The agent slash commands and the `sdd-pp` CLI subcommands both call it |
 | `scripts/execution-tool.mjs` | Setup phase: `--default <tool>` (project), `<id> --set <tool>` (per-change override; starts the session file), `<id>` (resolve: handoff.md > session front matter > project default). Refuses a switch once a session exists (`docs/switching-tools.md`) |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
-| `commands/{claude,cursor}/handoff.md` | `/handoff` - story 2 |
+| `commands/{claude,cursor,opencode}/sdd-*.md` | the agent slash commands, all prefixed `sdd-` (`/sdd-handoff`, `/sdd-tool`, `/sdd-next-steps`, `/sdd-spec-check`, `/sdd-split-*`) - story 2 |
 | `config/handoff-review.json` | review skill per tool, split limits |
 | `docs/small-changes.md` | PR-size budget, when/how to split, validate vs verify - story 4 |
 | `bin/sdd-pp.mjs` (`package.json` `bin`) | `sdd-pp init`: cross-platform Node installer for all of the above |
@@ -68,6 +68,7 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 ## Install into a project
 
 ```bash
+# Node.js 22 (npx skills needs it; the scripts run on Node 18+)
 npm i -g @fission-ai/openspec@1.14.1          # tested version
 cd your-project && openspec init --tools <agent>                        # <agent>: claude, cursor, opencode, ...
 npx -y skills@latest add mattpocock/skills --skill '*' -a <agent> -y    # AI Hero skills (skills agent ids: claude-code, cursor, opencode, ...)
@@ -84,7 +85,8 @@ Example with Claude: `openspec init --tools claude`, then `npx -y skills@latest 
 `openspec init --tools opencode`) or with `--opencode`.
 
 With `--tool ai-hero` it also installs `docs/agents/issue-tracker.md` (OpenSpec change folders as AI Hero's issue tracker)
-when the project has none.
+when the project has none, `docs/agents/triage-labels.md`, and a marked agent-skills block in `AGENTS.md` - also in `CLAUDE.md`
+when `.claude/` is installed (Claude Code reads CLAUDE.md). `sdd-pp init` ends with the exact `git add ... && git commit` line for the setup.
 
 Also works from a local checkout (`npx /path/to/sdd-pp init . --tool superpowers`, or `node /path/to/sdd-pp/bin/sdd-pp.mjs init ...`)
 and, once published to npm (not yet), as `npx sdd-pp init`. It is plain Node (no bash, plain copies, no symlinks). Path handling is
@@ -106,24 +108,24 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
 ## Use
 
 ```text
-/tool add-greeting-name --set superpowers   # optional per-change override
+/sdd-tool add-greeting-name --set superpowers   # optional per-change override
 /opsx:propose add-greeting-name          # proposal phase: the tool's design session first
       ai-hero:     grill-with-docs -> execution/grill.md
       superpowers: brainstorming -> execution/brainstorm.md, STOPPED after the written design (no writing-plans)
    -> proposal.md (what/why only) + delta (scenarios found in the session)
-/split-check add-greeting-name           # split gate, end of the specs stage (automatic): "fits", or > 5 requirements / > 2 capabilities
-   -> slices proposed (execution/split-proposal.md) -> engineer approves -> commit deltas -> /split-apply -> parent + children <parent>-<nn>-<slice>
-   -> loss check PASS -> one planning PR -> /split-next <parent> -> per slice: /split-start <slice> (commit the mark), branch, design session, /handoff <slice>
-   -> all slices archived -> /split-archive <parent>
-/handoff add-greeting-name
+/sdd-split-check add-greeting-name           # split gate, end of the specs stage (automatic): "fits", or > 5 requirements / > 2 capabilities
+   -> slices proposed (execution/split-proposal.md) -> engineer approves -> commit deltas -> /sdd-split-apply -> parent + children <parent>-<nn>-<slice>
+   -> loss check PASS -> one planning PR -> /sdd-split-next <parent> -> per slice: /sdd-split-start <slice> (commit the mark), branch, design session, /sdd-handoff <slice>
+   -> all slices archived -> /sdd-split-archive <parent>
+/sdd-handoff add-greeting-name
    -> handoff.md (tool = per-change override or project default, apply_mode, base_ref, links),
-   -> prints the next steps (/next-steps reprints them) and STOPS. The engineer then runs them:
+   -> prints the next steps (/sdd-next-steps reprints them) and STOPS. The engineer then runs them:
       ai-hero:     /to-spec (reads grill.md) -> execution/spec.md, /to-tickets -> execution/tickets/
       superpowers: writing-plans (reads brainstorm.md) -> execution/plan-<id>.md
-/spec-check add-greeting-name             # the only plan-vs-spec check; stops on GAPS -> execution/spec-check.md; PASS is accepted (--accept)
-# after a later delta edit: openspec validate -> /spec-check (changes + citing units) -> re-plan only those -> /spec-check until PASS
+/sdd-spec-check add-greeting-name             # the only plan-vs-spec check; stops on GAPS -> execution/spec-check.md; PASS is accepted (--accept)
+# after a later delta edit: openspec validate -> /sdd-spec-check (changes + citing units) -> re-plan only those -> /sdd-spec-check until PASS
 # implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply).
-# Ignore OpenSpec's apply prompts ("run /opsx-apply", "Next: openspec instructions apply"): use /next-steps <id>.
+# Ignore OpenSpec's apply prompts ("run /opsx-apply", "Next: openspec instructions apply"): use /sdd-next-steps <id>.
 /implement  |  /implement-spec  |  executing-plans  |  subagent-driven-development
    -> ticket Status/checkboxes or plan step checkboxes; the tool's own code review (CI also reviews the PR)
 /opsx:verify add-greeting-name            # save the report to execution/verify.md
@@ -133,20 +135,21 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
 The same checks from a shell, from anywhere inside the project (runs the project's installed scripts):
 
 ```bash
-npx github:shachr/sdd-pp next <id>                   # = /next-steps <id>
-npx github:shachr/sdd-pp tool <id> [--set <tool>]    # = /tool <id>
-npx github:shachr/sdd-pp spec-check <id>             # mechanical part of /spec-check
-npx github:shachr/sdd-pp split-check <id>            # counts part of /split-check
-npx github:shachr/sdd-pp split apply|next|loss|archive ...   # = /split-apply, /split-next, /split-archive
-npx github:shachr/sdd-pp split start <slice> [--undo]     # = /split-start <slice>
-npx github:shachr/sdd-pp split undo <parent> [--force]    # = /split-undo <parent>
+npx github:shachr/sdd-pp next <id>                   # = /sdd-next-steps <id>
+npx github:shachr/sdd-pp tool <id> [--set <tool>]    # = /sdd-tool <id>
+npx github:shachr/sdd-pp spec-check <id>             # mechanical part of /sdd-spec-check
+npx github:shachr/sdd-pp split-check <id>            # counts part of /sdd-split-check
+npx github:shachr/sdd-pp split apply|next|loss|archive ...   # = /sdd-split-apply, /sdd-split-next, /sdd-split-archive
+npx github:shachr/sdd-pp split start <slice> [--undo]     # = /sdd-split-start <slice>
+npx github:shachr/sdd-pp split undo <parent> [--force]    # = /sdd-split-undo <parent>
 ```
 
 Under the hood (agent commands and CLI both run `.openspec-handoff/scripts/sdd.mjs`):
 `next` = `next-steps.mjs`;
 `tool` = `execution-tool.mjs`; `spec-check` / `split-check` = `spec-check.mjs` / `split-check.mjs` with `--write`;
 `split apply|start|undo|loss` = `split.mjs apply|start|undo|loss`; `split next` = `split.mjs next --write-tickets`;
-`split archive` = `split.mjs loss <parent> --final` + `openspec archive <parent> --skip-specs -y`.
+`split archive` = `split.mjs finalize <parent>` (all slices archived? marks them done, final loss check) + `openspec archive <parent> --skip-specs -y`.
+`spec-check <id> --check` writes nothing (a look only).
 The scripts still take `--root` / `--json` when run directly. See `docs/getting-started.md` (Commands).
 
 ### Code review
@@ -160,7 +163,7 @@ The tool's own review (`ai-hero → code-review`, two-axis Standards + Spec; `su
 
 ```bash
 npm install            # required: installs @fission-ai/openspec 1.14.1 locally; 13 tests run the real OpenSpec CLI
-npm test               # installer CLI, commands, paths with spaces, /spec-check, split gate, slice naming, git-baseline loss check, split notes, renames, ready report, real OpenSpec CLI, e2e
+npm test               # installer CLI, commands, paths with spaces, /sdd-spec-check, split gate, slice naming, git-baseline loss check, split notes, renames, ready report, real OpenSpec CLI, e2e
                        # without npm install the run FAILS (openspec-required test); SDD_SKIP_OPENSPEC=1 npm test skips those 13 on purpose
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions

@@ -113,7 +113,7 @@ export function loadConfig(root, explicit) {
 }
 
 // ---------------------------------------------------------------------------
-// Requirement links (/spec-check): every design unit (to-spec user story, ticket, plan task)
+// Requirement links (/sdd-spec-check): every design unit (to-spec user story, ticket, plan task)
 // names the delta requirement(s) it covers. Citation forms (any of):
 //   "Requirement: <name>"     Requirement "<name>"     Requirement: "<name>"
 // Scenarios: "Scenario: <name>" / Scenario "<name>".
@@ -141,7 +141,7 @@ export function citations(md) {
 }
 
 /**
- * Design units /spec-check looks at:
+ * Design units /sdd-spec-check looks at:
  *  - ai-hero: each numbered item under "## User Stories" in execution/spec.md, each ticket file
  *  - superpowers: each "### Task N:" section of the plan
  */
@@ -185,7 +185,7 @@ export function designUnits(change) {
 //                     (written by `sdd-pp init --tool` / execution-tool.mjs --default; never overwritten by install)
 //   per-change:       front matter `tool:` of the session file, written when the session starts
 //                     (OpenSpec warns on unknown keys in .openspec.yaml, so the override does not live there)
-//   after handoff:    handoff.md `tool:` (written by /handoff from the above)
+//   after handoff:    handoff.md `tool:` (written by /sdd-handoff from the above)
 
 /** The design-session file each tool writes during the proposal phase. */
 export const SESSION_FILES = { 'ai-hero': 'execution/grill.md', superpowers: 'execution/brainstorm.md' };

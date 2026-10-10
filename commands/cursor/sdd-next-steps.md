@@ -1,8 +1,8 @@
 ---
-name: /next-steps
-id: next-steps
+name: /sdd-next-steps
+id: sdd-next-steps
 category: Workflow
-description: "Print the next steps of a handed-off change again (usage: /next-steps <change-id>)"
+description: "Print the next steps of a handed-off change again (usage: /sdd-next-steps <change-id>)"
 ---
 
 Arguments: <change-id> - as given after the command.

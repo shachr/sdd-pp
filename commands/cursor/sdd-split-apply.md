@@ -1,8 +1,8 @@
 ---
-name: /split-apply
-id: split-apply
+name: /sdd-split-apply
+id: sdd-split-apply
 category: Workflow
-description: "Apply the approved split proposal: parent + slices named <parent>-<nn>-<slice>, loss check, tickets (usage: /split-apply <change-id>)"
+description: "Apply the approved split proposal: parent + slices named <parent>-<nn>-<slice>, loss check, tickets (usage: /sdd-split-apply <change-id>)"
 ---
 
 Arguments: <change-id> - as given after the command.

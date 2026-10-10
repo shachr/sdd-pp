@@ -40,13 +40,13 @@ test('sdd-pp init: plain copies (no symlinks), host selection, config.yaml, giti
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(lstatAll(dir), []);
   assert.ok(fs.existsSync(path.join(dir, '.opencode/skills/openspec-handoff-superpowers/SKILL.md')), '.opencode/ auto-detected');
-  assert.ok(fs.existsSync(path.join(dir, '.cursor/commands/handoff.md')));
+  assert.ok(fs.existsSync(path.join(dir, '.cursor/commands/sdd-handoff.md')));
   assert.ok(!fs.existsSync(path.join(dir, '.claude')));
   assert.ok(!fs.existsSync(path.join(dir, '.openspec-handoff/scripts/dev-generate-schema.mjs')), 'dev-only script not installed');
   assert.ok(!fs.existsSync(path.join(dir, '.openspec-handoff/scripts/adversarial-review.mjs')));
   assert.match(fs.readFileSync(path.join(dir, 'openspec/config.yaml'), 'utf8'), /^schema: handoff-driven\r?\ncontext: demo/);
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, '.openspec-handoff/project.json'), 'utf8')).defaultTool, 'superpowers');
-  assert.match(r.stdout, /\/handoff <id> {2}/);
+  assert.match(r.stdout, /\/sdd-handoff <id> {2}/);
   assert.doesNotMatch(r.stdout, /adversarial|<model>/);
   r = initCli(dir, '--no-claude', '--no-opencode');
   assert.equal(r.status, 0, r.stderr);

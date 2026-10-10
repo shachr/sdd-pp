@@ -19,33 +19,53 @@ test('execution-tool: project default, per-change override, refusal to switch af
   let r = run('execution-tool.mjs', [CHANGE], dir);
   assert.equal(r.code, 1); assert.match(r.out, /no execution tool set/);
   r = run('execution-tool.mjs', ['--default', 'ai-hero'], dir);
+  assert.match(r.out, /^Commit: git add \.openspec-handoff\/project\.json && git commit -m "setup: default execution tool ai-hero"$/m);
   assert.equal(r.code, 0);
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, '.openspec-handoff/project.json'), 'utf8')).defaultTool, 'ai-hero');
   r = run('execution-tool.mjs', [CHANGE, '--json'], dir);
-  assert.deepEqual({ ...JSON.parse(r.stdout) }, { change: CHANGE, tool: 'ai-hero', source: '.openspec-handoff/project.json (project default)', projectDefault: 'ai-hero', override: false, sessionFile: 'execution/grill.md', sessionSkill: 'grill-with-docs' });
+  assert.deepEqual({ ...JSON.parse(r.stdout) }, { change: CHANGE, tool: 'ai-hero', source: '.openspec-handoff/project.json (project default)', projectDefault: 'ai-hero', override: false, sessionFile: 'execution/grill.md', sessionSkill: 'grill-with-docs', sessionStarted: false });
   // per-change override: starts execution/brainstorm.md with front matter
   r = run('execution-tool.mjs', [CHANGE, '--set', 'superpowers'], dir);
   assert.equal(r.code, 0, r.out); assert.match(r.out, /superpowers .*overrides project default ai-hero/);
   assert.match(fs.readFileSync(path.join(ex(dir), 'brainstorm.md'), 'utf8'), /^---\ntool: superpowers\nsession: brainstorming\n---/);
   // switching back after the session started is refused (redo the session)
+  fs.appendFileSync(path.join(ex(dir), 'brainstorm.md'), '\n## Understanding\n\nThe user wants names in greetings.\n');
   r = run('execution-tool.mjs', [CHANGE, '--set', 'ai-hero'], dir);
   assert.equal(r.code, 1); assert.match(r.out, /switching tools means redoing the session/i);
   assert.equal(run('execution-tool.mjs', [CHANGE, '--set', 'nope'], dir).code, 2);
 });
 
-test('/tool <id> starts the session file for the project-default tool when missing (same format as --set; not with --json, not after handoff)', () => {
-  const { dir, changeDir } = makeFixture();
+test('/sdd-tool <id> (show) writes nothing; --set starts the session file and prints the commit line; a stub-only session counts as not started, so --set can replace it', () => {
+  const { dir, changeDir, git } = makeFixture();
   fs.rmSync(path.join(changeDir, 'handoff.md'));
   fs.rmSync(path.join(ex(dir), 'grill.md'));
-  let r = run('execution-tool.mjs', [CHANGE, '--json'], dir);
-  assert.equal(r.code, 0); assert.equal(fs.existsSync(path.join(ex(dir), 'grill.md')), false, '--json (the handoff check) never creates it');
-  r = run('execution-tool.mjs', [CHANGE], dir);
+  git('add', '-A'); git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'no session yet');
+  const clean = () => assert.equal(git('status', '--porcelain'), '', 'nothing written');
+  let r = run('execution-tool.mjs', [CHANGE], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /ai-hero \(from \.openspec-handoff\/project\.json \(project default\)\) -> design session: grill-with-docs -> execution\/grill\.md \(created\)/);
+  assert.equal(r.out.trim(), `${CHANGE}: ai-hero (from .openspec-handoff/project.json (project default)) -> design session: grill-with-docs -> execution/grill.md (not started)`);
+  clean();
+  assert.equal(run('execution-tool.mjs', [CHANGE, '--json'], dir).code, 0); clean();
+  // --set writes the stub + the exact commit line
+  r = run('execution-tool.mjs', [CHANGE, '--set', 'ai-hero'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /-> execution\/grill\.md \(created\)\nCommit with the change: git add openspec\/changes\/add-greeting-name\/execution\/grill\.md && git commit -m "tool\(add-greeting-name\): ai-hero"/);
   assert.equal(fs.readFileSync(path.join(ex(dir), 'grill.md'), 'utf8'), `---\ntool: ai-hero\nsession: grill-with-docs\n---\n\n> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md\n\n# grill-with-docs session: ${CHANGE}\n`);
-  fs.appendFileSync(path.join(ex(dir), 'grill.md'), 'notes\n');
-  r = run('execution-tool.mjs', [CHANGE], dir);
-  assert.doesNotMatch(r.out, /created/); assert.match(fs.readFileSync(path.join(ex(dir), 'grill.md'), 'utf8'), /notes\n$/);
+  assert.match(run('execution-tool.mjs', [CHANGE], dir).out, /\(not started\)/, 'the stub is not a started session');
+  // the stub does not lock the tool: --set superpowers replaces it
+  r = run('execution-tool.mjs', [CHANGE, '--set', 'superpowers'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /replaced the unused execution\/grill\.md stub \(no design session in it yet\)/);
+  assert.equal(fs.existsSync(path.join(ex(dir), 'grill.md')), false);
+  assert.match(fs.readFileSync(path.join(ex(dir), 'brainstorm.md'), 'utf8'), /^---\ntool: superpowers\n/);
+  // ... and back again
+  assert.equal(run('execution-tool.mjs', [CHANGE, '--set', 'ai-hero'], dir).code, 0);
+  // once the session has content, a switch is refused
+  fs.appendFileSync(path.join(ex(dir), 'grill.md'), '\nQ1: who greets? A: the CLI\n');
+  r = run('execution-tool.mjs', [CHANGE, '--set', 'superpowers'], dir);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /refused: execution\/grill\.md already holds a ai-hero design session/);
+  assert.doesNotMatch(run('execution-tool.mjs', [CHANGE], dir).out, /not started|created/);
 });
 
 test('split-check: new capability delta without ## Purpose warns (archive would write TBD)', () => {

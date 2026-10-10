@@ -1,5 +1,5 @@
 ---
-description: "Apply the approved split proposal: parent + slices named <parent>-<nn>-<slice>, loss check, tickets (usage: /split-apply <change-id>)"
+description: "Apply the approved split proposal: parent + slices named <parent>-<nn>-<slice>, loss check, tickets (usage: /sdd-split-apply <change-id>)"
 ---
 
 Run this one command from the project root and show its output verbatim:
