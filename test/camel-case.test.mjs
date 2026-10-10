@@ -13,3 +13,7 @@ test('Review focus: coercion, edges, digits, ß', () => {
   assert.equal(camelCase('version 2 beta'), 'version2Beta');
   assert.equal(camelCase('a ßtraße'), 'aSStraße');
 });
+test('Nothing to convert', () => {
+  assert.equal(camelCase('  --  '), '');
+  assert.equal(camelCase('🙂 !!'), '');
+});

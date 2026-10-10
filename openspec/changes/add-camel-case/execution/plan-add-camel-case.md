@@ -83,7 +83,7 @@ Run: `npm test` - Expected: PASS, all tests.
 - Consumes: `camelCase` from Task 1.
 - Produces: nothing new.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 test('Nothing to convert', () => {
@@ -92,11 +92,11 @@ test('Nothing to convert', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test**
+- [x] **Step 2: Run the test**
 
 Run: `npm test` - Expected: may already PASS (Task 1's filter drops empty parts). If it passes without code changes, record a Ruling in the ledger; do not add code.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 `git add test/camel-case.test.mjs && git commit -m "test(casing): empty result"`
 
