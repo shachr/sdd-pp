@@ -69,7 +69,8 @@ Options for init:
                                 docs/agents/triage-labels.md if absent, and a marked agent-skills block in AGENTS.md.
   --claude / --no-claude        install skills + commands into .claude/   (default: on)
   --cursor / --no-cursor        install skills + commands into .cursor/   (default: on)
-  --opencode / --no-opencode    install skills + commands into .opencode/ (default: only if .opencode/ exists)
+  --opencode / --no-opencode    install skills + commands into .opencode/ (default: only if .opencode/ exists,
+                                e.g. after openspec init --tools opencode)
   --no-set-default              keep openspec/config.yaml as is (default: schema: handoff-driven)
   --force                       overwrite an existing .openspec-handoff/config.json
 
@@ -118,6 +119,8 @@ export function init(dir, opts = {}, log = console.log) {
   } else log('  .openspec-handoff/config.json (kept existing; --force to overwrite)');
 
   const targets = [['claude', claude], ['cursor', cursor], ['opencode', opencode]].filter(([, on]) => on).map(([h]) => h);
+  const skipped = [['claude', '--claude'], ['cursor', '--cursor'], ['opencode', '--opencode']].filter(([h]) => !targets.includes(h)).map(([h, f]) => `${h} (${f})`);
+  log(`  agent commands for: ${targets.join(', ') || 'none'}${skipped.length ? `; not installed: ${skipped.join(', ')}` : ''}`);
   for (const h of targets) {
     for (const s of fs.readdirSync(S('skills'))) put(S('skills', s), T(`.${h}`, 'skills', s), root, log);
     for (const c of fs.readdirSync(S('commands', h)).filter((f) => f.endsWith('.md'))) put(S('commands', h, c), T(`.${h}`, 'commands', c), root, log);
@@ -182,9 +185,9 @@ Done. Next (agent slash commands; the same checks run from a shell as \`npx <too
   ... planning, /spec-check <id>, implement (the tool's own completion), code review (as the next steps say)
   /opsx:verify <id> (save to execution/verify.md), /opsx:archive <id>
   Split changes: /split-apply <id>, /split-next <parent>, /split-mark <parent> <slice> in-progress, /split-archive <parent>
-Also install the execution toolkits themselves (not bundled):
-  AI Hero:     npx skills add mattpocock/skills   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
-  Superpowers: npx skills add obra/superpowers    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)`);
+Also install the execution toolkits themselves (not bundled; <agent> = your coding agent, e.g. claude-code, cursor, opencode):
+  AI Hero:     npx skills add mattpocock/skills -a <agent>   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
+  Superpowers: npx skills add obra/superpowers -a <agent>    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)`);
 }
 
 export function main(argv = process.argv.slice(2)) {
