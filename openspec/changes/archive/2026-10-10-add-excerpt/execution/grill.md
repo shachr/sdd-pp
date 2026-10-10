@@ -42,3 +42,7 @@ Text that fits · Cut at a word boundary · First word too long · Trailing punc
 ## Domain docs
 
 - [GLOSSARY.md](../../../../GLOSSARY.md) - "Excerpt" (new). No ADR.
+
+## Ticket breakdown approval (to-tickets quiz)
+
+to-tickets step 4 quiz answered **by the agent on the user's behalf** (delegated): 2 tickets, 02 blocked by 01; granularity right (each fits one context); no merge/split. Approved.
