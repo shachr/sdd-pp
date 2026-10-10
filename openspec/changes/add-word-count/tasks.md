@@ -2,7 +2,7 @@
 
 ## 1. Execution
 
-- [ ] 1.1 Plan Task 1 countWords counts whitespace-separated words that contain a letter or digit - execution/plan.md#task-1-countwords-counts-whitespace-separated-words-that-contain-a-letter-or-digit - verify: `node --test test/text-statistics.test.mjs`
+- [x] 1.1 Plan Task 1 countWords counts whitespace-separated words that contain a letter or digit - execution/plan.md#task-1-countwords-counts-whitespace-separated-words-that-contain-a-letter-or-digit - verify: `node --test test/text-statistics.test.mjs`
 - [ ] 1.2 Plan Task 2 countWords rejects non-string input - execution/plan.md#task-2-countwords-rejects-non-string-input - verify: `npm test`
 
 ## 2. Review and verification
