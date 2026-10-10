@@ -1,0 +1,40 @@
+Installing into /workspace/handoff-flows-v9
+  openspec/schemas/handoff-driven
+  openspec/schemas/split-plan
+  .openspec-handoff/scripts
+  .openspec-handoff/small-changes.md
+  .openspec-handoff/switching-tools.md
+  .openspec-handoff/issue-tracker-openspec.md
+  .openspec-handoff/config.json
+  .opencode/skills/openspec-handoff
+  .opencode/skills/openspec-handoff-ai-hero
+  .opencode/skills/openspec-handoff-superpowers
+  .opencode/commands/handoff.md
+  .opencode/commands/next-steps.md
+  .opencode/commands/spec-check.md
+  .opencode/commands/split-apply.md
+  .opencode/commands/split-archive.md
+  .opencode/commands/split-check.md
+  .opencode/commands/split-mark.md
+  .opencode/commands/split-next.md
+  .opencode/commands/tool.md
+  openspec/config.yaml -> schema: handoff-driven
+  .openspec-handoff/project.json -> defaultTool: ai-hero
+  docs/agents/issue-tracker.md (AI Hero issue tracker = OpenSpec change folders)
+  .gitignore += .superpowers/ (Superpowers SDD scratch)
+  .gitattributes += slices.md merge=union (parallel slice branches each edit slices.md)
+
+Done. Next (agent slash commands; the same checks run from a shell as `npx <toolkit> <command>`, see --help):
+  openspec schema validate handoff-driven && openspec schema validate split-plan
+  /opsx:propose <id>                 proposal phase runs the tool's design session, then proposal + specs:
+                                       ai-hero -> grill-with-docs -> execution/grill.md
+                                       superpowers -> brainstorming -> execution/brainstorm.md (stops before writing-plans)
+  /tool <id> --set superpowers       per-change tool override, before the design session
+  /split-check <id>                  split gate at the end of the specs stage (runs automatically; rerunnable)
+  /handoff <id>                      last OpenSpec stage: handoff.md + prints the next steps (/next-steps <id> reprints them)
+  ... planning, /spec-check <id>, implement (the tool's own completion), code review (as the next steps say)
+  /opsx:verify <id> (save to execution/verify.md), /opsx:archive <id>
+  Split changes: /split-apply <id>, /split-next <parent>, /split-mark <parent> <slice> in-progress, /split-archive <parent>
+Also install the execution toolkits themselves (not bundled):
+  AI Hero:     npx skills add mattpocock/skills   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
+  Superpowers: npx skills add obra/superpowers    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)
