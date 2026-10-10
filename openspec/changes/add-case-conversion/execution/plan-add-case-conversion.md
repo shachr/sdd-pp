@@ -96,7 +96,7 @@ Run: `npm test` - Expected: all pass, 0 fail.
 - Consumes: `words(text)` from Task 1.
 - Produces: `camelCase(text: string): string`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```js
 test('camelCase output', () => assert.equal(camelCase('XML http_request'), 'xmlHttpRequest'));
@@ -108,17 +108,17 @@ test('Text is not a string', () => assert.throws(() => camelCase(42), TypeError)
 test('single word', () => assert.equal(camelCase('USER'), 'user')); // Review Focus 5
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `node --test test/case.test.mjs` - Expected: FAIL (`camelCase` is not exported).
 
-- [ ] **Step 3: Implement `camelCase(text)` in `src/case.mjs`** from `words`: first word lower-case, each following word first character (code point) upper-case and the rest lower-case; export it from `src/index.mjs`.
+- [x] **Step 3: Implement `camelCase(text)` in `src/case.mjs`** from `words`: first word lower-case, each following word first character (code point) upper-case and the rest lower-case; export it from `src/index.mjs`.
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `npm test` - Expected: all pass, 0 fail.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 `git add src/case.mjs src/index.mjs test/case.test.mjs && git commit -m "feat(case): camelCase"`
 

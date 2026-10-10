@@ -24,3 +24,15 @@ export function snakeCase(text) {
 export function kebabCase(text) {
   return words(text).map((w) => w.toLowerCase()).join('-');
 }
+
+/** @param {string} text @returns {string} first word lower case, later words Capitalised, no separator */
+export function camelCase(text) {
+  return words(text)
+    .map((w, i) => {
+      const lower = w.toLowerCase();
+      if (i === 0) return lower;
+      const [first, ...rest] = lower;
+      return first.toUpperCase() + rest.join('');
+    })
+    .join('');
+}
