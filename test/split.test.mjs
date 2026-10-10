@@ -116,6 +116,17 @@ test('loss check: fails on a dropped scenario, duplicate and unsourced; an amend
   assert.match(r.out, /Requirement "Report filters": in more than one child/);
   assert.match(r.out, /add-report-filters: Requirement "Report sharing" is unsourced/);
   assert.match(r.out, /amended \(dropped\) but still in add-report-filters/);
+  // "changed, see change <the slice holding it>" = behaviour edited in that slice's live delta: fine, still exactly once
+  W(dir, f, orig.replace('\n#### Scenario: Filter by tag', '\n#### Scenario: Filter by both\n- **WHEN** both\n- **THEN** both\n\n#### Scenario: Filter by tag'));
+  W(dir, t, R(dir, t).replace(/\n### Requirement: Report filters[\s\S]*$/, '\n'));
+  W(dir, s, R(dir, s).replace(/- Scenario "Filter by tag" dropped.*\n/, '').replace('## Amendments\n\n', '## Amendments\n\n- Requirement "Report filters" changed, see change add-report-filters: both filters combine\n- Scenario "Filter by both" added in add-report-filters: pins it\n'));
+  r = run('split.mjs', ['loss', 'add-reports'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /Requirement "Report filters" -> add-report-filters \(edited there, amendment\)/);
+  W(dir, s, R(dir, s).replace('see change add-report-filters', 'see change add-report-totals'));
+  r = run('split.mjs', ['loss', 'add-reports'], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /amended as changed but still in add-report-filters/);
 });
 
 test('split requirement: split_from needs a confirmed amendment', () => {
@@ -145,6 +156,9 @@ test('next: ready when all depends_on are archived; parallel-safe only without d
   assert.match(r.out, /Ready now: add-report-totals, add-csv-export/);
   assert.match(r.out, /Parallel-safe now \(both ready, no dependency, no shared capability\): add-report-totals ∥ add-csv-export/);
   assert.match(r.out, /\| add-report-filters \| planned \| add-report-totals \| waits for add-report-totals \|/);
+  // the gate on a slice uses the approved slice estimate (silent one-liner when it fits)
+  r = run('split-check.mjs', ['add-report-totals'], dir);
+  assert.match(r.out, /^split-check add-report-totals: fits \(~\d+ of ~300 lines, approved slice estimate in add-reports\/slices.md, 1 requirements\)\n?$/);
   archive(dir, 'add-report-totals');
   r = run('split.mjs', ['next', 'add-reports', '--write-tickets'], dir);
   assert.match(r.out, /Ready now: add-report-filters, add-csv-export/);

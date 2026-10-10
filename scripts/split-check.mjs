@@ -44,6 +44,15 @@ export function splitCheck(root, id, { limit = SPLIT_LIMIT_DEFAULT } = {}) {
   const parent = findParentOf(root, id);
   if (parent && parent.id !== id) r.parent = parent.id;
   const ef = path.join(loc.dir, 'execution', 'size-estimate.md');
+  if (!fs.existsSync(ef) && r.parent) {
+    // A slice of a split: the approved slice estimate in the parent's slices.md is the gate estimate.
+    const s = parent.plan.slices.find((x) => x.id === id);
+    if (s && Number.isFinite(s.estimate)) {
+      const over = s.estimate > limit;
+      if (over) r.warnings.push(`approved slice estimate ${s.estimate} lines > ~${limit}-line PR budget - re-split with an execution/size-estimate.md (the new slices join parent ${r.parent}; no nested parents)`);
+      return { ...r, kind: 'change', rows: [], fromParent: true, total: s.estimate, over, status: over ? 'over' : 'fits', requirementsCount: reqs.length };
+    }
+  }
   if (!fs.existsSync(ef)) {
     return { ...r, kind: 'change', status: 'no-estimate', requirements: reqs.map((x) => x.name), total: null };
   }
@@ -98,6 +107,8 @@ export function splitCheck(root, id, { limit = SPLIT_LIMIT_DEFAULT } = {}) {
 export function formatSplitCheck(r) {
   if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices, ~${r.total} lines estimated in total`, ...r.warnings.map((w) => `  ! ${w}`), `  (status: node .openspec-handoff/scripts/split.mjs next ${r.change})`].join('\n');
   if (r.status === 'no-estimate') return [`split-check ${r.change}: no execution/size-estimate.md yet - estimate each requirement (code + tests lines) first:`, '  | Requirement | Scenarios | Code touched | Estimate |', '  |---|---|---|---|', ...r.requirements.map((n) => `  | ${n} | | | |`)].join('\n');
+  if (r.fromParent && r.status === 'fits') return `split-check ${r.change}: fits (~${r.total} of ~${r.limit} lines, approved slice estimate in ${r.parent}/slices.md, ${r.requirementsCount} requirements)`;
+  if (r.fromParent) return [`split-check ${r.change}: OVER BUDGET (warning) - ~${r.total} lines (approved slice estimate in ${r.parent}/slices.md), budget ~${r.limit}`, ...r.warnings.map((w) => `! ${w}`)].join('\n');
   if (r.status === 'fits') return `split-check ${r.change}: fits (~${r.total} of ~${r.limit} lines estimated, ${r.rows.length} requirements)${r.warnings.length ? '\n' + r.warnings.map((w) => `  ! ${w}`).join('\n') : ''}`;
   const out = [`split-check ${r.change}: OVER BUDGET (warning) - ~${r.total} lines estimated, budget ~${r.limit}`, '', '| Requirement | Scenarios | Code touched | Estimate |', '|---|---|---|---|'];
   for (const x of r.rows) out.push(`| ${x.requirement} | ${x.scenarios} | ${x.code} | ${Number.isFinite(x.estimate) ? x.estimate : '?'} |`);
