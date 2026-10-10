@@ -118,6 +118,10 @@ test('parent name leak: an original requirement name in the parent proposal fail
   W(dir, `${c}/proposal.md`, R(dir, `${c}/proposal.md`).replace('CSV export', 'a file export'));
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
+  W(dir, `${c}/execution/grill.md`, '---\ntool: ai-hero\n---\n- Q1 -> delta Requirement "CSV export"\n');
+  r = run('split.mjs', ['loss', 'add-reports'], dir);
+  assert.equal(r.code, 0, 'the shared design session is reported, not failed');
+  assert.match(r.out, /! add-reports\/execution\/grill.md \(shared design session, written before the split\) names 1 original/);
 });
 
 test('loss check: dropped scenario fails until a "dropped" split note in the child; duplicate, unsourced and unknown notes fail', () => {
