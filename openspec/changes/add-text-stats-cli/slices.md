@@ -35,8 +35,8 @@ Archive this parent last: `split.mjs loss add-text-stats-cli --final`, then `ope
 - capabilities: stats-cli
 - depends_on: add-text-stats-core, add-cli
 - flag: stats-cli
-- ticket: none
-- status: planned
+- ticket: tickets/add-stats-cli.md
+- status: in-progress
 
 ### Slice: remove-stats-cli-flag
 - goal: Release the stats sub-command by removing its flag
