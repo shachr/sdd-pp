@@ -49,23 +49,22 @@ Archive this parent last: `openspec archive add-text-stats-cli --skip-specs --ye
 
 ## Checklist (original requirement and scenario names)
 
-- [ ] Requirement: Slugify command
-  - [ ] Scenario: Slugify argument
-  - [ ] Scenario: Slugify from stdin
-- [ ] Requirement: Command errors
-  - [ ] Scenario: Unknown command
-  - [ ] Scenario: Missing argument
-- [ ] Requirement: Stats command
-  - [ ] Scenario: Stats summary
-- [ ] Requirement: Stats JSON output
-  - [ ] Scenario: JSON flag
-- [ ] Requirement: Word count
-  - [ ] Scenario: Words in a sentence
-  - [ ] Scenario: Whitespace only
-- [ ] Requirement: Sentence count
-  - [ ] Scenario: Sentences ending in punctuation
-  - [ ] Scenario: No terminal punctuation
-
+- [x] Requirement: Slugify command
+  - [x] Scenario: Slugify argument
+  - [x] Scenario: Slugify from stdin
+- [x] Requirement: Command errors
+  - [x] Scenario: Unknown command
+  - [x] Scenario: Missing argument
+- [x] Requirement: Stats command
+  - [x] Scenario: Stats summary
+- [x] Requirement: Stats JSON output
+  - [x] Scenario: JSON flag
+- [x] Requirement: Word count
+  - [x] Scenario: Words in a sentence
+  - [x] Scenario: Whitespace only
+- [x] Requirement: Sentence count
+  - [x] Scenario: Sentences ending in punctuation
+  - [x] Scenario: No terminal punctuation
 ## Amendments
 
 - Requirement "Stats command flag" added in add-stats-cli: keeps the user-visible stats command off until remove-stats-cli-flag ships
