@@ -14,10 +14,10 @@ Request (user, via the parent): "textkit needs a way to shorten text for preview
 ### Round 1 (frontier: what a shortened text looks like)
 
 - **Q1 - Is the limit counted with the ellipsis included?** -> yes, the result never exceeds the limit; delta Requirement "Truncation with ellipsis".
-- **Q2 - Cut mid-word or at a word boundary?** -> at the last word boundary when there is one, hard cut otherwise; delta Scenarios "Cut at word boundary", "Long single word".
-- **Q3 - Text that already fits?** -> returned unchanged, no ellipsis; delta Requirement "Short text unchanged".
+- **Q2 - Cut mid-word or at a word boundary?** -> boundary first, hard cut as fallback; delta Scenarios "Cut at word boundary", "Long single word".
+- **Q3 - Text that already fits?** -> left alone; delta Requirement "Short text unchanged".
 - **Q4 - Configurable ellipsis?** -> yes, default the single character "…"; delta Scenario "Custom ellipsis".
-- **Q5 - Nonsense limits (0, negative, fractional, NaN)?** -> rejected with RangeError; delta Requirement "Limit validation".
+- **Q5 - Nonsense limits (0, negative, fractional, NaN)?** -> RangeError; delta Requirement "Limit validation".
 
 ### Round 2 (frontier unlocked by Q1, Q2)
 
