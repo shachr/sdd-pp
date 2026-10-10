@@ -30,6 +30,8 @@
 
 ### Task 1: title-case module - word casing and spacing
 
+**Covers:** [delta](../specs/title-case/spec.md) - "Requirement: Words are capitalised", "Requirement: Spacing is preserved"
+
 **Files:**
 - Create: `src/title-case.mjs`
 - Test: `test/title-case.test.mjs`
@@ -75,6 +77,8 @@ git commit -m "feat(title-case): capitalise words and keep spacing"
 
 ### Task 2: title-case module - minor words
 
+**Covers:** [delta](../specs/title-case/spec.md) - "Requirement: Minor words stay lowercase"
+
 **Files:**
 - Modify: `src/title-case.mjs`
 - Test: `test/title-case.test.mjs`
@@ -115,6 +119,8 @@ git commit -m "feat(title-case): keep minor words lowercase inside a title"
 ```
 
 ### Task 3: title-case module - input type guard
+
+**Covers:** [delta](../specs/title-case/spec.md) - "Requirement: Non-string input is rejected"
 
 **Files:**
 - Modify: `src/title-case.mjs`

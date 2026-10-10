@@ -5,6 +5,7 @@ implementation_model: grok-bot
 harness: grok-bot (agent on the shared box, following SKILL.md files as written)
 base_ref: ad1db2b9023576f60db3f46c524f6e3c86fc4e42
 execution_dir: execution/
+apply_mode: executing-plans
 reviewer_model: qwen3:4b-instruct
 ---
 
@@ -25,8 +26,10 @@ Implementation diff: `git diff ad1db2b...HEAD -- . ':!openspec'`
 |-----------|-----------|
 | superpowers `brainstorming` (written design; intent/goals link the proposal; answers on the user's behalf - user delegated) | `execution/design.md` |
 | superpowers `writing-plans` | `execution/plan-add-title-case.md` |
-| superpowers `executing-plans` ledger (SDD workspace `.superpowers/sdd/plan-add-title-case/`) | `execution/progress.md` |
-| `/adversarial-review` | `execution/reviews/<timestamp>-<reviewer-model>.md` |
+| `/spec-check` (end of planning) | `execution/spec-check.md` |
+| superpowers `executing-plans` (apply_mode) ledger (SDD workspace `.superpowers/sdd/plan-add-title-case/`) | `execution/progress.md` |
+| superpowers `requesting-code-review` (final review) | `execution/reviews/code-review.md` |
+| `/adversarial-review` (optional; skipped in this run) | `execution/reviews/<timestamp>-<reviewer-model>.md` |
 | `/opsx:verify` report | `execution/verify.md` |
 
 ## Size check
@@ -38,4 +41,4 @@ Implementation diff: `git diff ad1db2b...HEAD -- . ':!openspec'`
 ## Notes for the implementer
 
 - reviewer_model is the local Ollama model (qwen family, different from grok-bot).
-- No subagent tool in this harness: executing-plans (inline) rather than subagent-driven-development.
+- apply_mode executing-plans: no subagent tool in this harness, so inline execution rather than subagent-driven-development.
