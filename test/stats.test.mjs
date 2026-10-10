@@ -9,3 +9,9 @@ test('Review focus: coercion, Unicode, newlines', () => {
   assert.equal(wordCount('café 日本'), 2);
   assert.equal(wordCount('a\nb\tc'), 3);
 });
+
+import { sentenceCount } from '../src/stats.mjs';
+
+test('Sentences ending in punctuation', () => assert.equal(sentenceCount('Hi. How are you? Great!'), 3));
+test('No terminal punctuation', () => assert.equal(sentenceCount('One. two words'), 2));
+test('Review focus: no words', () => { assert.equal(sentenceCount(''), 0); assert.equal(sentenceCount('?!'), 0); });

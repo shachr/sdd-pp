@@ -74,7 +74,7 @@ test('Review focus: coercion, Unicode, newlines', () => {
 **Interfaces:**
 - Consumes: `hasWord` from Task 1. Produces: `export function sentenceCount(text: unknown): number`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```js
 import { sentenceCount } from '../src/stats.mjs';
@@ -84,10 +84,10 @@ test('No terminal punctuation', () => assert.equal(sentenceCount('One. two words
 test('Review focus: no words', () => { assert.equal(sentenceCount(''), 0); assert.equal(sentenceCount('?!'), 0); });
 ```
 
-- [ ] **Step 2: Run test to verify it fails** - `npm test`, expected FAIL (`sentenceCount` not exported).
-- [ ] **Step 3: Implement `sentenceCount`** - `String(text).split(/[.!?]+/).filter(hasWord).length`.
-- [ ] **Step 4: Run test to verify it passes** - `npm test`, expected PASS.
-- [ ] **Step 5: Commit** - `git commit -m "feat(text-stats): sentence count (plan task 2)"`
+- [x] **Step 2: Run test to verify it fails** - `npm test`, expected FAIL (`sentenceCount` not exported).
+- [x] **Step 3: Implement `sentenceCount`** - `String(text).split(/[.!?]+/).filter(hasWord).length`.
+- [x] **Step 4: Run test to verify it passes** - `npm test`, expected PASS.
+- [x] **Step 5: Commit** - `git commit -m "feat(text-stats): sentence count (plan task 2)"`
 
 ### Task 3: reading time
 
