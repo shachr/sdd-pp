@@ -8,13 +8,18 @@ in each change are the requirements; this file tells the engineering skills wher
 - One feature = one active OpenSpec change. Its folder is the "tracker" for that feature:
   `openspec/changes/<change-id>/`. Find the active change with `openspec list --json`; if several are active,
   use the one named in the request or in `handoff.md`.
-- There is no separate spec document: the change's `proposal.md` + `specs/**/spec.md` delta ARE the spec. Do not run `to-spec` for an OpenSpec change.
+- The change's `proposal.md` + `specs/**/spec.md` delta are the requirements (the *what*).
 - Design decisions (from `grill-with-docs`) go to `openspec/changes/<change-id>/execution/design.md`.
+- The spec (from `to-spec`) goes to `openspec/changes/<change-id>/execution/spec.md`. Its **Problem Statement**,
+  **Solution** and **User Stories** sections reference the source of truth instead of restating it: link
+  `../proposal.md` (Why / What Changes) and the delta `../specs/<capability>/spec.md`, naming requirements and
+  scenarios (the scenarios are the user stories). **Implementation Decisions**, **Testing Decisions**, **Out of
+  Scope** and **Further Notes** are written in full - that is the spec's own content.
 - Tickets (from `to-tickets`) are one file per ticket at `openspec/changes/<change-id>/execution/tickets/<NN>-<slug>.md`,
   numbered from `01` in dependency order, never a single combined file. Use the local ticket template from `to-tickets`.
 - Triage state is a `Status:` line near the top of each ticket (role strings in `triage-labels.md`); `done` when finished.
 - Comments append to the bottom of the ticket under `## Comments`.
-- Requirements are never restated or paraphrased in these files: cite requirements and scenarios by name with a link to `../../specs/<capability>/spec.md`.
+- Requirements are never restated or paraphrased in these files: cite requirements and scenarios by name with a link to the delta (`../specs/<capability>/spec.md` from `execution/`, `../../specs/<capability>/spec.md` from `execution/tickets/`).
 - Nothing for a change goes in `.scratch/`, GitHub/GitLab issues, or anywhere outside its change folder.
 
 ## When a skill says "publish to the issue tracker"

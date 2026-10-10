@@ -54,8 +54,9 @@ invoke that skill now; it writes handoff.md, runs the tool's planning, and stops
 before implementation.
 
 There is no OpenSpec design step in this schema: design and implementation are
-owned by the execution tool (AI Hero grill-with-docs -> execution/design.md;
-Superpowers writing-plans -> execution/plan-<change>.md) and reviewed there.
+owned by the execution tool (AI Hero grill-with-docs -> execution/design.md,
+to-spec -> execution/spec.md; Superpowers brainstorming -> execution/design.md,
+writing-plans -> execution/plan-<change>.md) and reviewed there.
 
 handoff.md is the contract between OpenSpec (requirements) and the
 execution tool (AI Hero or Superpowers). It is a pointer document, not a spec.
@@ -97,9 +98,10 @@ const tasks = {
 wrapper skill for the tool in handoff.md - it runs the real tool skills and
 writes their output into execution/ in this change folder:
 - tool: ai-hero -> skill \`openspec-handoff-ai-hero\`
-  (grill-with-docs -> execution/design.md, to-tickets -> execution/tickets/NN-<slug>.md)
+  (grill-with-docs -> execution/design.md, to-spec -> execution/spec.md,
+  to-tickets -> execution/tickets/NN-<slug>.md)
 - tool: superpowers -> skill \`openspec-handoff-superpowers\`
-  (writing-plans -> execution/plan-<change>.md)
+  (brainstorming -> execution/design.md, writing-plans -> execution/plan-<change>.md)
 Planning only - no code changes; implementation happens in /opsx:apply.
 
 Then write tasks.md as a thin, trackable index of that breakdown. Do not
@@ -120,7 +122,8 @@ Format (the apply phase parses checkboxes; only \`- [x]\` counts as done):
 
 Every execution artifact starts with a "Source of truth" line linking
 \`../proposal.md\` and the deltas, cites requirements/scenarios only by name +
-link, and never restates them (check-handoff flags copies AND paraphrases).
+link, and never restates them (check-handoff fails on copies and warns on
+likely paraphrases).
 Keep the breakdown PR-sized: at most 8 tickets / plan tasks (hard cap 12).
 
 When the execution tool completes a ticket / plan task, tick the matching

@@ -61,23 +61,6 @@ if [ "$SET_DEFAULT" = 1 ]; then
     mv "$cfg.tmp" "$cfg"
   fi
   echo "  openspec/config.yaml -> schema: handoff-driven"
-  # Project context (OpenSpec's supported lever): injected into `openspec instructions` output,
-  # so apply/verify/archive agents learn that design is owned by the execution tool.
-  if ! grep -q '^context:' "$cfg"; then
-    cat >> "$cfg" <<'CTX'
-
-# Added by openspec-handoff-workflow (install.sh). Edit freely.
-context: |
-  Handoff-driven workflow: OpenSpec owns only proposal.md and the delta specs (specs/**/spec.md).
-  Design and implementation are owned by the execution tool named in each change's handoff.md
-  (AI Hero or Superpowers). Its design (execution/design.md or execution/plan-<change>.md), tickets,
-  plan, progress and reviews live in the change's execution/ folder and were reviewed by that tool.
-  There is no OpenSpec design.md in this workflow: do not create one, and do not report it missing.
-  Verify changes against proposal.md + delta specs. Execution artifacts cite requirements and
-  scenarios by name with a link and never restate them (node .openspec-handoff/scripts/check-handoff.mjs).
-CTX
-    echo "  openspec/config.yaml += context (design is owned by the execution tool)"
-  fi
 fi
 
 gi="$TARGET/.gitignore"
@@ -91,6 +74,6 @@ Done. Next:
   /handoff <id> ai-hero|superpowers <model>             # after proposal + specs (no OpenSpec design)
   /adversarial-review <id> --dry-run
 Also install the execution toolkits themselves (not bundled):
-  AI Hero:     https://github.com/mattpocock/skills  (grill-with-docs, to-tickets, implement, tdd, code-review; to-spec is not used)
-  Superpowers: https://github.com/obra/superpowers  (writing-plans, executing-plans / subagent-driven-development, requesting-code-review)
+  AI Hero:     https://github.com/mattpocock/skills  (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
+  Superpowers: https://github.com/obra/superpowers  (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)
 MSG

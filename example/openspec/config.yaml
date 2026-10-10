@@ -2,10 +2,7 @@ schema: handoff-driven
 
 context: |
   Node >= 18, ES modules, no runtime dependencies. Tests use node --test.
-  Execution tools: AI Hero (mattpocock/skills) or Superpowers (obra/superpowers),
-  handed off via handoff.md. OpenSpec owns only proposal.md + delta specs; design and implementation are
-  owned by the execution tool (execution/ in each change) and reviewed there - there is no OpenSpec design.md.
-  Verify against proposal + delta specs. Keep every change PR-sized (see docs/small-changes.md in the toolkit).
+  Keep every change PR-sized (see docs/small-changes.md in the toolkit).
 
 rules:
   proposal:

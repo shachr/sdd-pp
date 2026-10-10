@@ -2,8 +2,9 @@
 // check-handoff: lint one OpenSpec change that uses the handoff-driven schema.
 //   - handoff.md front matter is complete (tool, implementation_model, base_ref ...)
 //   - reference-not-duplicate: handoff.md and execution/** link the proposal/deltas and
-//     do not copy, restate (forbidden sections, SHALL) or paraphrase (token overlap) them
-//   - ownership: no OpenSpec design.md, no to-spec output; design lives in execution/
+//     do not copy (verbatim lines, delta headers, SHALL: errors); restating sections and token-overlap
+//     paraphrases are advisory warnings (errors with config.strictDuplication)
+//   - ownership: no OpenSpec design.md; design lives in execution/ (to-spec output: execution/spec.md)
 //   - execution outputs live in the change folder, not the tools' default locations
 //   - the change is PR-sized (.openspec-handoff/small-changes.md)
 // Usage: node check-handoff.mjs <change-id> [--root <dir>] [--config <file>] [--json] [--no-git]
@@ -14,7 +15,7 @@ import { parseArgs } from 'node:util';
 import {
   findProjectRoot, loadChange, loadConfig, normativeLines, normalize, countRequirements,
   countWorkUnits, diffSize, git, TOOLS, REQUIRED_KEYS, UsageError,
-  paraphraseFindings, PARAPHRASE, FORBIDDEN_SECTIONS, findPlan,
+  paraphraseFindings, PARAPHRASE, restatingSections, findPlan,
 } from './lib/change.mjs';
 
 export function checkChange(change, config, { useGit = true } = {}) {
@@ -62,8 +63,12 @@ export function checkChange(change, config, { useGit = true } = {}) {
     if (/^###\s+Requirement:|^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements|^####\s+Scenario:/m.test(text)) {
       errors.push(`${file}: contains spec-delta headers (Requirement/Scenario/ADDED...) - link the delta instead`);
     }
-    const forbidden = FORBIDDEN_SECTIONS.exec(text);
-    if (forbidden) errors.push(`${file}: section "${forbidden[0].trim()}" restates behaviour - the proposal + delta are the spec; cite requirements by name + link`);
+    // Advisory (warnings unless config.strictDuplication): to-spec's Problem Statement / Solution /
+    // User Stories sections are allowed when they point at the proposal / delta instead of restating it.
+    const advisory = config.strictDuplication ? errors : warnings;
+    for (const s of restatingSections(text)) {
+      advisory.push(`${file}:${s.line}: section "${s.heading}" has no link to the proposal or delta - reference them instead of restating behaviour`);
+    }
     const prose = text.replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, '');
     const shall = /^.*\bSHALL\b.*$/m.exec(prose);
     if (shall) errors.push(`${file}: normative SHALL sentence ("${shall[0].trim().slice(0, 60)}") - requirements live only in the delta`);
@@ -75,8 +80,8 @@ export function checkChange(change, config, { useGit = true } = {}) {
     }
     for (const d of change.deltas) {
       for (const p of paraphraseFindings(text, change.read(d), paraphrase)) {
-        const msg = `${file}:${p.line}: ${p.level === 'error' ? 'paraphrases' : 'may paraphrase'} ${p.unit} of ${d} (overlap ${p.jaccard.toFixed(2)}): "${p.raw.slice(0, 70)}" - cite it by name instead`;
-        (p.level === 'error' ? errors : warnings).push(msg);
+        const msg = `${file}:${p.line}: ${p.level === 'error' ? 'likely paraphrases' : 'may paraphrase'} ${p.unit} of ${d} (overlap ${p.jaccard.toFixed(2)}): "${p.raw.slice(0, 70)}" - cite it by name instead`;
+        (p.level === 'error' ? advisory : warnings).push(msg);
       }
     }
   }
@@ -88,7 +93,6 @@ export function checkChange(change, config, { useGit = true } = {}) {
 
   // 5. ownership and locations: OpenSpec = proposal + deltas; design/plan/tickets = execution tool, in execution/
   if (change.files.includes('design.md')) errors.push('design.md in the change folder: design is owned by the execution tool - move decisions to execution/design.md (ai-hero) or the plan (superpowers)');
-  if (change.execution.includes('execution/spec.md')) errors.push('execution/spec.md (to-spec output): the proposal + delta are the spec - do not run to-spec; feed to-tickets from the delta');
   const strays = [
     path.join(change.root, '.scratch', change.id),
     ...['docs/superpowers/plans', 'docs/superpowers/specs'].flatMap((d) => {
