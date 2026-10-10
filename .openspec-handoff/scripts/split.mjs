@@ -16,7 +16,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, git, UsageError } from './lib/change.mjs';
 import {
-  baselineDeltas, changeDeltas, changeLocation, findParentOf, lintSlices, mainSpecRequirements,
+  baselineDeltas, changeDeltas, dependencyClosure, changeLocation, findParentOf, lintSlices, mainSpecRequirements,
   nameLeaks, parentDir, parseSlices, parseSplitNotes, readiness, SLICE_STATUSES,
 } from './lib/split.mjs';
 
@@ -357,6 +357,7 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
   if (errs.length) throw new UsageError(`${proposal}:\n  ${errs.join('\n  ')}`);
 
   const mainCaps = new Set(mainSpecRequirements(root).map((m) => m.capability));
+  const depClosure = dependencyClosure(prop.slices);
   const changesDir = path.join(root, 'openspec', 'changes');
   for (const s of prop.slices) if (fs.existsSync(path.join(changesDir, s.id))) throw new UsageError(`openspec/changes/${s.id} already exists`);
   const parentId = resplit ? parent.id : id;
@@ -393,14 +394,17 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
       fs.writeFileSync(path.join(cdir, 'specs', cap, 'spec.md'), parts.join('\n'));
     }
     const capsAll = [...new Set([...s.capabilities, ...caps.keys()])];
+    // a capability an earlier slice (in depends_on, transitively) creates is "modified" here: it exists by the time this slice runs
+    const earlier = new Set([...(depClosure[s.id] || [])].flatMap((d) => prop.slices.find((x) => x.id === d)?.capabilities || []));
+    const isNew = (c) => !mainCaps.has(c) && !earlier.has(c);
     fs.writeFileSync(path.join(cdir, 'proposal.md'), [
       '# Proposal', '',
       `> Slice of split change [${parentId}](../${parentId}/slices.md) - shared design session: [../${parentId}/execution/](../${parentId}/execution/).`, '',
       '## Why', '', `${s.goal}. Part of [${parentId}](../${parentId}/proposal.md), split so each PR stays reviewable.`, '',
       '## What Changes', '', `- ${s.goal}`, ...(s.flag ? [`- Behind the feature flag \`${s.flag}\` (off by default); removed later by a cleanup slice.`] : []), ...(s.removes_flag ? [`- Removes the feature flag \`${s.removes_flag}\`.`] : []), '',
       '## Capabilities', '',
-      '### New Capabilities', '', ...(capsAll.filter((c) => !mainCaps.has(c)).map((c) => `- \`${c}\``).concat(capsAll.some((c) => !mainCaps.has(c)) ? [] : ['_None._'])), '',
-      '### Modified Capabilities', '', ...(capsAll.filter((c) => mainCaps.has(c)).map((c) => `- \`${c}\``).concat(capsAll.some((c) => mainCaps.has(c)) ? [] : ['_None._'])), '',
+      '### New Capabilities', '', ...(capsAll.filter(isNew).map((c) => `- \`${c}\``).concat(capsAll.some(isNew) ? [] : ['_None._'])), '',
+      '### Modified Capabilities', '', ...(capsAll.filter((c) => !isNew(c)).map((c) => `- \`${c}\``).concat(capsAll.some((c) => !isNew(c)) ? [] : ['_None._'])), '',
       '## Impact', '', `See the parent plan [slices.md](../${parentId}/slices.md); depends on: ${s.depends_on.join(', ') || 'none'}.`, '',
       '## Split notes', '',
       '<!-- Deliberate differences from the original change, recorded by this slice (split.mjs loss reads them):', '     - dropped: Requirement|Scenario "<original name>" - <why>', '     - added: Requirement|Scenario "<new name>" - <why>', '     - renamed_from: Requirement|Scenario "<original name>" -> "<new name>" - <why equivalent>', '     - split_from: Requirement "<original name>" - confirmed -->', '',
