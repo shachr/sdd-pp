@@ -1,0 +1,26 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { run } from '../src/cli.mjs';
+
+/** Run the CLI core with fake streams; returns { code, out, err }. */
+export function cli(argv, { stdin = '', env = {} } = {}) {
+  let out = ''; let err = '';
+  const code = run(argv, {
+    stdout: { write: (s) => { out += s; } },
+    stderr: { write: (s) => { err += s; } },
+    readStdin: () => stdin,
+    env,
+  });
+  return { code, out, err };
+}
+
+test('Slugify argument', () => assert.deepEqual(cli(['slugify', 'Hello World!']), { code: 0, out: 'hello-world\n', err: '' }));
+test('Slugify from stdin', () => assert.deepEqual(cli(['slugify'], { stdin: 'Café au lait\n' }), { code: 0, out: 'cafe-au-lait\n', err: '' }));
+test('slugify joins several arguments with a space', () => assert.equal(cli(['slugify', 'Hello', 'World']).out, 'hello-world\n'));
+test('bin/textkit.mjs runs slugify from a real process (argument and stdin)', () => {
+  let r = spawnSync(process.execPath, ['bin/textkit.mjs', 'slugify', 'Hello World!'], { encoding: 'utf8' });
+  assert.equal(r.status, 0); assert.equal(r.stdout, 'hello-world\n');
+  r = spawnSync(process.execPath, ['bin/textkit.mjs', 'slugify'], { input: 'Café au lait\n', encoding: 'utf8' });
+  assert.equal(r.status, 0); assert.equal(r.stdout, 'cafe-au-lait\n');
+});
