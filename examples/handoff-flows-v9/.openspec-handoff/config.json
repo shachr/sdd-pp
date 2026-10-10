@@ -1,0 +1,21 @@
+{
+  "$comment": "openspec-handoff-workflow config. Installed to <project>/.openspec-handoff/config.json. Edit freely.",
+  "reviewSkills": {
+    "ai-hero": {
+      "skill": "code-review",
+      "source": "mattpocock/skills skills/engineering/code-review",
+      "howTo": "Two-axis review (Standards + Spec) of `git diff {base_ref}...HEAD`. Use the OpenSpec change folder as the Spec source: proposal.md and the spec deltas are the requirements; execution/grill.md, execution/spec.md and execution/tickets/ are implementation context only."
+    },
+    "superpowers": {
+      "skill": "requesting-code-review",
+      "source": "obra/superpowers skills/requesting-code-review (code-reviewer.md template)",
+      "howTo": "Fill the code-reviewer.md template with DESCRIPTION = the proposal's Why/What Changes, PLAN_OR_REQUIREMENTS = the spec deltas plus execution/plan-<change>.md, BASE_SHA = {base_ref}, HEAD_SHA = HEAD. Report Critical / Important / Minor."
+    }
+  },
+  "split": {
+    "$comment": "Warn-only. /split-check at the end of the specs stage counts delta requirements and capabilities (warn above maxRequirements / maxCapabilities). The ~limitLines estimate (code + tests) is checked after planning by /spec-check from the tool's tickets / plan tasks. The real PR diff is not measured by this toolkit.",
+    "maxRequirements": 5,
+    "maxCapabilities": 2,
+    "limitLines": 300
+  }
+}

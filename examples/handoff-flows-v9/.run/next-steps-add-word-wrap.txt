@@ -1,0 +1,10 @@
+Next steps for add-word-wrap (ai-hero, apply_mode: implement-spec). Skill: openspec-handoff-ai-hero - outputs stay in openspec/changes/add-word-wrap/execution/.
+1. /to-spec - reads openspec/changes/add-word-wrap/execution/grill.md -> openspec/changes/add-word-wrap/execution/spec.md (user stories cite "Requirement: <name>").
+2. /to-tickets -> openspec/changes/add-word-wrap/execution/tickets/NN-<slug>.md (each names its requirement(s); scenarios by name only; one "Estimate: ~N lines" line each). Re-running it later: regenerate open tickets only - never overwrite a ticket marked done.
+3. /spec-check add-word-wrap -> openspec/changes/add-word-wrap/execution/spec-check.md (coverage + the line estimate after planning, budget ~300). On GAPS: stop, fix, re-run. After any later delta edit, run /spec-check again: it lists the requirements / scenarios added, changed, removed or renamed since the last check and the tickets / tasks citing them (re-plan open ones; done ones are protected).
+   Commit the planning files with the change: git switch -c change/add-word-wrap, then commit openspec/changes/add-word-wrap/execution/ (branch before implementation; everything for this change - planning, code, archive - goes in its PR).
+4. /implement-spec (sub-agents) with tdd, ticket by ticket on branch change/add-word-wrap; set "Status: done" and tick the ticket's checkboxes as each lands (commit each ticket with its code).
+5. /code-review (Standards + Spec reviewers) - the tool's own review step; fix what it finds. CI also runs a code review on the PR.
+6. /opsx:verify add-word-wrap - save the report verbatim to openspec/changes/add-word-wrap/execution/verify.md
+7. /opsx:archive add-word-wrap on the change branch, and commit the archive in this change's PR together with its code (the change is complete when its archived folder is on main).
+8. Merge the PR (branch change/add-word-wrap) into main.

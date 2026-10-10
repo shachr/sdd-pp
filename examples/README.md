@@ -2,7 +2,7 @@
 
 Test projects used to develop and prove this toolkit, each with its full git history (merged in subtree-style).
 
-v1-v7 are historical runs and predate the current toolkit: they still use `install.sh`, the `implementation_model` / `reviewer_model` handoff fields and the Ollama fallback reviewer (see `docs/decisions.md` section 13). v8 is the first run of the current toolkit (Node installer `npx github:shachr/sdd-pp init`, no reviewer/model fields).
+v1-v7 are historical runs and predate the current toolkit: they still use `install.sh`, the `implementation_model` / `reviewer_model` handoff fields and the Ollama fallback reviewer (see `docs/decisions.md` section 13). v8 is the first run of the current toolkit (Node installer `npx github:shachr/sdd-pp init`, no reviewer/model fields). v9 runs the toolkit after check-handoff was retired: `/spec-check` is the only plan-vs-spec check and reports spec changes since the last check.
 
 | Folder | What it shows |
 |---|---|
@@ -14,6 +14,7 @@ v1-v7 are historical runs and predate the current toolkit: they still use `insta
 | `handoff-flows-v6/` | v6: split with the parent as a pure control plane (git-baseline loss check) |
 | `handoff-flows-v7/` | v7: clean test: parent design session names are harmless |
 | `handoff-flows-v8/` | v8: first full run of the Node installer + no reviewer/model fields |
+| `handoff-flows-v9/` | v9: AI Hero with `implement-spec` and Superpowers with `subagent-driven-development` (sub-agent roles run in-session, labelled); a scenario edit after planning shown by the /spec-check spec-change report; no check-handoff. Findings in `.run/findings.md` |
 
 Absolute paths such as `/home/box/...` or `/workspace/...` in logs and reviews refer to the machine the runs were made on.
 

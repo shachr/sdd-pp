@@ -1,0 +1,30 @@
+{
+  "checked_at": "2026-10-10T22:08:24.718Z",
+  "requirements": {
+    "Word count": {
+      "delta": "specs/text-stats/spec.md",
+      "hash": "a19dd55cd45e",
+      "scenarios": {
+        "Counts words": "7c6dff7338f3",
+        "No words": "8e17f340598c"
+      }
+    },
+    "Reading time": {
+      "delta": "specs/text-stats/spec.md",
+      "hash": "41f0ed88920c",
+      "scenarios": {
+        "Rounds up to whole minutes": "e828c6c7ec60",
+        "Empty text reads in zero minutes": "8ff29940a627",
+        "Custom reading speed": "dae78ab111ad"
+      }
+    },
+    "Input checked": {
+      "delta": "specs/text-stats/spec.md",
+      "hash": "0370d475cecc",
+      "scenarios": {
+        "Text is not a string": "f0fb4c97b7f1",
+        "Reading speed is not positive": "266951a653f6"
+      }
+    }
+  }
+}
