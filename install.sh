@@ -8,17 +8,18 @@
 set -euo pipefail
 
 usage() { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
-[ $# -ge 1 ] || usage 2
-case "$1" in -h|--help) usage 0;; esac
-TARGET=$(cd "$1" && pwd); shift
 SRC=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-LINK=0 SET_DEFAULT=0 CLAUDE=1 CURSOR=1 OPENCODE=auto FORCE=0
-for a in "$@"; do
+LINK=0 SET_DEFAULT=0 CLAUDE=1 CURSOR=1 OPENCODE=auto FORCE=0 TARGET_ARG=
+for a in "$@"; do  # options may come before or after the project dir
   case "$a" in
+    -h|--help) usage 0;;
     --link) LINK=1;; --set-default) SET_DEFAULT=1;; --no-claude) CLAUDE=0;; --no-cursor) CURSOR=0;; --opencode) OPENCODE=1;; --no-opencode) OPENCODE=0;; --force) FORCE=1;;
-    *) echo "unknown option: $a" >&2; usage 2;;
+    -*) echo "unknown option: $a" >&2; usage 2;;
+    *) [ -z "$TARGET_ARG" ] || { echo "only one project dir allowed" >&2; usage 2; }; TARGET_ARG=$a;;
   esac
 done
+[ -n "$TARGET_ARG" ] || usage 2
+TARGET=$(cd "$TARGET_ARG" && pwd)
 if [ "$OPENCODE" = auto ]; then if [ -d "$TARGET/.opencode" ]; then OPENCODE=1; else OPENCODE=0; fi; fi
 [ -d "$TARGET/openspec" ] || { echo "error: $TARGET has no openspec/ directory - run 'openspec init' first" >&2; exit 1; }
 
