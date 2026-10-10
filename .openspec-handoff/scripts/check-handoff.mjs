@@ -23,6 +23,7 @@ import {
   paraphraseFindings, PARAPHRASE, restatingSections, findPlan, requirementLinkFindings, APPLY_MODES,
   resolveTool, SESSION_FILES, proposalLeaks, newCapabilityDeltas, executionProgress, resetDoneWork,
 } from './lib/change.mjs';
+import { parseSplitNotes } from './lib/split.mjs';
 
 export function checkChange(change, config, opts = {}) {
   const { useGit = true } = opts;
@@ -59,6 +60,14 @@ export function checkChange(change, config, opts = {}) {
     if (sf.tool && sf.tool !== sf.fileTool) errors.push(`${sf.file}: front matter tool "${sf.tool}" does not match the file (${sf.fileTool} writes ${sf.file})`);
     if (!sf.tool) warnings.push(`${sf.file}: no "tool:" front matter (record the tool the session was run with)`);
     if (h.tool && sf.fileTool !== h.tool) errors.push(`handoff.md tool "${h.tool}" but the design session ran with ${sf.fileTool} (${sf.file}) - switching tools means redoing the session (.openspec-handoff/switching-tools.md)`);
+  }
+  // slice of a split change: where the parent's shared session and this slice's delta / split notes differ, the
+  // delta wins; the slice's narrowed session lists the parent decisions it overrides ("## Overrides", warn-only)
+  const splitNotes = parseSplitNotes(change.read('proposal.md') || '');
+  if (splitNotes.notes.length) {
+    for (const sf of rt.sessions) {
+      if (!/^#{2,3}\s+Overrides\b/m.test(change.read(sf.file) || '')) warnings.push(`${sf.file}: this slice has split notes but its narrowed session has no "## Overrides" section - list the parent session decisions this slice overrides (the delta wins where they differ; "None" if nothing)`);
+    }
   }
   if (h.tool && TOOLS.includes(h.tool) && !rt.sessions.some((x) => x.fileTool === h.tool)) {
     errors.push(`${SESSION_FILES[h.tool]} is missing: the ${h.tool} design session runs in the proposal phase, before /handoff`);
