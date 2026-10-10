@@ -1,6 +1,6 @@
 > Source of truth: [proposal](../proposal.md) · [spec delta](../specs/text-stats/spec.md) · [handoff](../handoff.md)
 
-/opsx:verify add-text-stats-core - report saved verbatim (run 2026-10-10 10:47 PT, grok-bot, branch change/add-text-stats-core at 749f771).
+/opsx:verify add-text-stats-core - report saved verbatim (run 2026-10-10 10:39 PT, grok-bot, branch change/add-text-stats-core at 749f771).
 
 ## Verification Report: add-text-stats-core
 
