@@ -42,7 +42,7 @@
 **Interfaces:**
 - Produces: `export function wordCount(text: unknown): number`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```js
 import { test } from 'node:test';
@@ -58,10 +58,10 @@ test('Review focus: coercion, Unicode, newlines', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails** - `npm test`, expected FAIL (module not found).
-- [ ] **Step 3: Implement `wordCount`** - `const hasWord = (s) => /[\p{L}\p{N}]/u.test(s);` then `String(text).split(/\s+/).filter(hasWord).length`.
-- [ ] **Step 4: Run test to verify it passes** - `npm test`, expected PASS.
-- [ ] **Step 5: Commit** - `git commit -m "feat(text-stats): word count (plan task 1)"`
+- [x] **Step 2: Run test to verify it fails** - `npm test`, expected FAIL (module not found).
+- [x] **Step 3: Implement `wordCount`** - `const hasWord = (s) => /[\p{L}\p{N}]/u.test(s);` then `String(text).split(/\s+/).filter(hasWord).length`.
+- [x] **Step 4: Run test to verify it passes** - `npm test`, expected PASS.
+- [x] **Step 5: Commit** - `git commit -m "feat(text-stats): word count (plan task 1)"`
 
 ### Task 2: sentence count
 
