@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run, initCli, OPENSPEC_SKIP } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run, initCli, OPENSPEC_SKIP, runPrinted } from './helpers.mjs';
 
 const ex = (dir) => path.join(dir, 'openspec', 'changes', CHANGE, 'execution');
 const warns = (dir) => JSON.parse(run('split-check.mjs', [CHANGE, '--json'], dir).stdout).warnings.join('\n');
@@ -50,12 +50,17 @@ test('/sdd-tool <id> (show) writes nothing; --set starts the session file and pr
   r = run('execution-tool.mjs', [CHANGE, '--set', 'ai-hero'], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /-> execution\/grill\.md \(created\)\nCommit with the change: git add openspec\/changes\/add-greeting-name\/execution\/grill\.md && git commit -m "tool\(add-greeting-name\): ai-hero"/);
-  assert.equal(fs.readFileSync(path.join(ex(dir), 'grill.md'), 'utf8'), `---\ntool: ai-hero\nsession: grill-with-docs\n---\n\n> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md\n\n# grill-with-docs session: ${CHANGE}\n`);
+  assert.equal(fs.readFileSync(path.join(ex(dir), 'grill.md'), 'utf8'), `---\ntool: ai-hero\nsession: grill-with-docs\n---\n\n> Links: [proposal](../proposal.md) · specs: [greeting](../specs/greeting/spec.md)\n\n# grill-with-docs session: ${CHANGE}\n`);
   assert.match(run('execution-tool.mjs', [CHANGE], dir).out, /\(not started\)/, 'the stub is not a started session');
+  runPrinted(dir, r.out, 'Commit with the change'); clean();
   // the stub does not lock the tool: --set superpowers replaces it
   r = run('execution-tool.mjs', [CHANGE, '--set', 'superpowers'], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /replaced the unused execution\/grill\.md stub \(no design session in it yet\)/);
+  // B12: the printed line stages the committed stub's deletion too, so following it leaves a clean tree
+  assert.match(r.out, /^Commit with the change: git add -A openspec\/changes\/add-greeting-name\/execution && git commit -m "tool\(add-greeting-name\): superpowers"$/m);
+  runPrinted(dir, r.out, 'Commit with the change'); clean();
+  assert.equal(git('ls-files', 'openspec/changes/add-greeting-name/execution/grill.md').trim(), '', 'the stub is gone from HEAD too');
   assert.equal(fs.existsSync(path.join(ex(dir), 'grill.md')), false);
   assert.match(fs.readFileSync(path.join(ex(dir), 'brainstorm.md'), 'utf8'), /^---\ntool: superpowers\n/);
   // ... and back again

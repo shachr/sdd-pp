@@ -70,7 +70,10 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   setPass();
   r = run('spec-check.mjs', [CHANGE, '--accept'], dir);
   assert.equal(r.code, 0, r.out); assert.match(r.out, /PASS accepted - baseline execution\/\.spec-check\.json/);
-  assert.match(fs.readFileSync(report, 'utf8'), /^PASS$/m, '--accept does not rewrite the report');
+  assert.match(fs.readFileSync(report, 'utf8'), /^PASS$/m, '--accept keeps the review and PASS');
+  // B4: the saved report no longer says "no accepted baseline yet"
+  assert.doesNotMatch(fs.readFileSync(report, 'utf8'), /no accepted baseline yet/);
+  assert.match(fs.readFileSync(report, 'utf8'), /^- none: this PASS is the accepted baseline \(\d{4}-\d\d-\d\dT[^)]+\)$/m);
   const snap = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
   assert.match(snap.accepted_at, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/, 'local time with offset');
   assert.match(snap.requirements['Greeting by name'].scenarios['Name given'], /^[0-9a-f]{12}$/);
@@ -78,14 +81,26 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   const accepted = fs.readFileSync(report, 'utf8');
   r = run('spec-check.mjs', [CHANGE, '--write'], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /spec-check add-greeting-name: unchanged since the accepted PASS \(delta and planning units match\) - kept the saved review and PASS in openspec\/changes\/add-greeting-name\/execution\/spec-check\.md; nothing written\./);
+  assert.match(r.out, /^spec-check add-greeting-name: PASS \(kept\) - unchanged since the accepted PASS \(delta and planning units match\) - kept the saved review and PASS in openspec\/changes\/add-greeting-name\/execution\/spec-check\.md; nothing written\.$/m);
   assert.equal(fs.readFileSync(report, 'utf8'), accepted, 'review + PASS kept byte-identical');
   assert.match(accepted, /- Contradicted: none\n[\s\S]*^PASS$/m);
-  // --check: the fresh report, nothing written
+  // B3: --check on the accepted, unchanged PASS reports PASS (kept), not PENDING; nothing written
   r = run('spec-check.mjs', [CHANGE, '--check'], dir);
-  assert.match(r.out, /### Spec changes since the last check \(report-only; baseline accepted [^)]+[+-]\d\d:\d\d\)\n\n- none\n/);
-  assert.match(r.out, /\(check only: nothing written\)/);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^spec-check add-greeting-name: PASS \(kept\) - unchanged since the accepted PASS \(delta and planning units match\) - the saved review and PASS in openspec\/changes\/add-greeting-name\/execution\/spec-check\.md stand \(check only: nothing written\)\.$/m);
+  assert.doesNotMatch(r.out, /^PENDING/m);
   assert.equal(fs.readFileSync(report, 'utf8'), accepted);
+  // B2: progress is not planning - reopening / closing tickets, (un)ticking boxes and ticket comments keep the PASS
+  const tk = path.join(ex(changeDir, 'tickets'), '02-cli-passes-the-name.md');
+  const tkText = fs.readFileSync(tk, 'utf8');
+  fs.writeFileSync(tk, tkText.replace('**Status:** done', '**Status:** ready-for-agent').replace(/- \[x\]/gi, '- [ ]') + '\n## Comments\n\n- implemented in abc123\n');
+  for (const mode of ['--write', '--check']) {
+    r = run('spec-check.mjs', [CHANGE, mode], dir);
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /PASS \(kept\) - unchanged since the accepted PASS/, mode);
+  }
+  assert.equal(fs.readFileSync(report, 'utf8'), accepted, 'the review survives ticket progress');
+  fs.writeFileSync(tk, tkText);
   // a planning unit changed (same delta): the report is rewritten for a new review
   const t1 = path.join(ex(changeDir, 'tickets'), '01-greet-accepts-a-name.md');
   const t1text = fs.readFileSync(t1, 'utf8');
@@ -93,7 +108,7 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   r = run('spec-check.mjs', [CHANGE, '--write'], dir);
   assert.doesNotMatch(r.out, /kept the saved review/);
   assert.match(fs.readFileSync(report, 'utf8'), /^PENDING: mechanical checks pass/m);
-  assert.match(r.out, /Wrote openspec\/changes\/add-greeting-name\/execution\/spec-check\.md\. After the agent review sets PASS and --accept records it, commit with the planning files: git add openspec\/changes\/add-greeting-name\/execution\/spec-check\.md openspec\/changes\/add-greeting-name\/execution\/\.spec-check\.json && git commit -m "spec-check\(add-greeting-name\): PASS"/);
+  assert.match(r.out, /Wrote openspec\/changes\/add-greeting-name\/execution\/spec-check\.md\. The agent review sets the Result\. On PASS, --accept records it; then commit with the planning files: git add openspec\/changes\/add-greeting-name\/execution\/spec-check\.md openspec\/changes\/add-greeting-name\/execution\/\.spec-check\.json && git commit -m "spec-check\(add-greeting-name\): PASS"\. On GAPS: fix and re-run/);
   fs.writeFileSync(t1, t1text);
   // edit the delta after planning: change a scenario, rename a requirement (same content), add a scenario
   replaceIn(delta, '- **THEN** the output is `Hello, Ada!`\n\n#### Scenario: Name with', '- **THEN** the output is `Hello, Ada!!`\n\n#### Scenario: Name with');
@@ -102,6 +117,9 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   for (let k = 0; k < 3; k++) {
     r = run('spec-check.mjs', [CHANGE, '--write'], dir);
     assert.equal(r.code, 1, 'the stale citation of the old name is a mechanical gap; the change list itself is report-only');
+    // B10: a GAPS report's commit line says GAPS, never PASS
+    assert.match(r.out, /^Wrote openspec\/changes\/add-greeting-name\/execution\/spec-check\.md with GAPS: [^\n]*git commit -m "spec-check\(add-greeting-name\): GAPS"$/m);
+    assert.doesNotMatch(r.out, /spec-check\(add-greeting-name\): PASS/);
     assert.match(r.out, /- renamed: Requirement "Blank name uses the default" \(was "Blank name falls back to default"\) - cited by: story 2; 01: greet\(\) - name parameter \[done\]/);
     assert.match(r.out, /- added: Scenario "Empty name" \(of "Blank name uses the default"\) - cited by: story 2; 01: greet\(\) - name parameter \[done\]/);
     assert.match(r.out, /- changed: Scenario "Name given" \(of "Greeting by name"\) - cited by: story 1; 01: greet\(\) - name parameter \[done\]; 02: CLI - argv wiring \[done\]/);
@@ -136,6 +154,29 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   fs.writeFileSync(d2delta, before);
   r = run('spec-check.mjs', [CHANGE, '--accept'], d2);
   assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(fs.readFileSync(rep2, 'utf8'), /removed: Requirement "Old requirement"/, 'the accepted list is cleared in the saved report');
   r = run('spec-check.mjs', [CHANGE, '--check'], d2);
-  assert.match(r.out, /### Spec changes since the last check \(report-only; baseline accepted [^)]+\)\n\n- none\n/);
+  assert.match(r.out, /### Spec changes since the last check \(report-only; baseline accepted [^)]+\)\n\n- none: this PASS is the accepted baseline/);
+  assert.match(r.out, /PASS \(kept\)/);
+});
+
+test('spec-check: scenarios count only when cited by exact name in quotes; a paraphrased scenario citation is an unknown reference; a loose word match is not coverage', () => {
+  const { dir, changeDir } = makeFixture();
+  // paraphrase the citation everywhere, but keep the words in prose
+  for (const f of ['spec.md', 'tickets/01-greet-accepts-a-name.md']) {
+    replaceIn(ex(changeDir, f), /"Name with surrounding spaces"/g, '"Name with spaces"');
+  }
+  fs.appendFileSync(ex(changeDir, 'tickets/01-greet-accepts-a-name.md'), '\nNote: a name with surrounding spaces is trimmed before greeting.\n');
+  const r = run('spec-check.mjs', [CHANGE], dir);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /✗ Name with surrounding spaces/);
+  assert.match(r.out, /- Scenario "Name with surrounding spaces" \(of "Greeting by name"\) - no story \/ ticket \/ plan task cites Scenario "Name with surrounding spaces"/);
+  assert.match(r.out, /execution\/spec\.md:\d+ user story "story 1" names scenario "Name with spaces"/);
+  assert.match(r.out, /execution\/tickets\/01-greet-accepts-a-name\.md:\d+ ticket "01: greet\(\) - name parameter" names scenario "Name with spaces"/);
+  // lower-case "scenario" citations count too; a list "scenarios "A", "B" and "C"" cites each
+  replaceIn(ex(changeDir, 'spec.md'), /\(scenarios "Name given", "Name with spaces"\)/, '(scenarios "Name given" and "Name with surrounding spaces")');
+  replaceIn(ex(changeDir, 'tickets/01-greet-accepts-a-name.md'), /Scenario "Name with spaces"/, 'scenario "Name with surrounding spaces"');
+  const r2 = run('spec-check.mjs', [CHANGE], dir);
+  assert.equal(r2.code, 0, r2.out);
+  assert.match(r2.out, /✓ Name given<br>✓ Name with surrounding spaces/);
 });

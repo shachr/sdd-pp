@@ -40,8 +40,13 @@ export function agentsBlock(file) {
 }
 
 /** Agent slash commands renamed to sdd-<name> (old unprefixed copies are removed on reinstall). */
-export const RENAMED_COMMANDS = ['handoff', 'tool', 'next-steps', 'spec-check', 'split-check', 'split-apply', 'split-next', 'split-start', 'split-archive', 'split-undo'];
-export const RUN_COMMANDS = ['spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split', 'slice-finish'];
+/** Command files an earlier install wrote, by old name -> current command (removed on reinstall when they are ours). */
+export const RENAMED_COMMANDS = {
+  handoff: 'sdd-handoff', tool: 'sdd-tool', 'next-steps': 'sdd-next-steps', 'spec-check': 'sdd-spec-check', 'split-check': 'sdd-split-check',
+  'split-apply': 'sdd-split-apply', 'split-next': 'sdd-split-next', 'split-undo': 'sdd-split-undo',
+  'split-start': 'sdd-slice-start', 'split-archive': 'sdd-split-finish', 'sdd-split-start': 'sdd-slice-start', 'sdd-split-archive': 'sdd-split-finish',
+};
+export const RUN_COMMANDS = ['spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split', 'slice-start', 'slice-finish', 'split-finish'];
 
 /** The sdd.mjs to run from `start`: the project's installed copy (nearest .openspec-handoff/scripts), else this package's. */
 export function sddScript(start = process.cwd()) {
@@ -60,11 +65,11 @@ export const USAGE = `Usage: sdd-pp init [dir] [options]      install into <dir>
          tool <id> [--set <tool>]        show / set the change's execution tool (tool --default <tool>: project default)
          split apply <id>                apply the approved split proposal (slice ids <parent>-<nn>-<slice>)
          split next <parent>             ready / parallel-safe slices + tickets for READY slices
-         split start <slice> [--undo]    take a READY slice (marks it in-progress, prints the next lines)
+         slice-start <slice> [--undo]    take a READY slice (marks it in-progress, prints the next lines)
          split undo <parent> [--force]   undo a split: original change back from split_commit, slices removed
          split loss <parent> [--final]   loss check
          slice-finish <slice>            finish an in-progress slice: verify.md (+ progress.md for Superpowers), openspec archive, status done
-         split archive <parent>          all slices archived? mark done, final loss check + openspec archive <parent> --skip-specs -y
+         split-finish <parent>           all slices archived? mark done, final loss check + openspec archive <parent> --skip-specs -y
        sdd-pp --help | --version
 
 Options for init:
@@ -136,10 +141,10 @@ export function init(dir, opts = {}, log = console.log) {
     }
     // unprefixed names from installs before the sdd- prefix (decisions section 22): remove only our own copies
     // (they all use the openspec-handoff skill or .openspec-handoff/scripts); a user's own /tool.md etc. is kept
-    for (const c of RENAMED_COMMANDS) {
+    for (const [c, now] of Object.entries(RENAMED_COMMANDS)) {
       const f = T(`.${h}`, 'commands', `${c}.md`);
       if (!fs.existsSync(f)) continue;
-      if (fs.readFileSync(f, 'utf8').includes('openspec-handoff')) { fs.rmSync(f); log(`  ${rel(root, f)} (removed: now /sdd-${c})`); }
+      if (fs.readFileSync(f, 'utf8').includes('openspec-handoff')) { fs.rmSync(f); log(`  ${rel(root, f)} (removed: now /${now})`); }
       else log(`  ${rel(root, f)} (kept: not installed by sdd-pp)`);
     }
   }
@@ -188,7 +193,8 @@ export function init(dir, opts = {}, log = console.log) {
   if (appendLine(T('.gitignore'), '.superpowers/')) log('  .gitignore += .superpowers/ (Superpowers SDD scratch)');
   if (appendLine(T('.gitattributes'), 'openspec/changes/**/slices.md merge=union')) log('  .gitattributes += slices.md merge=union (parallel slice branches each edit slices.md)');
 
-  const written = ['openspec/schemas', 'openspec/config.yaml', '.openspec-handoff', ...targets.map((h) => `.${h}`), '.gitignore', '.gitattributes', 'docs/agents', 'AGENTS.md', 'CLAUDE.md']
+  // the whole openspec/ folder (openspec init's .gitkeep files too) and the skills CLI's lock file, so git status is clean after it
+  const written = ['openspec', '.openspec-handoff', ...targets.map((h) => `.${h}`), '.gitignore', '.gitattributes', 'docs/agents', 'AGENTS.md', 'CLAUDE.md', 'skills-lock.json']
     .filter((p) => fs.existsSync(T(p)));
   log(`
 Commit the setup: git add ${written.join(' ')} && git commit -m "setup: sdd-pp"`);
@@ -203,7 +209,7 @@ Done. Next (agent slash commands; the same checks run from a shell as \`npx <too
   /sdd-handoff <id>                      last OpenSpec stage: handoff.md + prints the next steps (/sdd-next-steps <id> reprints them)
   ... planning, /sdd-spec-check <id>, implement (the tool's own completion), code review (as the next steps say)
   /opsx:verify <id> (save to execution/verify.md), /opsx:archive <id>
-  Split changes: /sdd-split-apply <id>, /sdd-split-next <parent>, /sdd-split-start <slice>, /sdd-slice-finish <slice>, /sdd-split-archive <parent>, /sdd-split-undo <parent>
+  Split changes: /sdd-split-apply <id>, /sdd-split-next <parent>, /sdd-slice-start <slice>, /sdd-slice-finish <slice>, /sdd-split-finish <parent>, /sdd-split-undo <parent>
 Also install the execution toolkits themselves (not bundled; <agent> = your coding agent, e.g. claude-code, cursor, opencode):
   AI Hero:     npx skills add mattpocock/skills -a <agent>   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
   Superpowers: npx skills add obra/superpowers -a <agent>    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)`);
