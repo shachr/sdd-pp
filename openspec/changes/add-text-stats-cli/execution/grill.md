@@ -3,9 +3,8 @@ tool: ai-hero
 session: grill-with-docs
 ---
 
-> Source of truth: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md
-
 # grill-with-docs session: add-text-stats-cli
+
 > Source of truth: [proposal](../proposal.md) · [specs/text-stats/spec.md](../specs/text-stats/spec.md) · [specs/cli/spec.md](../specs/cli/spec.md) · [specs/stats-cli/spec.md](../specs/stats-cli/spec.md)
 
 Request (user, via the parent agent): "textkit should count words and sentences, and people should be able to use it from the terminal, including a stats command". Run with AI Hero `grill-with-docs` before any OpenSpec artifact existed. Decisions were delegated: every answer is **Grok Bot's call on the user's behalf**. This is the shared design session for the whole feature; if it is split, each slice runs a short narrowed session that reads this file first.
