@@ -56,3 +56,5 @@ apply:
     parent's execution/ session file), /handoff <slice>, and follows the printed next steps; the
     slice's archive is committed in its own PR with its code. When every slice is done:
     `/split-archive <parent>` (final loss check, then `openspec archive <parent> --skip-specs -y`).
+    To undo the split before any slice is archived: `/split-undo <parent>` (original change back from split_commit,
+    slice folders removed, uncommitted; a slice in progress needs --force).

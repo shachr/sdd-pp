@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // sdd: one entry point for the workflow's checks, so nobody types the individual scripts.
-// The agent slash commands (/split-apply, /split-next, /split-archive, /split-start,
+// The agent slash commands (/split-apply, /split-next, /split-archive, /split-start, /split-undo,
 // /next-steps, /tool) and the `sdd-pp` CLI subcommands both run this file; it only runs the scripts
 // below and passes their output and exit code through.
 //   spec-check <id> [--accept]      spec-check.mjs <id> --write [--accept]
@@ -10,6 +10,7 @@
 //   split apply <id>                split.mjs apply <id>
 //   split next <parent>             split.mjs next <parent> --write-tickets
 //   split start <slice> [--undo]  split.mjs start <slice> [--undo]
+//   split undo <parent> [--force]  split.mjs undo <parent> [--force]
 //   split loss <parent> [--final]   split.mjs loss <parent> [--final]
 //   split archive <parent>          split.mjs loss <parent> --final  +  openspec archive <parent> --skip-specs -y
 // Exit: the first failing step's exit code; 2 on a usage error.
@@ -28,6 +29,7 @@ export const USAGE = `usage: sdd <command> ...
   split apply <id>                 apply the approved execution/split-proposal.md
   split next <parent>              ready / parallel-safe slices + tickets for READY slices
   split start <slice> [--undo]     take a READY slice: mark it in-progress (finds the parent) + next lines; --undo: back to planned
+  split undo <parent> [--force]    undo the split: the original change back from split_commit, slice folders removed (uncommitted)
   split loss <parent> [--final]    loss check
   split archive <parent>           final loss check, then openspec archive <parent> --skip-specs -y`;
 
@@ -44,10 +46,10 @@ export function plan(argv) {
     case 'tool': if (!rest.length) throw new SddUsage(`tool <id> [--set <tool>] | tool --default <tool>\n\n${USAGE}`); return [node('execution-tool.mjs', rest)];
     case 'split': {
       const [sub, ...a] = rest;
-      if (!a.length || a[0].startsWith('-')) throw new SddUsage(`split ${sub || '<apply|next|start|loss|archive>'} <id>\n\n${USAGE}`);
+      if (!a.length || a[0].startsWith('-')) throw new SddUsage(`split ${sub || '<apply|next|start|undo|loss|archive>'} <id>\n\n${USAGE}`);
       if (sub === 'apply' || sub === 'loss') return [node('split.mjs', [sub, ...a])];
       if (sub === 'next') return [node('split.mjs', ['next', ...a, ...(a.includes('--write-tickets') ? [] : ['--write-tickets'])])];
-      if (sub === 'start') return [node('split.mjs', ['start', ...a])];
+      if (sub === 'start' || sub === 'undo') return [node('split.mjs', [sub, ...a])];
       if (sub === 'archive') return [node('split.mjs', ['loss', a[0], '--final']), openspec(['archive', a[0], '--skip-specs', '-y'])];
       throw new SddUsage(`unknown split command "${sub}"\n\n${USAGE}`);
     }
