@@ -10,6 +10,7 @@ Test projects used to develop and prove this toolkit, each with its full git his
 | `handoff-flows-v4/` | v4: no `tasks` stage (proposal, specs, handoff only) |
 | `handoff-flows-v5/` | v5: first split of a large change into slices (parent tracks requirement names) |
 | `handoff-flows-v6/` | v6: split with the parent as a pure control plane (git-baseline loss check) |
+| `handoff-flows-v7/` | v7: clean test: parent design session names are harmless |
 
 Absolute paths such as `/home/box/...` or `/workspace/...` in logs and reviews refer to the machine the runs were made on.
 

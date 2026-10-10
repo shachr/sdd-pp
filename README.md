@@ -3,7 +3,8 @@
 > **Examples:** [`examples/`](examples/) holds the test projects used to prove this toolkit, with their history:
 > [v1 first runs](examples/handoff-flows/), [v2 clean handoff](examples/handoff-flows-v2/),
 > [v3 setup phase](examples/handoff-flows-v3/), [v4 no tasks stage](examples/handoff-flows-v4/),
-> [v5 first split](examples/handoff-flows-v5/), [v6 split control plane](examples/handoff-flows-v6/).
+> [v5 first split](examples/handoff-flows-v5/), [v6 split control plane](examples/handoff-flows-v6/),
+> [v7 clean test: parent design session names are harmless](examples/handoff-flows-v7/).
 > Third-party skills inside them are MIT-licensed; see [`examples/README.md`](examples/README.md).
 
 OpenSpec decides **what** to build (proposal + delta specs, nothing else); AI Hero or Superpowers decide
