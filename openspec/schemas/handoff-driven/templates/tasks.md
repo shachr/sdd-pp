@@ -8,7 +8,7 @@
 
 ## 2. Review and verification
 
-- [ ] 2.1 Run /adversarial-review <change-id> and resolve Critical/Important findings - verify: review file exists in execution/reviews/
+- [ ] 2.1 Run the tool's code review (AI Hero `code-review` / Superpowers `requesting-code-review`) and resolve Critical/Important findings - verify: execution/reviews/code-review.md exists
 - [ ] 2.2 Run `openspec validate <change-id> --strict` - verify: exit 0
 - [ ] 2.3 Run `node .openspec-handoff/scripts/check-handoff.mjs <change-id>` - verify: exit 0
 

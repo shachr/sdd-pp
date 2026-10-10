@@ -22,9 +22,10 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 | `brainstorming` | **Yes**, starting from the proposal + delta (they are what your partner already said). If decisions were delegated, answer on their behalf and mark those answers as your calls. | `execution/design.md` (see overrides) |
 | `using-git-worktrees` | As Superpowers recommends | branch `change/<id>` |
 | `writing-plans` | Yes | `execution/plan-<id>.md` |
-| `subagent-driven-development` (if you have a subagent tool) or `executing-plans` | Yes, from `/opsx:apply` | code + tests; ledger in `.superpowers/sdd/plan-<id>/` (git-ignored); summary to `execution/progress.md` |
-| `requesting-code-review` | As the skill does (per task / final) | stays in the SDD workspace; summary in `execution/progress.md` |
-| Final review | Always | `/adversarial-review <id>` (different model) |
+| `/spec-check` | Yes, end of planning (stop on GAPS) | `execution/spec-check.md` |
+| `subagent-driven-development` or `executing-plans` - as `apply_mode` in handoff.md | Yes, started by the engineer (not `/opsx:apply`) | code + tests; ledger in `.superpowers/sdd/plan-<id>/` (git-ignored); summary to `execution/progress.md` |
+| `requesting-code-review` (final whole-branch review) | Yes | `execution/reviews/code-review.md` |
+| `/adversarial-review` | Optional (different model) | `execution/reviews/<ts>-<model>.md` |
 | `finishing-a-development-branch` | After review + verify | - |
 
 ### brainstorming overrides (`execution/design.md`)
@@ -44,21 +45,23 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 - **Architecture, File Structure, Interfaces, Review Focus, task steps, test code, commands**: write in full as writing-plans says. Test code may contain the scenario values (code blocks are implementation, not restatement).
 - Task titles name the component/slice (`### Task 1: text-statistics module - word counting`), not the rule. Prose in steps cites scenarios by name.
 - Use `### Task N: <name>` headings (the size check counts them). At most 8 tasks (hard cap 12).
+- Each task starts with `**Covers:** [delta](../specs/<cap>/spec.md) - "Requirement: <name>"` (one or more). check-handoff fails on a task that names no requirement or a nonexistent one; scaffolding folds into the task that needs it.
 - Execution choice (writing-plans "Execution Handoff"): record it at the end of the plan; if decisions were delegated, choose yourself and say so.
 
 ## Phase boundary
 
-- **Planning** (right after `/handoff`, or when `/opsx:propose|ff|continue` reaches `tasks`): brainstorming, writing-plans, then `tasks.md`. No code changes.
-- **Implementation** (`/opsx:apply`): executing-plans or subagent-driven-development, then review and verify.
+- **Planning** (right after `/handoff`, or when `/opsx:propose|ff|continue` reaches `tasks`): brainstorming, writing-plans, `tasks.md`, then `/spec-check`. No code changes.
+- **Implementation** (the engineer runs `executing-plans` or `subagent-driven-development`, as recorded in `apply_mode`; `/opsx:apply` is not used), then review and verify.
 
 ### Planning: after the plan exists
 
 1. Run `openspec instructions tasks --change "<id>"` and write `tasks.md`: one checkbox per plan task linking `execution/plan-<id>.md#task-n-<slug>`, plus the review group.
-2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors and read the warnings (likely paraphrases). Stop here if you were invoked for planning.
+2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors and read the warnings (likely paraphrases).
+3. Run `/spec-check <id>`; stop on GAPS. Stop here if you were invoked for planning.
 
-### Implementation (from /opsx:apply)
+### Implementation (the engineer runs `executing-plans` / `subagent-driven-development`)
 
-1. Execute with `subagent-driven-development` (or `executing-plans`). When a task completes, tick its `tasks.md` box in the same commit.
-2. After the final review, before deleting the SDD workspace, write `execution/progress.md`: source-of-truth line, then the ledger lines (task commits, rulings, deferred minors).
-3. Run `/adversarial-review <id>`, triage (`execution/reviews/triage.md`) and fix Critical/Important findings, tick 2.1; `openspec validate <id> --strict` (2.2); `check-handoff` (2.3).
+1. Execute with the `apply_mode` skill. When a task completes, tick its `tasks.md` box in the same commit.
+2. Final whole-branch review with `requesting-code-review` (fresh reviewer subagent, or a self-review from `code-reviewer.md` without a subagent tool) -> `execution/reviews/code-review.md`; fix Critical/Important findings and tick 2.1.
+3. Before deleting the SDD workspace, write `execution/progress.md`: source-of-truth line, then the ledger lines (task commits, rulings, deferred minors). `openspec validate <id> --strict` (2.2); `check-handoff` (2.3). `/adversarial-review` is optional.
 4. Run `/opsx:verify <id>` and save the report verbatim to `execution/verify.md`. Then `finishing-a-development-branch`, then `/opsx:archive <id>` as written (agent-driven sync).

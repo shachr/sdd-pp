@@ -18,10 +18,12 @@ You are moving an OpenSpec change from *requirements* (OpenSpec owns proposal + 
    - `implementation_model`: the exact model id that will write code (your own model id if you are the implementer; never a placeholder)
    - `harness`: claude-code, cursor, codex, opencode, ...
    - `base_ref`: `git rev-parse HEAD` right now
+   - `apply_mode`: the tool's own implement command the engineer will run - ai-hero: `implement` (one session) or `implement-spec` (subagents); superpowers: `executing-plans` (inline) or `subagent-driven-development`. Ask once if unknown; default to the subagent variant only if the harness has a subagent tool.
    - links to `proposal.md` and every `specs/**/spec.md` delta - links only
 4. **Lint.** `node .openspec-handoff/scripts/check-handoff.mjs <id>`. Fix every error.
 5. **Commit** (`handoff(<id>): <tool> / <model>`). `base_ref` stays the commit before any implementation.
-6. **Plan.** Run the *Planning* part of `openspec-handoff-ai-hero` (`tool: ai-hero`) or `openspec-handoff-superpowers` (`tool: superpowers`). It writes `execution/` and `tasks.md` and stops; implementation starts with `/opsx:apply`.
+6. **Plan.** Run the *Planning* part of `openspec-handoff-ai-hero` (`tool: ai-hero`: grill-with-docs -> to-spec -> to-tickets) or `openspec-handoff-superpowers` (`tool: superpowers`: brainstorming -> writing-plans). It writes `execution/` and `tasks.md`.
+7. **Spec check.** Run `/spec-check <id>` (`node .openspec-handoff/scripts/spec-check.mjs <id> --write`, then your contradiction review in `execution/spec-check.md`). On GAPS: stop and fix the design output (or the delta), then re-run. On PASS: commit (`plan(<id>): ...`) and stop. Tell the engineer to start implementation with the tool's own command from `apply_mode` (`/implement`, `/implement-spec`, `executing-plans`, `subagent-driven-development`). `/opsx:apply` is not used in this workflow; `openspec status` task progress is whatever `tasks.md` shows.
 
 ## Guardrails
 

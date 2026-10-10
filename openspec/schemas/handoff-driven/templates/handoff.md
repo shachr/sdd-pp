@@ -5,6 +5,7 @@ implementation_model: <exact-model-id>
 harness: <claude-code | cursor | codex | opencode>
 base_ref: <git rev-parse HEAD at handoff>
 execution_dir: execution/
+apply_mode: <implement | implement-spec | executing-plans | subagent-driven-development>
 # reviewer_model: <optional; must differ from implementation_model>
 ---
 
@@ -28,11 +29,13 @@ Implementation diff: `git diff <base_ref>...HEAD -- . ':!openspec'`
 | ai-hero `grill-with-docs` (decisions answered on the user's behalf if delegated) | `execution/design.md`; glossary terms -> `GLOSSARY.md`, ADRs -> `docs/adr/` |
 | ai-hero `to-spec` (user-facing sections link the proposal/delta) | `execution/spec.md` |
 | ai-hero `to-tickets` (scenarios cited by name) | `execution/tickets/NN-<slug>.md` |
-| ai-hero `implement` + `tdd`, then `code-review` | code + tests; `execution/reviews/self-review.md` |
+| `/spec-check` (end of planning) | `execution/spec-check.md` |
+| ai-hero `implement` / `implement-spec` (apply_mode) + `tdd`, then `code-review` | code + tests; `execution/reviews/code-review.md` |
 | superpowers `brainstorming` (written design; intent/goals link the proposal) | `execution/design.md` |
 | superpowers `writing-plans` | `execution/plan-<change-id>.md` |
-| superpowers `executing-plans` / `subagent-driven-development` ledger | `execution/progress.md` |
-| `/adversarial-review` | `execution/reviews/<timestamp>-<reviewer-model>.md` |
+| superpowers `executing-plans` / `subagent-driven-development` (apply_mode) ledger | `execution/progress.md` |
+| superpowers `requesting-code-review` (final review) | `execution/reviews/code-review.md` |
+| `/adversarial-review` (optional) | `execution/reviews/<timestamp>-<reviewer-model>.md` |
 | `/opsx:verify` report | `execution/verify.md` |
 
 ## Size check
