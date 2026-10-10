@@ -21,10 +21,10 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 | Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
 | Planning (engineer) | `writing-plans`, reading `execution/brainstorm.md` | `execution/plan-<id>.md` |
 | Planning (engineer) | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
-| Implementation | `using-git-worktrees` as Superpowers recommends | branch `change/<id>` |
+| Implementation | branch `change/<id>` before implementation: a plain branch or a worktree (`using-git-worktrees`) - either works; Superpowers recommends the worktree | branch `change/<id>` (plan, code and archive all go in its PR) |
 | Implementation | `executing-plans` or `subagent-driven-development` (`apply_mode`) - not `/opsx:apply` | code + tests; `.superpowers/sdd/plan-<id>/` (git-ignored); `execution/progress.md` |
 | Implementation | `requesting-code-review` (final whole-branch review) | any file it writes goes in `execution/reviews/` (optional) |
-| Verify / archive | `/opsx:verify`, `finishing-a-development-branch`, `/opsx:archive` | `execution/verify.md` |
+| Verify / archive | `/opsx:verify`, `/opsx:archive`, then `finishing-a-development-branch` | `execution/verify.md` |
 
 ## Design session (proposal phase)
 
@@ -57,7 +57,7 @@ After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must 
 
 ### Then
 
-1. `/spec-check <id>` (the only plan-vs-spec check); stop on GAPS. Planning ends here. There is no `tasks.md`: the plan's step checkboxes are the tracker.
+1. `/spec-check <id>` (the only plan-vs-spec check); stop on GAPS. Planning ends here. There is no `tasks.md`: the plan's step checkboxes are the tracker (`openspec list` / `openspec status` do not see them - expected).
 
 
 ## Slice of a split change
@@ -72,11 +72,11 @@ A change created by `/split-apply` (id `<parent>-<nn>-<slice>`) (its proposal li
 
 Superpowers `writing-plans` writes a whole plan; it has no update mode. Rerun it with the existing plan as input and **never reset a finished task** (all step checkboxes ticked) - refuse to overwrite it; replan only open tasks, keeping their `### Task N:` numbers stable where possible.
 If a finished task was reset anyway (`git diff HEAD -- <plan>` shows it), restore the plan with `git checkout HEAD -- <plan>` and replan again.
-After any delta edit (a /spec-check gap, a split note, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `/spec-check <id>` again.
+After any delta edit (a /spec-check gap, a split note, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `/spec-check <id>` again: its "Spec changes since the last check" section lists each requirement / scenario added, changed, removed or renamed and the tickets / tasks citing it - re-plan the open ones, never overwrite done ones (report-only).
 
 ## Implementation (the engineer runs `executing-plans` / `subagent-driven-development`)
 
 1. Execute with the `apply_mode` skill. Tick each plan step checkbox (`- [x]`) as it is done, committed with the task (Superpowers' own completion: the ledger and the plan's step checkboxes).
 2. Final whole-branch review with `requesting-code-review` - Superpowers' own review step; fix Critical/Important. If it writes a file, keep it in `execution/reviews/`. CI also runs a code review on the PR, so no review file or label is required.
-3. Before deleting the SDD workspace, write `execution/progress.md` (the ledger lines).
-4. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written, on the change branch, committed with the code; then `finishing-a-development-branch` (merge / PR with the archive in it).
+3. The SDD workspace is the directory Superpowers' `subagent-driven-development/scripts/sdd-workspace <plan>` prints (`.superpowers/sdd/plan-<id>/`, git-ignored); its ledger is `<workspace>/progress.md`. Before deleting the workspace, copy the ledger lines to `execution/progress.md`.
+4. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written, on the change branch, committed with the code; then `finishing-a-development-branch` (merge / PR with the archive in it). Archive first because finishing merges or opens the PR, and the archive must already be in it.

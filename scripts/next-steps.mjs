@@ -10,6 +10,7 @@ import { findParentOf } from './lib/split.mjs';
 export function nextSteps({ id, tool, applyMode, parent = null }) {
   const c = `openspec/changes/${id}`;
   const review = (n, what) => `${n}. ${what} - the tool's own review step; fix what it finds. CI also runs a code review on the PR.`;
+  const specCheck = (n) => `${n}. /spec-check ${id} -> ${c}/execution/spec-check.md (coverage + the line estimate after planning, budget ~300). On GAPS: stop, fix, re-run. After any later delta edit, run /spec-check again: it lists the requirements / scenarios added, changed, removed or renamed since the last check and the tickets / tasks citing them (re-plan open ones; done ones are protected).`;
   const finish = (n) => [
     `${n}. /opsx:verify ${id} - save the report verbatim to ${c}/execution/verify.md`,
     `${n + 1}. /opsx:archive ${id} on the change branch, and commit the archive in this change's PR together with its code (the change is complete when its archived folder is on main).`,
@@ -20,8 +21,9 @@ export function nextSteps({ id, tool, applyMode, parent = null }) {
       `Next steps for ${id} (ai-hero, apply_mode: ${applyMode}). Skill: openspec-handoff-ai-hero - outputs stay in ${c}/execution/.`,
       `1. /to-spec - reads ${c}/${SESSION_FILES['ai-hero']} -> ${c}/execution/spec.md (user stories cite "Requirement: <name>").`,
       `2. /to-tickets -> ${c}/execution/tickets/NN-<slug>.md (each names its requirement(s); scenarios by name only; one "Estimate: ~N lines" line each). Re-running it later: regenerate open tickets only - never overwrite a ticket marked done.`,
-      `3. /spec-check ${id} -> ${c}/execution/spec-check.md (coverage + the line estimate after planning, budget ~300). On GAPS: stop, fix, re-run.`,
-      `4. ${impl} with tdd, ticket by ticket; set "Status: done" and tick the ticket's checkboxes as each lands.`,
+      specCheck(3),
+      `   Commit the planning files with the change: git switch -c change/${id}, then commit ${c}/execution/ (branch before implementation; everything for this change - planning, code, archive - goes in its PR).`,
+      `4. ${impl} with tdd, ticket by ticket on branch change/${id}; set "Status: done" and tick the ticket's checkboxes as each lands (commit each ticket with its code).`,
       review(5, '/code-review (Standards + Spec reviewers)'),
       ...finish(6),
       `8. Merge the PR (branch change/${id}) into main.`,
@@ -32,11 +34,12 @@ export function nextSteps({ id, tool, applyMode, parent = null }) {
   return [
     `Next steps for ${id} (superpowers, apply_mode: ${applyMode}). Skill: openspec-handoff-superpowers - outputs stay in ${c}/execution/.`,
     `1. writing-plans - reads ${c}/${SESSION_FILES.superpowers} -> ${c}/execution/plan-${id}.md (each task starts with **Covers:** "Requirement: <name>" and has one "**Estimate:** ~N lines" line). Re-running it later: replan open tasks only - never reset a finished task.`,
-    `2. /spec-check ${id} -> ${c}/execution/spec-check.md (coverage + the line estimate after planning, budget ~300). On GAPS: stop, fix, re-run.`,
-    `3. ${impl} on branch change/${id} (workspace .superpowers/sdd/plan-${id}/); tick the plan's step checkboxes as each task lands; copy the ledger to ${c}/execution/progress.md before deleting the workspace.`,
+    specCheck(2),
+    `   Before implementation, work on branch change/${id} - a plain branch or a worktree (using-git-worktrees; Superpowers recommends the worktree), either works - and commit the plan there with the change (everything for this change - plan, code, archive - goes in its PR).`,
+    `3. ${impl} on branch change/${id}. Its workspace (.superpowers/sdd/plan-${id}/, git-ignored) is what Superpowers' sdd-workspace script prints: <skills dir>/subagent-driven-development/scripts/sdd-workspace ${c}/execution/plan-${id}.md (skills dir e.g. .agents/skills); tick the plan's step checkboxes as each task lands; copy the ledger (<workspace>/progress.md) to ${c}/execution/progress.md before deleting the workspace.`,
     review(4, 'requesting-code-review (final whole-branch review, code-reviewer.md)'),
     ...finish(5),
-    `7. finishing-a-development-branch (merge / PR into main, with the archive in it)`,
+    `7. finishing-a-development-branch (merge / PR into main, with the archive in it). Archive comes first because finishing merges or opens the PR: the archive must already be in it, so the change is complete when it lands on main.`,
     ...afterArchive(parent, 8),
   ].join('\n');
 }

@@ -67,3 +67,18 @@ test('fixtures are real copies: writing a fixture config never touches the toolk
   const f = path.join(dir, '.openspec-handoff', 'config.json');
   assert.equal(fs.lstatSync(f).isSymbolicLink(), false);
 });
+
+test('wrappers and templates: spec changes after a delta edit, flag requirement belongs to the slices, harness optional, budget ~300', () => {
+  const read = (p) => fs.readFileSync(path.join(TOOLKIT, p), 'utf8');
+  for (const w of ['openspec-handoff-ai-hero', 'openspec-handoff-superpowers']) {
+    const s = read(`skills/${w}/SKILL.md`);
+    assert.match(s, /then `\/spec-check <id>` again: its "Spec changes since the last check" section lists/);
+    assert.match(s, /`openspec list` \/ `openspec status` do not see/);
+  }
+  for (const h of ['claude', 'cursor', 'opencode']) assert.match(read(`commands/${h}/split-check.md`), /The flag requirement is never in the original delta: the flagged slice adds it/);
+  assert.match(read('schemas/split-plan/schema.yaml') + read('schemas/handoff-driven/schema.yaml'), /A feature flag is not part of the\s+original delta/);
+  assert.match(read('schemas/handoff-driven/templates/handoff.md'), /harness: <optional: claude-code \| cursor \| codex \| opencode \| other>/);
+  assert.match(read('schemas/handoff-driven/templates/handoff.md'), /<n> expected \(planning not run yet; budget 8\)/);
+  assert.match(read('schemas/handoff-driven/templates/proposal.md'), /~300 changed lines of code \+ tests[\s\S]*split gate \(\/split-check/);
+  assert.doesNotMatch(read('schemas/handoff-driven/templates/proposal.md'), /400/);
+});

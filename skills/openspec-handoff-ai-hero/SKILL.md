@@ -64,7 +64,7 @@ After `/handoff` wrote `handoff.md` (`tool: ai-hero`, the session file must exis
 
 ### Then
 
-1. `/spec-check <id>` (the only plan-vs-spec check); stop on GAPS. Planning ends here. There is no `tasks.md`: the tickets are the tracker.
+1. `/spec-check <id>` (the only plan-vs-spec check); stop on GAPS. Planning ends here. There is no `tasks.md`: the tickets are the tracker (`openspec list` / `openspec status` do not see their checkboxes - expected).
 
 
 ## Slice of a split change
@@ -81,7 +81,7 @@ AI Hero's `to-spec` and `to-tickets` have no update mode: `to-spec` writes the w
 1. `to-spec` again -> overwrite `execution/spec.md`.
 2. Tickets: **never overwrite a ticket marked `Status: done`** (refuse, even if asked to regenerate everything). Delete only the open ones, then run `to-tickets` for the remaining work only, numbering after the last kept ticket (it reads the existing files as context). On a real tracker, close the obsolete issues by hand.
 If a done ticket was reset anyway, restore it with `git checkout HEAD -- <ticket>` (`git diff HEAD -- execution/tickets/` shows it).
-After any delta edit (a /spec-check gap, a split note, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `/spec-check <id>` again.
+After any delta edit (a /spec-check gap, a split note, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `/spec-check <id>` again: its "Spec changes since the last check" section lists each requirement / scenario added, changed, removed or renamed and the tickets / tasks citing it - re-plan the open ones, never overwrite done ones (report-only).
 
 ## Implementation (the engineer runs `implement` / `implement-spec`)
 
