@@ -49,3 +49,9 @@ test('bin/textkit.mjs pipes standard input into stats', () => {
   const out = execFileSync(process.execPath, [bin, 'stats'], { input: 'One. Two three!', encoding: 'utf8', env: { ...process.env, ...FLAG_ON } });
   assert.equal(out, 'words: 3\nsentences: 2\n');
 });
+
+test('JSON flag', () => {
+  const r = cli(['stats', '--json'], { input: 'Hi. How are you?' });
+  assert.deepEqual([r.out, r.code], ['{"words":4,"sentences":2}\n', 0]);
+  assert.deepEqual(JSON.parse(r.out), { words: 4, sentences: 2 });
+});

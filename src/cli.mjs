@@ -17,7 +17,8 @@ const COMMANDS = {
     const unknown = args.find((a) => a !== '--json');
     if (unknown !== undefined) return usageError(io, `stats: unknown option: ${unknown}`);
     const text = io.readStdin();
-    io.stdout.write(`words: ${wordCount(text)}\nsentences: ${sentenceCount(text)}\n`);
+    const counts = { words: wordCount(text), sentences: sentenceCount(text) };
+    io.stdout.write(args.includes('--json') ? `${JSON.stringify(counts)}\n` : `words: ${counts.words}\nsentences: ${counts.sentences}\n`);
     return OK;
   },
 };

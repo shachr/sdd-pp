@@ -2,7 +2,7 @@
 
 # 02 - textkit stats --json
 
-Status: ready-for-agent
+Status: done
 Estimate: ~35 lines
 
 ## What to build
@@ -17,4 +17,4 @@ Makes [delta](../../specs/stats-cli/spec.md) - "Requirement: Stats JSON output" 
 
 Scenarios of the [delta](../../specs/stats-cli/spec.md), by name:
 
-- [ ] Scenario "JSON flag" passes
+- [x] Scenario "JSON flag" passes
