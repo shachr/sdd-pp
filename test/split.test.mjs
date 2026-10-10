@@ -1,5 +1,5 @@
 // Change splitting (v6 control plane): /split-check counts, split.mjs apply / loss (git baseline,
-// split notes, renamed_from) / next / mark, split-plan schema.
+// split notes, renamed_from) / next / start, split-plan schema.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -94,6 +94,8 @@ test('split apply: refuses without approval or with uncommitted deltas; the pare
   assert.doesNotMatch(slices, /SHALL|\*\*WHEN\*\*|Amendments|- \[ \]/);
   assert.match(R(dir, `${c}/tickets/add-reports-03-csv-export.md`), /^Summary: \[add-reports\] add-reports-03-csv-export - File export behind a flag\n[\s\S]*Labels: openspec, split-add-reports, flag-csv-export/);
   assert.doesNotMatch(R(dir, `${c}/tickets/add-reports-03-csv-export.md`), /CSV export"|Export week/);
+  assert.match(R(dir, `${c}/tickets/add-reports-03-csv-export.md`), /^Start: \/split-start add-reports-03-csv-export \(marks it in-progress/m);
+  assert.match(R(dir, `${c}/slices.md`), /\/split-start <slice>/);
   assert.equal(fs.existsSync(path.join(dir, c, 'tickets', 'add-reports-02-filters.md')), false);
   const totals = R(dir, CHILD('add-reports-01-totals', 'reports'));
   assert.match(totals, /^## Purpose\n\nWeekly activity reports/);
@@ -231,7 +233,7 @@ test('split requirement: split_from needs a confirmed split note in each receivi
 
 const archive = (dir, id) => { fs.mkdirSync(path.join(dir, 'openspec/changes/archive'), { recursive: true }); fs.renameSync(path.join(dir, 'openspec/changes', id), path.join(dir, 'openspec/changes/archive', `2026-10-10-${id}`)); };
 
-test('next + mark: ready when all depends_on are archived; in-progress is the engineer\'s mark; parallel-safe only without dependency and shared capability', () => {
+test('next + start: ready when all depends_on are archived; in-progress is the engineer\'s mark; parallel-safe only without dependency and shared capability', () => {
   const { dir } = splitProject();
   run('split.mjs', ['apply', 'add-reports'], dir);
   let r = run('split.mjs', ['next', 'add-reports'], dir);
@@ -239,16 +241,41 @@ test('next + mark: ready when all depends_on are archived; in-progress is the en
   assert.match(r.out, /Ready now: add-reports-01-totals, add-reports-03-csv-export/);
   assert.match(r.out, /Parallel-safe now[^\n]*add-reports-01-totals ∥ add-reports-03-csv-export/);
   assert.match(r.out, /\| add-reports-02-filters \| planned \| add-reports-01-totals \| waits for add-reports-01-totals \|/);
-  r = run('split.mjs', ['mark', 'add-reports', 'add-reports-01-totals', 'in-progress'], dir);
+  // refusals: not a slice, not READY (deps not archived)
+  r = run('split.mjs', ['start', 'nope'], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /split start nope: REFUSED - "nope" is not a slice of any split parent/);
+  r = run('split.mjs', ['start', 'add-reports-02-filters'], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /REFUSED - "add-reports-02-filters" is not READY: it waits for add-reports-01-totals \(not archived on this checkout\)/);
+  assert.match(R(dir, `${C}/slices.md`), /### Slice: add-reports-02-filters\n[\s\S]*?- status: planned/);
+  // --undo on a planned slice: nothing to undo
+  r = run('split.mjs', ['start', 'add-reports-01-totals', '--undo'], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /is planned, not in progress - nothing to undo/);
+  // start: finds the parent itself, marks in-progress, prints the next lines
+  r = run('split.mjs', ['start', 'add-reports-01-totals'], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(R(dir, `${C}/slices.md`), /### Slice: add-reports-01-totals\n[\s\S]*?- status: in-progress/);
+  assert.match(r.out, /split start add-reports-01-totals: in-progress in openspec\/changes\/add-reports\/slices\.md \(parent add-reports\)/);
+  assert.match(r.out, /1\. Commit the mark on main so others see it: git add openspec\/changes\/add-reports\/slices\.md && git commit -m "split: start add-reports-01-totals"/);
+  assert.match(r.out, /2\. git switch -c change\/add-reports-01-totals main/);
+  assert.match(r.out, /3\. the slice's short design session/);
+  assert.match(r.out, /4\. \/handoff add-reports-01-totals/);
+  r = run('split.mjs', ['start', 'add-reports-01-totals'], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /already in progress \(taken\)\. To release it: \/split-start add-reports-01-totals --undo/);
+  // --undo: back to planned, then take it again
+  r = run('split.mjs', ['start', 'add-reports-01-totals', '--undo'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /back to planned/);
+  assert.match(R(dir, `${C}/slices.md`), /### Slice: add-reports-01-totals\n[\s\S]*?- status: planned/);
+  assert.equal(run('split.mjs', ['start', 'add-reports-01-totals'], dir).code, 0);
   r = run('split.mjs', ['next', 'add-reports'], dir);
   assert.match(r.out, /\| add-reports-01-totals \| in progress \|/);
   assert.match(r.out, /Ready now: add-reports-03-csv-export/);
   assert.match(r.out, /In progress \(engineer's mark\): add-reports-01-totals/);
   assert.match(r.out, /Parallel-safe with work in progress \(taken or ready, no dependency, no shared capability\): add-reports-01-totals ∥ add-reports-03-csv-export/);
-  r = run('split.mjs', ['mark', 'add-reports', 'nope', 'in-progress'], dir);
-  assert.equal(r.code, 2);
   archive(dir, 'add-reports-01-totals');
   r = run('split.mjs', ['next', 'add-reports', '--write-tickets'], dir);
   assert.match(r.out, /1\/4 slices done/);
@@ -324,8 +351,8 @@ test('parallel slice branches: sdd-pp init union merge for slices.md keeps both 
   assert.equal(inst.status, 0, inst.stderr);
   assert.match(R(dir, '.gitattributes'), /^openspec\/changes\/\*\*\/slices\.md merge=union$/m);
   git('add', '-A'); git('commit', '-qm', 'plan');
-  git('switch', '-qc', 'a'); run('split.mjs', ['mark', 'add-reports', 'add-reports-01-totals', 'in-progress'], dir); git('commit', '-qam', 'a');
-  git('switch', '-q', 'main'); git('switch', '-qc', 'b'); run('split.mjs', ['mark', 'add-reports', 'add-reports-03-csv-export', 'in-progress'], dir); git('commit', '-qam', 'b');
+  git('switch', '-qc', 'a'); run('split.mjs', ['start', 'add-reports-01-totals'], dir); git('commit', '-qam', 'a');
+  git('switch', '-q', 'main'); git('switch', '-qc', 'b'); run('split.mjs', ['start', 'add-reports-03-csv-export'], dir); git('commit', '-qam', 'b');
   git('switch', '-q', 'main'); git('merge', '-q', '--no-ff', 'a', '-m', 'a');
   git('merge', '-q', '--no-ff', 'b', '-m', 'b'); // no conflict
   const s = `${C}/slices.md`;

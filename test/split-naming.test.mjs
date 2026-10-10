@@ -1,6 +1,6 @@
 // Slice naming: <parent>-<nn>-<slice>. The proposal lists the slice part + order; split apply builds
 // (or validates) the full id; the cleanup slice uses 99; a re-split continues the numbering.
-// Also the split commands through `sdd-pp split apply|next|mark|archive`.
+// Also the split commands through `sdd-pp split apply|next|start|archive`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -92,7 +92,7 @@ test('re-split into the same parent continues the numbering', () => {
   assert.match(R(dir, 'openspec/changes/add-text-stats/slices.md'), /### Slice: add-text-stats-99-remove-flag\n[\s\S]*?- depends_on: add-text-stats-03-cli-output, add-text-stats-04-cli-flag/);
 });
 
-test('sdd-pp split apply | next | mark | archive from inside the project (archive = final loss check + openspec archive --skip-specs)', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('sdd-pp split apply | next | start | archive from inside the project (archive = final loss check + openspec archive --skip-specs)', { skip: !fs.existsSync(OPENSPEC) }, () => {
   const { dir, g } = project(CORE + '### Slice: cli\n- order: 02\n- goal: Command line tool\n- capabilities: stats-cli\n- requirements: CLI output; CLI flag\n- depends_on: core\n- flag: none\n');
   assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
   g('add', '-A'); g('commit', '-qm', 'install');
@@ -104,8 +104,14 @@ test('sdd-pp split apply | next | mark | archive from inside the project (archiv
   assert.match(r.out, /Ready now: add-text-stats-01-core/);
   assert.match(r.out, /Tickets written: none new/);
   assert.ok(fs.existsSync(path.join(dir, 'openspec/changes/add-text-stats/tickets/add-text-stats-01-core.md')), 'apply wrote the READY ticket');
-  r = sdd('split', 'mark', P, 'add-text-stats-01-core', 'in-progress');
+  r = sdd('split', 'start', 'add-text-stats-02-cli');
+  assert.equal(r.code, 1, 'refused: depends on core, not archived');
+  assert.match(r.out, /REFUSED - "add-text-stats-02-cli" is not READY: it waits for add-text-stats-01-core/);
+  r = sdd('split', 'start', 'add-text-stats-01-core');
   assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /split start add-text-stats-01-core: in-progress in openspec\/changes\/add-text-stats\/slices\.md \(parent add-text-stats\)/);
+  assert.match(r.out, /git switch -c change\/add-text-stats-01-core main/);
+  assert.match(r.out, /\/handoff add-text-stats-01-core/);
   r = sdd('split', 'archive', P);
   assert.equal(r.code, 1, 'refused while slices are not archived');
   assert.match(r.out, /not archived yet/);

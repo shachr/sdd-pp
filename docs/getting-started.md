@@ -52,7 +52,7 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 | `/spec-check <id>` (agent: adds the review for missing / invented / contradicted / restated, sets PASS or GAPS; accepts PASS with `--accept`) | `spec-check <id>` (mechanical report) | `spec-check.mjs <id> --write` |
 | `/split-apply <id>` | `split apply <id>` | `split.mjs apply <id>` |
 | `/split-next <parent>` | `split next <parent>` | `split.mjs next <parent> --write-tickets` |
-| `/split-mark <parent> <slice> <in-progress\|planned>` | `split mark ...` | `split.mjs mark ...` |
+| `/split-start <slice> [--undo]` | `split start <slice> [--undo]` | `split.mjs start <slice> [--undo]` |
 | `/split-archive <parent>` | `split archive <parent>` | `split.mjs loss <parent> --final`, then `openspec archive <parent> --skip-specs -y` |
 | - | `split loss <parent> [--final]` | `split.mjs loss` (the agent runs it during a split) |
 
@@ -113,7 +113,7 @@ See [small-changes.md](small-changes.md).
    `renamed_from:`, `split_from:`). Commit the parent and all children together as one planning PR.
 4. `/split-next <id>` → READY slices (all dependencies archived on main), parallel-safe
    pairs (no dependency, no shared capability), and `tickets/<slice>.md` for each ready slice.
-5. Per slice: `/split-mark <id> <slice> in-progress` (commit on main), a branch from main, a short design
+5. Per slice: `/split-start <slice>` (marks it in-progress, prints the next lines; commit the mark on main), a branch from main, a short design
    session reading the parent's session file → `/handoff <slice>` → the normal flow → `/opsx:archive <slice>`
    committed in the slice's PR with its code → merge → `/split-next <id>` on main.
 6. All slices archived → `/split-archive <id>` (final loss check, then `openspec archive <id> --skip-specs -y`).

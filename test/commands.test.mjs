@@ -13,7 +13,7 @@ import { nextSteps } from '../scripts/next-steps.mjs';
 const ENV = { ...process.env, PATH: `${path.dirname(OPENSPEC)}${path.delimiter}${process.env.PATH}` };
 const sddPp = (cwd, ...args) => { const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', env: ENV }); return { code: r.status, out: r.stdout + r.stderr }; };
 const labels = (argv) => plan(argv).map(([l]) => l);
-const NEW = { 'next-steps': 'next', tool: 'tool', 'split-apply': 'split apply', 'split-next': 'split next', 'split-mark': 'split mark', 'split-archive': 'split archive' };
+const NEW = { 'next-steps': 'next', tool: 'tool', 'split-apply': 'split apply', 'split-next': 'split next', 'split-start': 'split start', 'split-archive': 'split archive' };
 
 test('sdd.mjs plan: each command maps to the scripts it runs', () => {
   assert.deepEqual(labels(['spec-check', 'x']), ['spec-check.mjs x --write']);
@@ -24,10 +24,11 @@ test('sdd.mjs plan: each command maps to the scripts it runs', () => {
   assert.deepEqual(labels(['split', 'apply', 'p']), ['split.mjs apply p']);
   assert.deepEqual(labels(['split', 'next', 'p']), ['split.mjs next p --write-tickets']);
   assert.deepEqual(labels(['split', 'next', 'p', '--write-tickets']), ['split.mjs next p --write-tickets']);
-  assert.deepEqual(labels(['split', 'mark', 'p', 's', 'in-progress']), ['split.mjs mark p s in-progress']);
+  assert.deepEqual(labels(['split', 'start', 's']), ['split.mjs start s']);
+  assert.deepEqual(labels(['split', 'start', 's', '--undo']), ['split.mjs start s --undo']);
   assert.deepEqual(labels(['split', 'loss', 'p', '--final']), ['split.mjs loss p --final']);
   assert.deepEqual(labels(['split', 'archive', 'p']), ['split.mjs loss p --final', 'openspec archive p --skip-specs -y']);
-  for (const bad of [[], ['check', 'x'], ['split'], ['split', 'bogus', 'p'], ['split', 'apply'], ['nope', 'x'], ['next', '--strict']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
+  for (const bad of [[], ['check', 'x'], ['split'], ['split', 'bogus', 'p'], ['split', 'mark', 'p', 's', 'in-progress'], ['split', 'start'], ['split', 'apply'], ['nope', 'x'], ['next', '--strict']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
 });
 
 test('agent slash commands: claude, cursor, opencode each run sdd.mjs; argument hint / usage on every command', () => {
@@ -64,6 +65,15 @@ test('next-steps and the init summary use the commands, not node script paths', 
   for (const h of ['.claude', '.cursor']) assert.ok(!fs.existsSync(path.join(dir, h, 'commands/check-handoff.md')), 'no /check-handoff command');
   for (const name of Object.keys(NEW)) assert.ok(fs.existsSync(path.join(dir, '.claude/commands', `${name}.md`)), name);
   assert.ok(fs.existsSync(path.join(dir, '.openspec-handoff/scripts/sdd.mjs')));
+  assert.match(r.stdout, /\/split-start <slice>/);
+  assert.doesNotMatch(r.stdout, /split-mark|split mark/);
+  // a reinstall removes a leftover /split-mark from an earlier install
+  fs.writeFileSync(path.join(dir, '.claude/commands/split-mark.md'), 'old\n');
+  const r2 = initCli(dir, '--no-cursor');
+  assert.equal(r2.status, 0, r2.stderr);
+  assert.match(r2.stdout, /\.claude\/commands\/split-mark\.md \(removed: retired\)/);
+  assert.ok(!fs.existsSync(path.join(dir, '.claude/commands/split-mark.md')));
+  for (const h of ['claude', 'cursor', 'opencode']) assert.ok(!fs.existsSync(path.join(TOOLKIT, 'commands', h, 'split-mark.md')), `no ${h}/split-mark.md in the toolkit`);
 });
 
 test('sdd-pp init --tool ai-hero installs docs/agents/issue-tracker.md if absent (kept if present; not for superpowers)', () => {
