@@ -41,7 +41,7 @@ Callers turn form labels and headings into identifiers (object keys, CSS-in-JS n
 
 ### Decided how
 
-- Approach A: one regex split `/[^\p{L}\p{N}]+/u`, drop empty parts, then a map applying "Requirement: Word casing" of the [delta](../specs/casing/spec.md), then `join("")`.
+- Approach A: one regex split `/[^\p{L}\p{N}\p{M}]+/u`, drop empty parts, then a map applying "Requirement: Word casing" of the [delta](../specs/casing/spec.md), then `join("")`.
 - Module `src/camel-case.mjs`, tests `test/camel-case.test.mjs`, one test per delta scenario.
 
 ### Left to the builder
@@ -72,3 +72,7 @@ Piles: answered already - none; minor - none; theirs - none. No question round n
 Written design approved by Grok Bot on the user's behalf (decisions delegated). Calls made on their behalf: the five Q answers and approach A above.
 
 Next: OpenSpec proposal + specs + /handoff; writing-plans is the engineer's first next step after it.
+
+## After handoff
+
+- /spec-check run 1 (planning) found that decomposed accents split words; delta "Requirement: Word splitting" gained Scenario "Decomposed accents" and the split now keeps combining marks (Grok Bot's call on the user's behalf).
