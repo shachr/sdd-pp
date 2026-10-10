@@ -1,0 +1,110 @@
+// Command wrappers: scripts/sdd.mjs (one entry point), the `sdd-pp` CLI subcommands that run a
+// project's installed copy, the agent slash commands, and the ai-hero issue-tracker install.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync, execFileSync } from 'node:child_process';
+import { TOOLKIT, OPENSPEC, CLI, CHANGE, initCli, makeFixture } from './helpers.mjs';
+import { plan } from '../scripts/sdd.mjs';
+import { nextSteps } from '../scripts/next-steps.mjs';
+
+const ENV = { ...process.env, PATH: `${path.dirname(OPENSPEC)}${path.delimiter}${process.env.PATH}` };
+const sddPp = (cwd, ...args) => { const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', env: ENV }); return { code: r.status, out: r.stdout + r.stderr }; };
+const labels = (argv) => plan(argv).map(([l]) => l);
+const NEW = { 'check-handoff': 'check', 'next-steps': 'next', tool: 'tool', 'split-apply': 'split apply', 'split-next': 'split next', 'split-mark': 'split mark', 'split-archive': 'split archive' };
+
+test('sdd.mjs plan: each command maps to the scripts it runs', () => {
+  assert.deepEqual(labels(['check', 'x']), ['openspec validate x --strict', 'check-handoff.mjs x --expect-complete']);
+  assert.deepEqual(labels(['spec-check', 'x']), ['spec-check.mjs x --write']);
+  assert.deepEqual(labels(['split-check', 'x']), ['split-check.mjs x --write']);
+  assert.deepEqual(labels(['next', 'x']), ['next-steps.mjs x']);
+  assert.deepEqual(labels(['tool', 'x', '--set', 'superpowers']), ['execution-tool.mjs x --set superpowers']);
+  assert.deepEqual(labels(['tool', '--default', 'ai-hero']), ['execution-tool.mjs --default ai-hero']);
+  assert.deepEqual(labels(['split', 'apply', 'p']), ['split.mjs apply p']);
+  assert.deepEqual(labels(['split', 'next', 'p']), ['split.mjs next p --write-tickets']);
+  assert.deepEqual(labels(['split', 'next', 'p', '--write-tickets']), ['split.mjs next p --write-tickets']);
+  assert.deepEqual(labels(['split', 'mark', 'p', 's', 'in-progress']), ['split.mjs mark p s in-progress']);
+  assert.deepEqual(labels(['split', 'loss', 'p', '--final']), ['split.mjs loss p --final']);
+  assert.deepEqual(labels(['split', 'archive', 'p']), ['split.mjs loss p --final', 'openspec archive p --skip-specs -y']);
+  for (const bad of [[], ['check'], ['split'], ['split', 'bogus', 'p'], ['split', 'apply'], ['nope', 'x'], ['check', '--strict']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
+});
+
+test('agent slash commands: claude, cursor, opencode each run sdd.mjs; argument hint / usage on every command', () => {
+  for (const h of ['claude', 'cursor', 'opencode']) {
+    for (const [name, sub] of Object.entries(NEW)) {
+      const t = fs.readFileSync(path.join(TOOLKIT, 'commands', h, `${name}.md`), 'utf8');
+      assert.match(t, new RegExp(`node \\.openspec-handoff/scripts/sdd\\.mjs ${sub} `), `${h}/${name}`);
+      assert.match(t, /Do nothing else/);
+    }
+    for (const f of fs.readdirSync(path.join(TOOLKIT, 'commands', h))) {
+      const t = fs.readFileSync(path.join(TOOLKIT, 'commands', h, f), 'utf8');
+      const front = t.split('---')[1];
+      if (h === 'claude') assert.match(front, /^argument-hint: /m, `${h}/${f}`);
+      else assert.match(front, new RegExp(`^description: .*\\(usage: /${f.replace(/\.md$/, '')} `, 'm'), `${h}/${f}`);
+    }
+  }
+});
+
+test('next-steps and the init summary use the commands, not node script paths', () => {
+  for (const [tool, mode] of [['ai-hero', 'implement'], ['superpowers', 'executing-plans']]) {
+    const s = nextSteps({ id: 'x', tool, applyMode: mode, parent: 'p' });
+    assert.match(s, /\/check-handoff x /);
+    assert.match(s, /On main: \/split-next p /);
+    assert.doesNotMatch(s, /node \.openspec-handoff|\.mjs/);
+  }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-init-'));
+  fs.mkdirSync(path.join(dir, 'openspec'));
+  const r = initCli(dir, '--tool', 'ai-hero', '--no-cursor');
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stdout.split('Done. Next')[1], /node \.openspec-handoff/);
+  assert.match(r.stdout, /\/check-handoff <id>[\s\S]*\/split-archive <parent>/);
+  for (const name of Object.keys(NEW)) assert.ok(fs.existsSync(path.join(dir, '.claude/commands', `${name}.md`)), name);
+  assert.ok(fs.existsSync(path.join(dir, '.openspec-handoff/scripts/sdd.mjs')));
+});
+
+test('sdd-pp init --tool ai-hero installs docs/agents/issue-tracker.md if absent (kept if present; not for superpowers)', () => {
+  const mk = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-it-')); fs.mkdirSync(path.join(d, 'openspec')); return d; };
+  let dir = mk();
+  let r = initCli(dir, '--tool', 'ai-hero', '--no-claude', '--no-cursor');
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(fs.readFileSync(path.join(dir, 'docs/agents/issue-tracker.md'), 'utf8'), fs.readFileSync(path.join(TOOLKIT, 'config/issue-tracker-openspec.md'), 'utf8'));
+  assert.match(r.stdout, /docs\/agents\/issue-tracker\.md \(AI Hero issue tracker/);
+  fs.writeFileSync(path.join(dir, 'docs/agents/issue-tracker.md'), 'mine\n');
+  r = initCli(dir, '--no-claude', '--no-cursor');
+  assert.match(r.stdout, /docs\/agents\/issue-tracker\.md \(kept existing\)/);
+  assert.equal(fs.readFileSync(path.join(dir, 'docs/agents/issue-tracker.md'), 'utf8'), 'mine\n');
+  dir = mk();
+  initCli(dir, '--tool', 'superpowers', '--no-claude', '--no-cursor');
+  assert.ok(!fs.existsSync(path.join(dir, 'docs/agents/issue-tracker.md')));
+});
+
+test('sdd-pp <command> from inside a project runs its installed scripts: tool, next, check, spec-check, usage errors', { skip: !fs.existsSync(OPENSPEC) }, () => {
+  const { dir } = makeFixture();
+  assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
+  // the project's copy is the one that runs (marker in the installed sdd.mjs)
+  const inst = path.join(dir, '.openspec-handoff/scripts/sdd.mjs');
+  fs.writeFileSync(inst, fs.readFileSync(inst, 'utf8').replace("const HERE =", "console.log('[installed sdd]');\nconst HERE ="));
+  const sub = path.join(dir, 'src');
+  let r = sddPp(sub, 'tool', CHANGE);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /\[installed sdd\][\s\S]*add-greeting-name: ai-hero/);
+  r = sddPp(sub, 'next', CHANGE);
+  assert.match(r.out, /Next steps for add-greeting-name \(ai-hero[\s\S]*\/check-handoff add-greeting-name/);
+  r = sddPp(sub, 'check', CHANGE);
+  assert.match(r.out, /\$ openspec validate add-greeting-name --strict[\s\S]*\$ check-handoff\.mjs add-greeting-name --expect-complete[\s\S]*check-handoff add-greeting-name:/);
+  assert.equal(r.code, 0, r.out);
+  r = sddPp(sub, 'spec-check', CHANGE);
+  assert.match(r.out, /Spec check: add-greeting-name/);
+  assert.ok(fs.existsSync(path.join(dir, 'openspec/changes', CHANGE, 'execution/spec-check.md')));
+  r = sddPp(sub, 'check');
+  assert.equal(r.code, 2); assert.match(r.out, /check <id>/);
+  r = sddPp(sub, 'split', 'bogus', 'x');
+  assert.equal(r.code, 2); assert.match(r.out, /unknown split command "bogus"/);
+  // a failing step stops the chain and passes its exit code through
+  fs.writeFileSync(path.join(dir, 'openspec/changes', CHANGE, 'specs/greeting/spec.md'), '## ADDED Requirements\n\nnot a requirement\n');
+  r = sddPp(sub, 'check', CHANGE);
+  assert.notEqual(r.code, 0);
+  assert.doesNotMatch(r.out, /\$ check-handoff\.mjs/);
+});

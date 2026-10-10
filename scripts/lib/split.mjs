@@ -195,6 +195,76 @@ export function nameLeaks(text, names) {
   return out;
 }
 
+// ---------------------------------------------------------------- slice names
+// Convention: <parent>-<nn>-<slice>  (nn = two-digit order 01..98; the flag cleanup slice uses 99).
+// The split proposal lists only the slice part ("### Slice: core") and its order ("- order: 01");
+// split apply builds the full id. A full id in the proposal is validated against the convention.
+const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const pad2 = (n) => String(n).padStart(2, '0');
+export const CLEANUP_ORDER = '99';
+
+/** { order, part } when `id` is `<parentId>-<nn>-<part>`, else null. */
+export function parseSliceId(id, parentId) {
+  const m = new RegExp(`^${esc(parentId)}-(\\d{2})-([a-z0-9][a-z0-9-]*)$`).exec(id || '');
+  return m ? { order: m[1], part: m[2] } : null;
+}
+
+/**
+ * Full slice ids for the slices of a split proposal.
+ * existing: ids already in the parent (a re-split continues their numbering; the slice being re-split counts as used).
+ * Returns { slices (copies with full ids and depends_on mapped), errors, renamed: Map(given -> full) }.
+ */
+export function nameSlices(slices, parentId, { existing = [] } = {}) {
+  const errors = [];
+  const used = new Set(existing.map((id) => parseSliceId(id, parentId)?.order).filter((o) => o && o !== CLEANUP_ORDER));
+  const rows = slices.map((s) => {
+    let part = s.id; let order = s.order ? String(s.order).trim() : null; let ok = true;
+    const full = parseSliceId(s.id, parentId);
+    const short = /^(\d{2})-([a-z0-9][a-z0-9-]*)$/.exec(s.id);
+    const cleanup = Boolean(s.removes_flag);
+    if (full || short) {
+      const [o, pt] = full ? [full.order, full.part] : [short[1], short[2]];
+      if (order && order !== o) { errors.push(`slice "${s.id}": "- order: ${order}" does not match the order in its name (${o})`); ok = false; }
+      part = pt; order = o;
+    } else if (s.id.startsWith(`${parentId}-`)) {
+      const guess = s.id.slice(parentId.length + 1).replace(/^\d+-/, '');
+      errors.push(`slice "${s.id}": not a slice name of ${parentId} - expected "${parentId}-${order || (cleanup ? CLEANUP_ORDER : 'NN')}-${guess}" (list only the slice part, e.g. "### Slice: ${guess}", plus "- order: NN")`);
+      ok = false;
+    }
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(part)) { errors.push(`slice "${s.id}": the slice part must be kebab-case`); ok = false; }
+    if (order && !/^\d{2}$/.test(order)) { errors.push(`slice "${s.id}": order "${order}" must be two digits (01..98; 99 = flag cleanup slice)`); ok = false; order = null; }
+    if (order === '00') { errors.push(`slice "${s.id}": order 00 is not used - start at 01`); ok = false; }
+    if (cleanup && order && order !== CLEANUP_ORDER) errors.push(`slice "${s.id}": the flag cleanup slice (removes_flag) uses order ${CLEANUP_ORDER} - expected "${parentId}-${CLEANUP_ORDER}-${part}"`);
+    if (!cleanup && order === CLEANUP_ORDER) errors.push(`slice "${s.id}": order ${CLEANUP_ORDER} is reserved for the flag cleanup slice (removes_flag)`);
+    if (cleanup && !order) order = CLEANUP_ORDER;
+    return { s, part, order, ok };
+  });
+  // explicit orders first (must be unique and new), then fill the rest in proposal order
+  const seen = new Map();
+  for (const r of rows) {
+    if (!r.order || r.order === CLEANUP_ORDER) continue;
+    if (used.has(r.order)) errors.push(`slice "${r.s.id}": order ${r.order} is already used in ${parentId} - a re-split continues the numbering (omit "- order:" to get the next free number)`);
+    if (seen.has(r.order)) errors.push(`slices "${seen.get(r.order)}" and "${r.s.id}" both use order ${r.order}`);
+    seen.set(r.order, r.s.id);
+  }
+  for (const o of seen.keys()) used.add(o);
+  let next = Math.max(0, ...[...used].map(Number)) + 1;
+  for (const r of rows) {
+    if (r.order) continue;
+    while (used.has(pad2(next))) next++;
+    if (next > 98) { errors.push(`slice "${r.s.id}": no order left (01..98)`); r.order = 'NN'; continue; }
+    r.order = pad2(next); used.add(r.order);
+  }
+  const renamed = new Map();
+  for (const r of rows) {
+    const id = `${parentId}-${r.order}-${r.part}`;
+    renamed.set(r.s.id, id); renamed.set(r.part, renamed.has(r.part) && renamed.get(r.part) !== id ? null : id);
+  }
+  const map = (d) => (renamed.get(d) || d);
+  const out = rows.map((r) => ({ ...r.s, id: renamed.get(r.s.id), given: r.s.id, order: r.order, depends_on: r.s.depends_on.map(map) }));
+  return { slices: out, errors, renamed };
+}
+
 // ---------------------------------------------------------------- slice graph
 export function dependencyClosure(slices) {
   const by = Object.fromEntries(slices.map((s) => [s.id, s]));

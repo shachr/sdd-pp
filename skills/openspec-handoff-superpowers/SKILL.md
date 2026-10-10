@@ -17,7 +17,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 |---|---|---|
 | Proposal | `brainstorming` - **stopped after the written design** | `execution/brainstorm.md` |
 | Proposal | (OpenSpec) proposal.md + delta, informed by the session | `proposal.md`, `specs/**/spec.md` |
-| Specs (end) | `/split-check` split gate (> 5 requirements or > 2 capabilities: slices proposed, engineer approves, `split.mjs apply`) | `execution/split-check.md` |
+| Specs (end) | `/split-check` split gate (> 5 requirements or > 2 capabilities: slices proposed, engineer approves, `/split-apply`; slices are named `<parent>-<nn>-<slice>`) | `execution/split-check.md` |
 | Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
 | Planning (engineer) | `writing-plans`, reading `execution/brainstorm.md` | `execution/plan-<id>.md` |
 | Planning (engineer) | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
@@ -30,7 +30,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches the proposal, before `proposal.md` is written.
 
-1. `node .openspec-handoff/scripts/execution-tool.mjs <id>` must say `superpowers` (project default, or `--set superpowers` for a per-change override). `--set` creates `execution/brainstorm.md` with front matter `tool: superpowers` / `session: brainstorming`; create it the same way if it does not exist.
+1. `/tool <id>` (runs `node .openspec-handoff/scripts/sdd.mjs tool <id>`) must say `superpowers` (project default, or `/tool <id> --set superpowers` for a per-change override). `--set` creates `execution/brainstorm.md` with front matter `tool: superpowers` / `session: brainstorming`; create it the same way if it does not exist.
 2. Run `brainstorming` on the user's request (and the existing main specs it touches) as written: first message, questions, approaches, design sections, approval. If decisions were delegated, answer on the user's behalf and mark those answers as your calls.
    - **Size the Work**: pick "a project with a written design" (the engineer plans it with writing-plans after /handoff).
 3. **The Written Design** goes to `execution/brainstorm.md` (keep the front matter): first body line `> Source of truth: [proposal](../proposal.md) · [specs/<cap>/spec.md](../specs/<cap>/spec.md)`. Write it as brainstorming says (intent and why, goals / non-goals, constraints, the parts of the how they decided, what's left to the builder), and end with `## Scenarios found`: names only of the behaviours the session surfaced - each becomes a requirement or scenario in the delta.
@@ -63,11 +63,11 @@ After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must 
 
 ## Slice of a split change
 
-A change created by `split.mjs apply` (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `node .openspec-handoff/scripts/split.mjs next <parent>` says READY (all `depends_on` done = archived folder on main). First mark it: `node .openspec-handoff/scripts/split.mjs mark <parent> <slice> in-progress`, committed on main (the next report trusts this mark; there is no branch scanning). Then work on its own branch from main (`git switch -c change/<slice> main`).
+A change created by `/split-apply` (id `<parent>-<nn>-<slice>`) (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `/split-next <parent>` says READY (all `depends_on` done = archived folder on main). First mark it: `/split-mark <parent> <slice> in-progress`, committed on main (the next report trusts this mark; there is no branch scanning). Then work on its own branch from main (`git switch -c change/<slice> main`).
 - **Design session, narrowed:** the parent keeps the shared session (`../<parent>/execution/brainstorm.md`). Before `/handoff <slice>`, run a SHORT ``brainstorming`` session limited to this slice: read the parent's session file first, ask only what the slice needs (its seams, what earlier slices left in the code), and write the slice's own `execution/brainstorm.md` (first body line links the parent's session file). Do not re-decide what the parent settled; if the slice needs different behaviour, change its delta and record it in this slice's proposal `## Split notes` (`dropped:` / `added:` / `renamed_from:` / `split_from:`), then `split.mjs loss <parent>`. The parent never names requirements.
 - **Parent session vs. slice: the delta wins.** Where the parent's design session (`../<parent>/execution/brainstorm.md`, frozen at the split commit, original names) and this slice's delta or split notes differ, the delta wins. The slice's narrowed `execution/brainstorm.md` has an `## Overrides` section listing which parent decisions it overrides (one line each: the parent decision, what the slice does instead, the split note or delta it points at; "None" if nothing). Never edit the parent's session after the split; check-handoff warns when a slice with split notes has no `## Overrides` section.
 - A flagged slice keeps its user-visible behaviour behind the flag its delta describes; the cleanup slice removes the flag (its delta `## REMOVED Requirements`).
-- **Done = archived on main.** Run `/opsx:archive <slice>` on the slice branch and commit the archive in the slice's own PR together with its code; after the merge, on main: `node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets` (next-steps prints it).
+- **Done = archived on main.** Run `/opsx:archive <slice>` on the slice branch and commit the archive in the slice's own PR together with its code; after the merge, on main: `/split-next <parent>` (next-steps prints it). When every slice is done, the parent is archived last with `/split-archive <parent>`.
 
 ## Updating tool files after a delta edit
 

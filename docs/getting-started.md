@@ -26,11 +26,33 @@ openspec schema validate handoff-driven
 `sdd-pp init` is a plain Node CLI (no bash, no symlinks; works on Windows, macOS and Linux). `--tool` writes the project default to
 `.openspec-handoff/project.json`. Re-running `init` without `--tool` (to upgrade) keeps it. `npx sdd-pp init` will work once the
 package is published to npm (not yet). `sdd-pp --help` lists every option.
-For AI Hero, also copy `.openspec-handoff/issue-tracker-openspec.md` to `docs/agents/issue-tracker.md` (or run `/setup-matt-pocock-skills` → "Other").
-That makes the change folder the issue tracker.
+With `--tool ai-hero`, `init` also installs `docs/agents/issue-tracker.md` (from `.openspec-handoff/issue-tracker-openspec.md`)
+when the project has none. That makes the change folder AI Hero's issue tracker.
 
-Optional per-change override, **before** the design session:
-`node .openspec-handoff/scripts/execution-tool.mjs <id> --set superpowers`
+Optional per-change override, **before** the design session: `/tool <id> --set superpowers`
+
+## Commands (and what runs under the hood)
+
+You never type `node .openspec-handoff/scripts/...`: use the agent slash commands, or the same checks from a
+shell with `npx github:shachr/sdd-pp <command>` (from anywhere inside the project; it runs the project's
+installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which only runs the scripts below.
+
+| Agent command | CLI (`npx github:shachr/sdd-pp ...`) | Runs |
+|---|---|---|
+| `/tool <id> [--set <tool>]` | `tool <id> [--set <tool>]`, `tool --default <tool>` | `execution-tool.mjs` |
+| `/split-check <id>` (agent: proposes slices) | `split-check <id>` (counts only) | `split-check.mjs <id> --write` |
+| `/handoff <id>` (agent skill) | - | writes handoff.md, `check-handoff.mjs`, `next-steps.mjs` |
+| `/next-steps <id>` | `next <id>` | `next-steps.mjs <id>` |
+| `/spec-check <id>` (agent: adds the contradiction review) | `spec-check <id>` (mechanical report) | `spec-check.mjs <id> --write` |
+| `/check-handoff <id>` | `check <id>` | `openspec validate <id> --strict`, then `check-handoff.mjs <id> --expect-complete` |
+| `/split-apply <id>` | `split apply <id>` | `split.mjs apply <id>` |
+| `/split-next <parent>` | `split next <parent>` | `split.mjs next <parent> --write-tickets` |
+| `/split-mark <parent> <slice> <in-progress\|planned>` | `split mark ...` | `split.mjs mark ...` |
+| `/split-archive <parent>` | `split archive <parent>` | `split.mjs loss <parent> --final`, then `openspec archive <parent> --skip-specs -y` |
+| - | `split loss <parent> [--final]` | `split.mjs loss` (the agent runs it during a split) |
+
+`/split-archive` exists because `/opsx:archive` is agent-driven (it moves the folder itself and cannot pass
+`--skip-specs`) and does not run the final loss check.
 
 ## The flow
 
@@ -38,13 +60,13 @@ Optional per-change override, **before** the design session:
 |---|---|---|---|
 | 1 | `/opsx:propose <id>` runs the tool's **design session** first | `grill-with-docs` → `execution/grill.md` | `brainstorming` → `execution/brainstorm.md`, **stopped** after the approved design (no writing-plans yet) |
 | 2 | Proposal + **specs** | `proposal.md` = what/why only; behaviours from the session become delta scenarios; new capability → `## Purpose` first | same |
-| 2a | `/split-check <id>` (automatic at the end of the specs stage) counts requirements and capabilities. Up to 5 and 2 it says "fits". Above, it proposes slices and **waits for your approval**; commit the deltas, then `split.mjs apply` makes a parent + one child change per slice (see [Splitting](#splitting-a-big-change)) | | |
-| 3 | `/handoff <id>`: OpenSpec's **last stage**. Writes `handoff.md` (tool - resolved from the per-change override or the project default -, `apply_mode`, `base_ref`), then **prints the next steps and stops** (`next-steps.mjs <id>` reprints them) | | |
+| 2a | `/split-check <id>` (automatic at the end of the specs stage) counts requirements and capabilities. Up to 5 and 2 it says "fits". Above, it proposes slices and **waits for your approval**; commit the deltas, then `/split-apply <id>` makes a parent + one child change per slice (`<id>-<nn>-<slice>`) (see [Splitting](#splitting-a-big-change)) | | |
+| 3 | `/handoff <id>`: OpenSpec's **last stage**. Writes `handoff.md` (tool - resolved from the per-change override or the project default -, `apply_mode`, `base_ref`), then **prints the next steps and stops** (`/next-steps <id>` reprints them) | | |
 | 3a | Planning (you run it) | `/to-spec` (reads grill.md) → `execution/spec.md`, `/to-tickets` → `execution/tickets/` | `writing-plans` (reads brainstorm.md) → `execution/plan-<id>.md` |
 | 4 | `/spec-check <id>` → `execution/spec-check.md` | stops on GAPS: fix, re-run | same |
 | 5 | Implement with the tool's own command (`apply_mode`), **not** `/opsx:apply`. Progress lives in the tool's tracking, not a `tasks.md` | `/implement` or `/implement-spec`, with `tdd`; ticket `Status: done` + ticked checkboxes | `executing-plans` or `subagent-driven-development` (branch `change/<id>`); tick plan step checkboxes; copy the ledger to `execution/progress.md` |
 | 6 | Tool's code review in a **fresh session of your own coding agent** → `execution/reviews/code-review.md` | `code-review` (Standards + Spec sub-agents) | `requesting-code-review` (`code-reviewer.md`) |
-| 7 | `openspec validate <id> --strict` and `node .openspec-handoff/scripts/check-handoff.mjs <id> --expect-complete` (fails while a ticket / plan step is open) | | |
+| 7 | `/check-handoff <id>`: `openspec validate <id> --strict` + `check-handoff <id> --expect-complete` (fails while a ticket / plan step is open) | | |
 | 8 | `/opsx:verify <id>`; save the report verbatim to `execution/verify.md` | | then `finishing-a-development-branch` |
 | 9 | `/opsx:archive <id>` on the change branch: syncs the delta into `openspec/specs/`, moves the change to `archive/`; commit it in the change's PR with the code, then merge | | |
 
@@ -54,13 +76,13 @@ impossible, run it in the same session and write "self-review" at the top instea
 review says neither). There is no separate reviewer model or local fallback.
 
 Useful checks at any time:
-- `node .openspec-handoff/scripts/execution-tool.mjs <id>` shows which tool applies and why.
+- `/tool <id>` shows which tool applies and why.
 - `check-handoff <id>` errors on missing/inconsistent tool settings, copied requirement text and unlinked units. It warns on paraphrases, implementation detail in proposal.md and a missing `## Purpose`.
 
 ## Switching tools
 
 Avoid it. The session file is tool-specific, so a switch means **redoing the design session**, plus the handoff if you already ran it.
-Never switch after code exists. `execution-tool.mjs --set` refuses while the other tool's session exists.
+Never switch after code exists. `/tool <id> --set` refuses while the other tool's session exists.
 Full steps: [switching-tools.md](switching-tools.md).
 
 ## Small changes
@@ -72,21 +94,25 @@ See [small-changes.md](small-changes.md).
 
 ## Splitting a big change
 
-1. `/split-check <id>` warns → the agent writes `execution/split-proposal.md` (slices: goal, capabilities,
-   requirements, depends_on, flag). **You approve or edit it** (`approved_by:`).
-2. Commit the deltas (that commit is the loss-check baseline), then
-   `node .openspec-handoff/scripts/split.mjs apply <id>` → `<id>` becomes the parent (schema `split-plan`, a
+1. `/split-check <id>` warns → the agent writes `execution/split-proposal.md` (slices: the slice part and
+   its order, goal, capabilities, requirements, depends_on, flag). **You approve or edit it** (`approved_by:`).
+2. Commit the deltas (that commit is the loss-check baseline), then `/split-apply <id>` → `<id>` becomes the parent (schema `split-plan`, a
    control plane: `proposal.md` + `slices.md` with goal, capabilities, depends_on, flag, ticket, status and the
-   `split_commit` - **no requirement names**), and each slice becomes a normal change with live deltas.
+   `split_commit` - **no requirement names**), and each slice becomes a normal change with live deltas, named
+   `<id>-<nn>-<slice>`: `add-text-stats-01-core`, `add-text-stats-02-cli`, `add-text-stats-99-remove-flag`
+   (nn = two-digit order from the proposal's `- order:`; the flag cleanup slice is always `99`). A full id in
+   the proposal that does not follow the convention is refused with the expected name; a re-split continues
+   the numbering (`-03-`, `-04-`, ...). Names get long, and the archive adds a date prefix
+   (`archive/2026-10-10-add-text-stats-01-core/`), so keep the parent id and the slice part short.
 3. `split.mjs loss <id>` must PASS (nothing lost, duplicated or unsourced vs the deltas at `split_commit`).
    Deliberate differences go into the child's proposal `## Split notes` (`dropped:`, `added:`,
    `renamed_from:`, `split_from:`). Commit the parent and all children together as one planning PR.
-4. `split.mjs next <id> --write-tickets` → READY slices (all dependencies archived on main), parallel-safe
+4. `/split-next <id>` → READY slices (all dependencies archived on main), parallel-safe
    pairs (no dependency, no shared capability), and `tickets/<slice>.md` for each ready slice.
-5. Per slice: `split.mjs mark <id> <slice> in-progress` (commit on main), a branch from main, a short design
+5. Per slice: `/split-mark <id> <slice> in-progress` (commit on main), a branch from main, a short design
    session reading the parent's session file → `/handoff <slice>` → the normal flow → `/opsx:archive <slice>`
-   committed in the slice's PR with its code → merge → `split.mjs next <id> --write-tickets` on main.
-6. All slices archived → `split.mjs loss <id> --final` → `openspec archive <id> --skip-specs --yes`.
+   committed in the slice's PR with its code → merge → `/split-next <id>` on main.
+6. All slices archived → `/split-archive <id>` (final loss check, then `openspec archive <id> --skip-specs -y`).
 
 **Parent session vs. slice: the delta wins.** The parent's design session (`execution/grill.md` /
 `brainstorm.md`) is frozen at the split commit and uses the original names. Where it and a slice's delta or split

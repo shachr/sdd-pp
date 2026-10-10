@@ -1,0 +1,125 @@
+// Slice naming: <parent>-<nn>-<slice>. The proposal lists the slice part + order; split apply builds
+// (or validates) the full id; the cleanup slice uses 99; a re-split continues the numbering.
+// Also the split commands through `sdd-pp split apply|next|mark|archive`.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { TOOLKIT, OPENSPEC, CLI, run, initCli } from './helpers.mjs';
+import { nameSlices, parseSliceId } from '../scripts/lib/split.mjs';
+
+const W = (dir, rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+const R = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
+const req = (name, scen) => `### Requirement: ${name}\nThe system SHALL support ${name.toLowerCase()} in every count.\n\n#### Scenario: ${scen}\n- **WHEN** ${scen.toLowerCase()} happens\n- **THEN** the count shows it\n`;
+const S = (id, o = {}) => ({ id, depends_on: [], capabilities: [], requirements: [], split: [], flag: null, ...o });
+const P = 'add-text-stats';
+const ENV = { ...process.env, PATH: `${path.dirname(OPENSPEC)}${path.delimiter}${process.env.PATH}` };
+
+function project(slices) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'naming-'));
+  W(dir, 'openspec/config.yaml', 'schema: handoff-driven\n');
+  W(dir, 'openspec/specs/.gitkeep', '');
+  fs.cpSync(path.join(TOOLKIT, 'schemas'), path.join(dir, 'openspec', 'schemas'), { recursive: true });
+  const c = `openspec/changes/${P}`;
+  W(dir, `${c}/.openspec.yaml`, 'schema: handoff-driven\ncreated: 2026-10-10\n');
+  W(dir, `${c}/proposal.md`, '# Proposal\n\n## Why\n\nWriters want quick statistics about their texts while they edit them.\n\n## What Changes\n\n- Text statistics and a command line tool.\n');
+  W(dir, `${c}/specs/text-stats/spec.md`, `## Purpose\n\nCounts words and characters in a text so writers can check its length.\n\n## ADDED Requirements\n\n${req('Word count', 'Count words')}\n${req('Character count', 'Count characters')}\n`);
+  W(dir, `${c}/specs/stats-cli/spec.md`, `## Purpose\n\nA command line tool that prints text statistics for a file.\n\n## ADDED Requirements\n\n${req('CLI output', 'Print stats')}\n${req('CLI flag', 'Flag off')}\n`);
+  W(dir, `${c}/specs/stats-api/spec.md`, `## Purpose\n\nA small programming interface that returns text statistics as an object.\n\n## ADDED Requirements\n\n${req('Stats object', 'Get stats')}\n`);
+  W(dir, `${c}/execution/split-proposal.md`, `---\napproved_by: engineer (test)\n---\n\n## Slices\n\n${slices}`);
+  const g = (...a) => { const r = spawnSync('git', a, { cwd: dir, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
+  g('init', '-q', '-b', 'main'); g('config', 'user.name', 't'); g('config', 'user.email', 't@t'); g('add', '-A'); g('commit', '-qm', 'deltas');
+  return { dir, c, g };
+}
+const CORE = '### Slice: core\n- order: 01\n- goal: Counts\n- capabilities: text-stats, stats-api\n- requirements: Word count; Character count; Stats object\n- depends_on: none\n- flag: none\n\n';
+const CLI_ = '### Slice: cli\n- order: 02\n- goal: Command line tool behind a flag\n- capabilities: stats-cli\n- requirements: CLI output; CLI flag\n- depends_on: core\n- flag: stats-cli\n\n';
+const CLEAN = '### Slice: remove-flag\n- goal: Remove the stats-cli flag\n- capabilities: stats-cli\n- depends_on: cli\n- removes_flag: stats-cli\n';
+
+test('nameSlices: parts + order -> <parent>-<nn>-<slice>; cleanup 99; missing orders filled; full ids validated', () => {
+  let r = nameSlices([S('core', { order: '01' }), S('cli', { order: '02', depends_on: ['core'] }), S('remove-flag', { removes_flag: 'f', depends_on: ['cli'] })], P);
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.slices.map((s) => s.id), ['add-text-stats-01-core', 'add-text-stats-02-cli', 'add-text-stats-99-remove-flag']);
+  assert.deepEqual(r.slices[2].depends_on, ['add-text-stats-02-cli']);
+  r = nameSlices([S('a'), S('b', { order: '01' }), S('c')], P);
+  assert.deepEqual(r.slices.map((s) => s.id), ['add-text-stats-02-a', 'add-text-stats-01-b', 'add-text-stats-03-c'], 'explicit orders first, then the gaps in order');
+  r = nameSlices([S('add-text-stats-01-core'), S('02-cli')], P);
+  assert.deepEqual([r.errors, r.slices.map((s) => s.id)], [[], ['add-text-stats-01-core', 'add-text-stats-02-cli']], 'a matching full id (or nn-part) is accepted');
+  assert.deepEqual(nameSlices([S('add-text-stats-core', { order: '01' })], P).errors, ['slice "add-text-stats-core": not a slice name of add-text-stats - expected "add-text-stats-01-core" (list only the slice part, e.g. "### Slice: core", plus "- order: NN")']);
+  assert.match(nameSlices([S('add-text-stats-01-core', { order: '02' })], P).errors[0], /"- order: 02" does not match the order in its name \(01\)/);
+  assert.match(nameSlices([S('remove-flag', { order: '03', removes_flag: 'f' })], P).errors[0], /cleanup slice \(removes_flag\) uses order 99 - expected "add-text-stats-99-remove-flag"/);
+  assert.match(nameSlices([S('core', { order: '99' })], P).errors[0], /order 99 is reserved for the flag cleanup slice/);
+  assert.match(nameSlices([S('core', { order: '1' })], P).errors[0], /must be two digits/);
+  assert.match(nameSlices([S('a', { order: '01' }), S('b', { order: '01' })], P).errors[0], /both use order 01/);
+  // re-split: continues after the highest existing order (99 does not count)
+  r = nameSlices([S('cli-parse'), S('cli-print', { depends_on: ['cli-parse'] })], P, { existing: ['add-text-stats-01-core', 'add-text-stats-02-cli', 'add-text-stats-99-remove-flag'] });
+  assert.deepEqual(r.slices.map((s) => `${s.id} <- ${s.depends_on}`), ['add-text-stats-03-cli-parse <- ', 'add-text-stats-04-cli-print <- add-text-stats-03-cli-parse']);
+  assert.match(nameSlices([S('x', { order: '02' })], P, { existing: ['add-text-stats-02-cli'] }).errors[0], /order 02 is already used in add-text-stats - a re-split continues the numbering/);
+  assert.deepEqual(parseSliceId('add-text-stats-07-a-b', P), { order: '07', part: 'a-b' });
+  assert.equal(parseSliceId('other-07-a', P), null);
+});
+
+test('split-check shows the ids split apply will create; split apply builds them and refuses a wrong full id with the expected name', () => {
+  let { dir, c, g } = project(CORE + CLI_ + CLEAN);
+  let r = run('split-check.mjs', [P], dir);
+  assert.match(r.out, /\| add-text-stats-01-core \|[\s\S]*\| add-text-stats-02-cli \|[\s\S]*\| add-text-stats-99-remove-flag \|/);
+  assert.match(r.out, /Approved\. Apply[^\n]*\/split-apply add-text-stats/);
+  r = run('split.mjs', ['apply', P], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /children: add-text-stats-01-core, add-text-stats-02-cli, add-text-stats-99-remove-flag/);
+  assert.match(r.out, /slice ids \(<parent>-<nn>-<slice>\): core -> add-text-stats-01-core, cli -> add-text-stats-02-cli, remove-flag -> add-text-stats-99-remove-flag/);
+  assert.match(R(dir, `${c}/slices.md`), /### Slice: add-text-stats-99-remove-flag\n[\s\S]*?- depends_on: add-text-stats-02-cli/);
+  assert.ok(fs.existsSync(path.join(dir, 'openspec/changes/add-text-stats-01-core/specs/text-stats/spec.md')));
+  ({ dir, c, g } = project(CORE + CLI_.replace('### Slice: cli\n- order: 02', '### Slice: add-text-stats-cli\n- order: 02') + CLEAN));
+  r = run('split.mjs', ['apply', P], dir);
+  assert.equal(r.code, 2);
+  assert.match(r.out, /expected "add-text-stats-02-cli"/);
+  assert.ok(!fs.existsSync(path.join(dir, 'openspec/changes/add-text-stats-cli')), 'nothing created');
+  ({ dir } = project(CORE + CLI_ + CLEAN.replace('- goal: Remove', '- order: 03\n- goal: Remove')));
+  r = run('split.mjs', ['apply', P], dir);
+  assert.equal(r.code, 2);
+  assert.match(r.out, /uses order 99 - expected "add-text-stats-99-remove-flag"/);
+});
+
+test('re-split into the same parent continues the numbering', () => {
+  const { dir } = project(CORE + CLI_ + CLEAN);
+  run('split.mjs', ['apply', P], dir);
+  W(dir, 'openspec/changes/add-text-stats-02-cli/execution/split-proposal.md', '---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: cli-output\n- goal: Statistics on the console\n- capabilities: stats-cli\n- requirements: CLI output\n- depends_on: none\n- flag: stats-cli\n\n### Slice: cli-flag\n- goal: Flag\n- capabilities: stats-cli\n- requirements: CLI flag\n- depends_on: cli-output\n- flag: stats-cli\n');
+  const r = run('split.mjs', ['apply', 'add-text-stats-02-cli'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /re-split into parent add-text-stats; children: add-text-stats-03-cli-output, add-text-stats-04-cli-flag/);
+  assert.match(R(dir, 'openspec/changes/add-text-stats/slices.md'), /### Slice: add-text-stats-99-remove-flag\n[\s\S]*?- depends_on: add-text-stats-03-cli-output, add-text-stats-04-cli-flag/);
+});
+
+test('sdd-pp split apply | next | mark | archive from inside the project (archive = final loss check + openspec archive --skip-specs)', { skip: !fs.existsSync(OPENSPEC) }, () => {
+  const { dir, g } = project(CORE + '### Slice: cli\n- order: 02\n- goal: Command line tool\n- capabilities: stats-cli\n- requirements: CLI output; CLI flag\n- depends_on: core\n- flag: none\n');
+  assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
+  g('add', '-A'); g('commit', '-qm', 'install');
+  const sdd = (...a) => { const r = spawnSync(process.execPath, [CLI, ...a], { cwd: path.join(dir, 'openspec'), encoding: 'utf8', env: ENV }); return { code: r.status, out: r.stdout + r.stderr }; };
+  let r = sdd('split', 'apply', P);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /children: add-text-stats-01-core, add-text-stats-02-cli/);
+  r = sdd('split', 'next', P);
+  assert.match(r.out, /Ready now: add-text-stats-01-core/);
+  assert.match(r.out, /Tickets written: none new/);
+  assert.ok(fs.existsSync(path.join(dir, 'openspec/changes/add-text-stats/tickets/add-text-stats-01-core.md')), 'apply wrote the READY ticket');
+  r = sdd('split', 'mark', P, 'add-text-stats-01-core', 'in-progress');
+  assert.equal(r.code, 0, r.out);
+  r = sdd('split', 'archive', P);
+  assert.equal(r.code, 1, 'refused while slices are not archived');
+  assert.match(r.out, /not archived yet/);
+  assert.doesNotMatch(r.out, /\$ openspec archive/);
+  for (const id of ['add-text-stats-01-core', 'add-text-stats-02-cli']) {
+    const a = spawnSync(OPENSPEC, ['archive', id, '--yes'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(a.status, 0, a.stdout + a.stderr);
+  }
+  r = sdd('split', 'next', P);
+  assert.match(r.out, /all slices done; archive the parent: \/split-archive add-text-stats/);
+  r = sdd('split', 'archive', P);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /\$ split\.mjs loss add-text-stats --final[\s\S]*PASS[\s\S]*\$ openspec archive add-text-stats --skip-specs -y/);
+  const arch = fs.readdirSync(path.join(dir, 'openspec/changes/archive'));
+  assert.ok(arch.some((a) => /^\d{4}-\d\d-\d\d-add-text-stats$/.test(a)), arch.join(', '));
+  assert.ok(arch.some((a) => /^\d{4}-\d\d-\d\d-add-text-stats-01-core$/.test(a)));
+});

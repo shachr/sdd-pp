@@ -1,5 +1,5 @@
 ---
-description: "Check the execution tool's design output against the OpenSpec proposal + delta specs"
+description: "Check the execution tool's design output against the OpenSpec proposal + delta specs (usage: /spec-check <change-id>)"
 ---
 
 Arguments: $ARGUMENTS

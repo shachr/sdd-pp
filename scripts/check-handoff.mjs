@@ -34,7 +34,7 @@ export function checkChange(change, config, opts = {}) {
 
   // 1. handoff.md presence and front matter
   if (change.files.includes('slices.md')) {
-    errors.push(`${change.id} is a split parent (slices.md, schema split-plan): it has no handoff, verify or implementation. Use: split.mjs next ${change.id} / split.mjs loss ${change.id} [--final]`);
+    errors.push(`${change.id} is a split parent (slices.md, schema split-plan): it has no handoff, verify or implementation. Use: /split-next ${change.id}, /split-archive ${change.id} (final loss check + archive --skip-specs)`);
     return { errors, warnings, metrics };
   }
   if (!change.handoffText) {
@@ -72,7 +72,7 @@ export function checkChange(change, config, opts = {}) {
   if (h.tool && TOOLS.includes(h.tool) && !rt.sessions.some((x) => x.fileTool === h.tool)) {
     errors.push(`${SESSION_FILES[h.tool]} is missing: the ${h.tool} design session runs in the proposal phase, before /handoff`);
   }
-  if (!h.tool && !rt.tool) errors.push('no execution tool set: project default (.openspec-handoff/project.json, `sdd-pp init --tool`) or per change (execution-tool.mjs <change> --set <tool>)');
+  if (!h.tool && !rt.tool) errors.push('no execution tool set: project default (.openspec-handoff/project.json, `sdd-pp init --tool`) or per change (/tool <change> --set <tool>)');
   // apply_mode: the execution tool's own implement command (this workflow does not use /opsx:apply)
   if (h.tool && APPLY_MODES[h.tool]) {
     if (!h.apply_mode) errors.push(`handoff.md: front matter "apply_mode" is missing (one of ${APPLY_MODES[h.tool].join(', ')})`);
