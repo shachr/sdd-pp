@@ -53,6 +53,7 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 | `/sdd-split-apply <id>` | `split apply <id>` | `split.mjs apply <id>` |
 | `/sdd-split-next <parent>` | `split next <parent>` | `split.mjs next <parent> --write-tickets` |
 | `/sdd-split-start <slice> [--undo]` | `split start <slice> [--undo]` | `split.mjs start <slice> [--undo]` |
+| `/sdd-slice-finish <slice>` | `slice-finish <slice>` | `split.mjs finish-check <slice>` (in progress? `execution/verify.md`, + `execution/progress.md` for Superpowers - refuses listing what is missing), `openspec archive <slice> -y`, `split.mjs finish-mark <slice>` (status done in the parent's `slices.md`, commit line) |
 | `/sdd-split-undo <parent> [--force]` | `split undo <parent> [--force]` | `split.mjs undo <parent> [--force]` |
 | `/sdd-split-archive <parent>` | `split archive <parent>` | `split.mjs finalize <parent>` (stops with "N slices not archived: ..." unless every slice is archived; marks them `status: done`; final loss check), then `openspec archive <parent> --skip-specs -y` |
 | - | `split loss <parent> [--final]` | `split.mjs loss` (the agent runs it during a split) |
@@ -119,8 +120,8 @@ See [small-changes.md](small-changes.md).
 4. `/sdd-split-next <id>` → READY slices (all dependencies archived on main), parallel-safe
    pairs (no dependency, no shared capability), and `tickets/<slice>.md` for each ready slice.
 5. Per slice: `/sdd-split-start <slice>` (marks it in-progress, prints the next lines; commit the mark on main), a branch from main, a short design
-   session reading the parent's session file → `/sdd-handoff <slice>` → the normal flow → `/opsx:archive <slice>`
-   committed in the slice's PR with its code → merge → `/sdd-split-next <id>` on main.
+   session reading the parent's session file → `/sdd-handoff <slice>` → the normal flow → `/opsx:verify <slice>` → `/sdd-slice-finish <slice>`
+   (checks verify.md / progress.md, `openspec archive <slice> -y`, status done in `slices.md`) committed in the slice's PR with its code → merge → `/sdd-split-next <id>` on main.
 6. All slices archived → `/sdd-split-archive <id>` (final loss check, then `openspec archive <id> --skip-specs -y`).
 
 Changed your mind before any slice is archived? `/sdd-split-undo <id>` restores the original change from `split_commit`

@@ -380,6 +380,8 @@ test('next-steps CLI for a slice (ends with /sdd-split-next <parent>) and for a 
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /^Next steps for add-reports-01-totals \(ai-hero, apply_mode: implement\)/);
   assert.match(r.out, /On main: \/sdd-split-next add-reports /);
+  assert.match(r.out, /\/sdd-slice-finish add-reports-01-totals on the change branch \(instead of \/opsx:archive\): it checks execution\/verify\.md, runs openspec archive add-reports-01-totals -y, marks the slice done in openspec\/changes\/add-reports\/slices\.md/);
+  assert.doesNotMatch(r.out, /\/opsx:archive add-reports-01-totals on/);
   r = run('next-steps.mjs', ['add-reports'], dir);
   assert.equal(r.code, 0, r.out);
   assert.equal(r.out.trim(), 'add-reports is a split parent: no handoff or implementation. Run: /sdd-split-next add-reports');

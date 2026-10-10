@@ -54,7 +54,8 @@ apply:
     done) and parallel-safe pairs (no dependency, no shared capability). Each engineer marks the
     slice in-progress (`/sdd-split-start <slice>`, committed on main), branches from main, runs the slice's short design session (reading the
     parent's execution/ session file), /sdd-handoff <slice>, and follows the printed next steps; the
-    slice's archive is committed in its own PR with its code. When every slice is done:
+    slice is finished with `/sdd-slice-finish <slice>` (verify.md / progress.md checked, openspec archive, status done)
+    and its archive is committed in its own PR with its code. When every slice is done:
     `/sdd-split-archive <parent>` (final loss check, then `openspec archive <parent> --skip-specs -y`).
     To undo the split before any slice is archived: `/sdd-split-undo <parent>` (original change back from split_commit,
     slice folders removed, uncommitted; a slice in progress needs --force).
