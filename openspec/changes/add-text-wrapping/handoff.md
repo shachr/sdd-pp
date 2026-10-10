@@ -5,6 +5,7 @@ implementation_model: grok-bot
 harness: grok-bot (agent on the shared box, following SKILL.md files as written)
 base_ref: 7f9392da65aab86c74442afad8bb6d8d3a9d4b3b
 execution_dir: execution/
+apply_mode: implement
 reviewer_model: qwen3:4b-instruct
 ---
 
@@ -26,8 +27,9 @@ Implementation diff: `git diff 7f9392d...HEAD -- . ':!openspec'`
 | ai-hero `grill-with-docs` (decisions answered on the user's behalf - user delegated) | `execution/design.md`; glossary terms -> `GLOSSARY.md`, ADRs -> `docs/adr/` |
 | ai-hero `to-spec` (user-facing sections link the proposal/delta) | `execution/spec.md` |
 | ai-hero `to-tickets` (scenarios cited by name) | `execution/tickets/NN-<slug>.md` |
-| ai-hero `implement` + `tdd`, then `code-review` | code + tests; `execution/reviews/self-review.md` |
-| `/adversarial-review` | `execution/reviews/<timestamp>-<reviewer-model>.md` |
+| `/spec-check` (end of planning) | `execution/spec-check.md` |
+| ai-hero `implement` (apply_mode) + `tdd`, then `code-review` | code + tests; `execution/reviews/code-review.md` |
+| `/adversarial-review` (optional; ran in this flow before the user dropped it from the runs) | `execution/reviews/<timestamp>-<reviewer-model>.md` |
 | `/opsx:verify` report | `execution/verify.md` |
 
 ## Size check

@@ -3,7 +3,7 @@
 - Fixed point: `7f9392d` (handoff `base_ref`); diff `git diff 7f9392d...HEAD`; commits 4403d40..245295a.
 - Spec source: [proposal](../../proposal.md) + [spec delta](../../specs/text-wrapping/spec.md) (tickets cite it; no separate spec document in this workflow).
 - Standards sources: AGENTS.md (no CODING_STANDARDS.md / CONTRIBUTING.md) + the skill's smell baseline.
-- Sub-agents: no sub-agent tool in this session, so both axes were run in sequence by the implementer (same model). The independent pass is the adversarial review.
+- Sub-agents: no sub-agent tool in this session, so both axes were run in sequence by the implementer (same model), as the skill's fallback.
 
 ## Spec axis
 
