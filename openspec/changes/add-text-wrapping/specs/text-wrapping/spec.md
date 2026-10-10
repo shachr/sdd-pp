@@ -22,7 +22,7 @@ Fitting text into a fixed column width as a list of lines, for terminal output a
 - **THEN** it returns `["a b"]`
 
 ### Requirement: Overlong words are split
-A word longer than `width` SHALL start on its own line and be split into pieces of `width` characters, the last piece keeping the remainder.
+A word longer than `width` SHALL start on a new line and be split into pieces of `width` characters; the last piece keeps the remainder and later words may join its line when they fit.
 
 #### Scenario: Word wider than the column
 - **WHEN** `wrapText("abcdefghij", 4)` is called
@@ -31,6 +31,10 @@ A word longer than `width` SHALL start on its own line and be split into pieces 
 #### Scenario: Overlong word after a short one
 - **WHEN** `wrapText("go abcdefgh", 4)` is called
 - **THEN** it returns `["go", "abcd", "efgh"]`
+
+#### Scenario: Remainder shares its line
+- **WHEN** `wrapText("abcdefghij x", 4)` is called
+- **THEN** it returns `["abcd", "efgh", "ij x"]`
 
 ### Requirement: Existing line breaks are kept
 Each `\n`-separated paragraph of `text` SHALL be wrapped independently, and an empty paragraph SHALL produce an empty line.
