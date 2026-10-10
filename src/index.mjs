@@ -1,3 +1,3 @@
 export { slugify } from './slugify.mjs';
 export { wordWrap } from './wrap.mjs';
-export { countWords } from './stats.mjs';
+export { countWords, readingTime } from './stats.mjs';

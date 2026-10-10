@@ -67,11 +67,11 @@
 - Consumes: `countWords(text)` from Task 1.
 - Produces: `readingTime(text: string, wordsPerMinute = 200): number` exported from `src/index.mjs`.
 
-- [ ] **Step 1: Write the failing tests** `Rounds up to whole minutes` (201 words, no speed -> `2`), `Empty text reads in zero minutes` (`readingTime("") === 0`), `Custom reading speed` (300 words at 300 -> `1`), `Text is not a string (readingTime)` (`readingTime(42)` throws TypeError), `Reading speed is not positive` (`0` and `-5` throw RangeError), `Fractional speed allowed` (400 words at 250.5 -> `2`), `NaN, Infinity and string speeds rejected` (each throws RangeError).
-- [ ] **Step 2: Run to verify they fail** - `node --test test/stats.test.mjs`; expected FAIL: `readingTime` is not exported.
-- [ ] **Step 3: Implement `readingTime(text, wordsPerMinute = 200)` in `src/stats.mjs`** - check text (TypeError, message prefixed `readingTime:`), then `typeof wordsPerMinute !== 'number' || !Number.isFinite(wordsPerMinute) || wordsPerMinute <= 0` -> RangeError; return `Math.ceil(countWords(text) / wordsPerMinute)`. Re-export.
-- [ ] **Step 4: Run to verify they pass** - `npm test`; expected all PASS.
-- [ ] **Step 5: Commit** - `git add src/stats.mjs src/index.mjs test/stats.test.mjs && git commit -m "feat(stats): readingTime"`
+- [x] **Step 1: Write the failing tests** `Rounds up to whole minutes` (201 words, no speed -> `2`), `Empty text reads in zero minutes` (`readingTime("") === 0`), `Custom reading speed` (300 words at 300 -> `1`), `Text is not a string (readingTime)` (`readingTime(42)` throws TypeError), `Reading speed is not positive` (`0` and `-5` throw RangeError), `Fractional speed allowed` (400 words at 250.5 -> `2`), `NaN, Infinity and string speeds rejected` (each throws RangeError).
+- [x] **Step 2: Run to verify they fail** - `node --test test/stats.test.mjs`; expected FAIL: `readingTime` is not exported.
+- [x] **Step 3: Implement `readingTime(text, wordsPerMinute = 200)` in `src/stats.mjs`** - check text (TypeError, message prefixed `readingTime:`), then `typeof wordsPerMinute !== 'number' || !Number.isFinite(wordsPerMinute) || wordsPerMinute <= 0` -> RangeError; return `Math.ceil(countWords(text) / wordsPerMinute)`. Re-export.
+- [x] **Step 4: Run to verify they pass** - `npm test`; expected all PASS.
+- [x] **Step 5: Commit** - `git add src/stats.mjs src/index.mjs test/stats.test.mjs && git commit -m "feat(stats): readingTime"`
 
 ## Self-review
 
