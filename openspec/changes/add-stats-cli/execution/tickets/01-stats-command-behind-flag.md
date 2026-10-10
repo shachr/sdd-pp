@@ -2,7 +2,7 @@
 
 # 01 - textkit stats behind the stats-cli flag
 
-Status: ready-for-agent
+Status: done
 Estimate: ~90 lines
 
 ## What to build
@@ -17,7 +17,7 @@ None - can start immediately.
 
 Scenarios of the [delta](../../specs/stats-cli/spec.md), by name:
 
-- [ ] Scenario "Stats summary" passes
-- [ ] Scenario "Unknown stats option" passes
-- [ ] Scenario "Flag off" passes
-- [ ] Scenario "Flag on" passes
+- [x] Scenario "Stats summary" passes
+- [x] Scenario "Unknown stats option" passes
+- [x] Scenario "Flag off" passes
+- [x] Scenario "Flag on" passes
