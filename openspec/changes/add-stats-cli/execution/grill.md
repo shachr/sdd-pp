@@ -12,7 +12,7 @@ Narrowed session for slice `add-stats-cli` of the split change [add-text-stats-c
 ## Grilling record
 
 - **Q1 - How does a synchronous `run` read standard input?** -> `io.readStdin()` returns the whole input as a string; `bin/textkit.mjs` passes `() => fs.readFileSync(0, 'utf8')`; tests pass a fake. `run` stays synchronous, so add-cli's tests are untouched. (Grok Bot's call)
-- **Q2 - Where does the flag live?** -> one `flags.mjs`-free check in `src/cli.mjs`: the stats entry is looked up only when `io.env.TEXTKIT_STATS_CLI === '1'` ("Requirement: Stats command flag"); the usage lists only available commands. The cleanup slice deletes that check. (Grok Bot's call)
+- **Q2 - Where does the flag live?** -> one check in `src/cli.mjs`: the stats entry is looked up only when `io.env.TEXTKIT_STATS_CLI === '1'` ("Requirement: Stats command flag"); the usage lists only available commands. The cleanup slice deletes that check. (Grok Bot's call)
 - **Q3 - Unknown arguments to stats (`--xml`, extra text)?** -> a usage error. Not settled by the parent -> slice delta: "Requirement: Stats command" edited, Scenario "Unknown stats option" added; parent amendments recorded; loss check PASS. (Grok Bot's call)
 - **Q4 - JSON formatting?** -> `JSON.stringify({ words, sentences })` + newline, compact as the scenario shows. (Grok Bot's call)
 
