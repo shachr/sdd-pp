@@ -20,7 +20,7 @@ Archive this parent last: `split.mjs loss add-text-stats --final`, then `openspe
 - depends_on: none
 - flag: none
 - ticket: tickets/add-text-stats-core.md
-- status: planned
+- status: in-progress
 
 ### Slice: add-stats-cli
 - goal: A terminal command that prints a text's measurements
