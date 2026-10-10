@@ -41,7 +41,7 @@ Callers turn form labels and headings into identifiers (object keys, CSS-in-JS n
 
 ### Decided how
 
-- Approach A: split on `/[^\p{L}\p{N}]+/u`, drop empty parts, first word lower-cased, later words with first character upper-cased and the rest lower-cased, joined with "".
+- Approach A: one regex split `/[^\p{L}\p{N}]+/u`, drop empty parts, then a map applying "Requirement: Word casing" of the [delta](../specs/casing/spec.md), then `join("")`.
 - Module `src/camel-case.mjs`, tests `test/camel-case.test.mjs`, one test per delta scenario.
 
 ### Left to the builder
