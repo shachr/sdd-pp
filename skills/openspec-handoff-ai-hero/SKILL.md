@@ -1,6 +1,6 @@
 ---
 name: openspec-handoff-ai-hero
-description: Run the AI Hero flow (mattpocock/skills - grill-with-docs, to-spec, to-tickets, implement, tdd, code-review) on an OpenSpec change folder. Design session in the proposal phase (grill-with-docs -> execution/grill.md); planning at handoff (to-spec reading grill.md -> execution/spec.md, to-tickets); implementation with implement/tdd and code-review. Use when the change's execution tool is ai-hero.
+description: Run the AI Hero flow (mattpocock/skills - grill-with-docs, to-spec, to-tickets, implement, tdd, code-review) on an OpenSpec change folder. Design session in the proposal phase (grill-with-docs -> execution/grill.md); planning after handoff as the engineer's next steps (to-spec reading grill.md -> execution/spec.md, to-tickets); implementation with implement/tdd and code-review. Use when the change's execution tool is ai-hero.
 ---
 
 # AI Hero on an OpenSpec change
