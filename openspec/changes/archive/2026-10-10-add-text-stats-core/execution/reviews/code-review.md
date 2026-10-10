@@ -1,3 +1,5 @@
+> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/text-stats/spec.md)
+
 # Code review: add-text-stats-core - self-review
 
 Label: **self-review** (Grok Bot reviewed its own diff; no fresh session of the coding agent exists in this harness, and the v7 test is about the parent session, so the weak fallback reviewer was not run).
