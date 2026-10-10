@@ -209,6 +209,9 @@ artifacts:
       - `base_ref`: git commit SHA the implementation starts from
         (`git rev-parse HEAD` at handoff). Used for size checks and review diffs.
       - `execution_dir`: always `execution/`.
+      - `apply_mode`: the tool's own implement command the engineer runs instead of
+        /opsx:apply - ai-hero: `implement` | `implement-spec`; superpowers:
+        `executing-plans` | `subagent-driven-development`.
       - `reviewer_model` (optional): pin the adversarial reviewer. Must differ
         from implementation_model; otherwise /adversarial-review picks one.
 
@@ -239,7 +242,10 @@ artifacts:
         to-tickets -> execution/tickets/NN-<slug>.md)
       - tool: superpowers -> skill `openspec-handoff-superpowers`
         (brainstorming -> execution/design.md, writing-plans -> execution/plan-<change>.md)
-      Planning only - no code changes; implementation happens in /opsx:apply.
+      Planning only - no code changes. End planning with /spec-check <change>
+      (node .openspec-handoff/scripts/spec-check.mjs <change> --write + the agent's
+      contradiction review); stop on GAPS. Implementation is started by the engineer
+      with the tool's own command (handoff.md apply_mode), not /opsx:apply.
 
       Then write tasks.md as a thin, trackable index of that breakdown. Do not
       re-plan and do not copy ticket bodies or requirement text here.
@@ -250,7 +256,7 @@ artifacts:
         `- [ ] 1.1 Ticket 01 <title> - execution/tickets/01-<slug>.md - verify: <command>`
         `- [ ] 1.2 Plan Task 2 <title> - execution/plan-<change>.md#task-2-<slug> - verify: <command>`
       - `## 2. Review and verification`:
-        `- [ ] 2.1 Run /adversarial-review <change> and resolve Critical/Important findings - verify: review file in execution/reviews/`
+        `- [ ] 2.1 Run the tool's code review (ai-hero code-review / superpowers requesting-code-review) and resolve Critical/Important findings - verify: execution/reviews/code-review.md exists`
         `- [ ] 2.2 Run openspec validate <change> --strict - verify: exit 0`
         `- [ ] 2.3 Run node .openspec-handoff/scripts/check-handoff.mjs <change> - verify: exit 0`
       - `## Workflow follow-up` with plain bullets (no checkboxes): /opsx:verify
@@ -260,7 +266,9 @@ artifacts:
       Every execution artifact starts with a "Source of truth" line linking
       `../proposal.md` and the deltas, cites requirements/scenarios only by name +
       link, and never restates them (check-handoff fails on copies and warns on
-      likely paraphrases).
+      likely paraphrases). Every to-spec user story, ticket and plan task names the
+      delta requirement(s) it covers as "Requirement: <name>" (check-handoff fails
+      on a unit that names none, or names one that is not in the delta).
       Keep the breakdown PR-sized: at most 8 tickets / plan tasks (hard cap 12).
 
       When the execution tool completes a ticket / plan task, tick the matching
@@ -272,14 +280,18 @@ apply:
     - tasks
   tracks: tasks.md
   instruction: |-
-    Read handoff.md first. Execute with the tool it names, using the IMPLEMENTATION
-    part of its wrapper skill (openspec-handoff-ai-hero or openspec-handoff-superpowers)
-    and the implementation_model it records. Design decisions are the execution
+    This workflow does not implement through /opsx:apply. Read handoff.md:
+    implementation runs with the execution tool's own command recorded as apply_mode
+    (ai-hero: implement | implement-spec; superpowers: executing-plans |
+    subagent-driven-development), following the IMPLEMENTATION part of its wrapper
+    skill (openspec-handoff-ai-hero or openspec-handoff-superpowers), by the
+    implementation_model it records. Design decisions are the execution
     tool's (execution/design.md or the plan) and are reviewed by that tool.
     Work the tickets / plan tasks in execution/, tick tasks.md as each one lands,
     and keep every execution note inside execution/. Requirements come only from
     the spec deltas; if the code needs behavior the deltas don't describe, stop and
     update the proposal/specs first. The implementation diff is
-    `git diff <base_ref>...HEAD` (base_ref in handoff.md). Finish with
-    /adversarial-review, openspec validate --strict, check-handoff, then
-    /opsx:verify (save its report to execution/verify.md) before /opsx:archive.
+    `git diff <base_ref>...HEAD` (base_ref in handoff.md). Finish with the tool's
+    own code review (execution/reviews/code-review.md), openspec validate --strict,
+    check-handoff, then /opsx:verify (save its report to execution/verify.md)
+    before /opsx:archive.

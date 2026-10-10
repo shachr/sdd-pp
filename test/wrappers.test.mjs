@@ -43,13 +43,14 @@ test('install.sh installs schema, scripts, skills and commands into an openspec 
 
 test('superpowers handoff with execution/plan-<id>.md passes and counts plan tasks', () => {
   const { dir, changeDir } = makeFixture();
-  setHandoff(dir, { tool: 'superpowers', implementation_model: 'gpt-5-codex' });
+  setHandoff(dir, { tool: 'superpowers', implementation_model: 'gpt-5-codex', apply_mode: 'executing-plans' });
   fs.rmSync(path.join(changeDir, 'execution', 'tickets'), { recursive: true });
   fs.rmSync(path.join(changeDir, 'execution', 'design.md'));
   fs.writeFileSync(path.join(changeDir, 'execution', `plan-${CHANGE}.md`), [
     '# Greeting by name Implementation Plan', '',
     '**Spec:** [proposal](../proposal.md) · [specs/greeting/spec.md](../specs/greeting/spec.md)', '',
-    '### Task 1: greet(name)', '', '### Task 2: CLI wiring', '',
+    '### Task 1: greet(name)', '', '**Covers:** "Requirement: Greeting by name", "Requirement: Blank name falls back to default"', '',
+    '### Task 2: CLI wiring', '', '**Covers:** "Requirement: Greeting by name"', '',
   ].join('\n'));
   const r = run('check-handoff.mjs', [CHANGE, '--json'], dir);
   assert.equal(r.code, 0, r.out);

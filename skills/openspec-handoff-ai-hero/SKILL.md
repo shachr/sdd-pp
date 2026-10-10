@@ -23,9 +23,10 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 | `grill-with-docs` (= `grilling` + `domain-modeling`) | **Yes**, on the proposal + delta. If the user delegated decisions, answer each round yourself with the recommended answer (or a better one) and record it. | `execution/design.md`; glossary terms -> `GLOSSARY.md`, ADRs -> `docs/adr/` (AI Hero's durable homes; link them from `execution/design.md`) |
 | `to-spec` | **Yes** - it combines the user-facing view with Implementation/Testing Decisions. Its seams check (step 2) is answered from the grilling record. | `execution/spec.md` (see overrides) |
 | `to-tickets` | **Yes**, from `execution/spec.md` + the delta (scenarios are cited by name) | `execution/tickets/NN-<slug>.md` |
-| `implement` (single session) or `implement-spec` (subagents), with `tdd` | Yes, from `/opsx:apply` | code + tests; ticks `tasks.md` |
-| `code-review` | Yes (implement calls it) | `execution/reviews/self-review.md` |
-| Final review | Always | `/adversarial-review <id>` (different model) |
+| `/spec-check` | Yes, end of planning (stop on GAPS) | `execution/spec-check.md` |
+| `implement` (single session) or `implement-spec` (subagents), with `tdd` - as `apply_mode` in handoff.md | Yes, started by the engineer (not `/opsx:apply`) | code + tests; ticks `tasks.md` |
+| `code-review` | Yes (implement calls it) | `execution/reviews/code-review.md` |
+| `/adversarial-review` | Optional (different model) | `execution/reviews/<ts>-<model>.md` |
 
 ### grill-with-docs output (`execution/design.md`)
 
@@ -39,7 +40,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 - First line: `> Source of truth: [proposal](../proposal.md) · [spec delta](../specs/<cap>/spec.md) · [design](design.md)`
 - **Problem Statement** / **Solution**: one or two sentences that point at `../proposal.md` (Why / What Changes) - do not retell them.
-- **User Stories**: the delta's scenarios are the user stories. List them by requirement and scenario name with a link to the delta; add a story only when it is about the *experience* and not covered by a scenario (then it is a behaviour gap: add it to the delta first).
+- **User Stories**: numbered, each naming the requirement it covers as `"Requirement: <name>"` with a link to the delta (check-handoff fails on a story that names none or a nonexistent one), plus the scenarios it stands for by name. A story that no requirement covers is a behaviour gap: add it to the delta first.
 - **Implementation Decisions**, **Testing Decisions**, **Out of Scope**, **Further Notes**: in full, as the template says (no file paths or code snippets). Settled decisions from `execution/design.md` are summarised here; link them rather than repeating the grilling record.
 - Publishing = writing the file (`docs/agents/issue-tracker.md`); `Status: ready-for-agent` line near the top.
 - `check-handoff` warns (does not fail) if one of the user-facing sections has no link to the proposal/delta or reuses the delta's wording.
@@ -56,16 +57,17 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 ## Phase boundary
 
-- **Planning** (right after `/handoff`, or when `/opsx:propose|ff|continue` reaches `tasks`): grill-with-docs, to-spec, to-tickets, then `tasks.md`. No code changes.
-- **Implementation** (`/opsx:apply`): implement/tdd per ticket, code-review, then review and verify.
+- **Planning** (right after `/handoff`, or when `/opsx:propose|ff|continue` reaches `tasks`): grill-with-docs, to-spec, to-tickets, `tasks.md`, then `/spec-check`. No code changes.
+- **Implementation** (the engineer runs `implement` or `implement-spec`, as recorded in `apply_mode`; `/opsx:apply` is not used): implement/tdd per ticket, code-review, then verify.
 
 ### Planning: after tickets exist
 
 1. Run `openspec instructions tasks --change "<id>"` and write `tasks.md`: one checkbox per ticket linking its file, plus the review group from the template.
-2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix every error (copied requirement text, delta headers, SHALL sentences) and read the warnings (likely paraphrases, user-facing sections without links). Stop here if you were invoked for planning.
+2. Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix every error (copied requirement text, delta headers, SHALL sentences) and read the warnings (likely paraphrases, user-facing sections without links).
+3. Run `/spec-check <id>`; stop on GAPS. Stop here if you were invoked for planning.
 
-### Implementation (from /opsx:apply)
+### Implementation (the engineer runs `implement` / `implement-spec`)
 
-1. Implement with `implement` (or `implement-spec`). When a ticket is done, set its `Status:` to `done` and tick its `tasks.md` box in the same commit. `code-review` output goes to `execution/reviews/self-review.md`.
-2. Run `/adversarial-review <id>`, triage (`execution/reviews/triage.md`) and fix Critical/Important findings, tick 2.1; `openspec validate <id> --strict` (2.2); `check-handoff` (2.3).
+1. Implement with the `apply_mode` command. When a ticket is done, set its `Status:` to `done` and tick its `tasks.md` box in the same commit.
+2. `code-review` (implement calls it) -> `execution/reviews/code-review.md`; fix Critical/Important findings and tick 2.1. `openspec validate <id> --strict` (2.2); `check-handoff` (2.3). `/adversarial-review` is optional.
 3. Run `/opsx:verify <id>` and save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written (agent-driven sync).

@@ -7,7 +7,7 @@
 
 ## 2. Review and verification
 
-- [x] 2.1 Run /adversarial-review add-greeting-name and resolve Critical/Important findings - verify: review file exists in execution/reviews/
+- [x] 2.1 Run the tool's code review (AI Hero `code-review`) and resolve Critical/Important findings - verify: review file exists in execution/reviews/
 - [ ] 2.2 Run `openspec validate add-greeting-name --strict` - verify: exit 0
 - [x] 2.3 Run `node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name` - verify: exit 0
 

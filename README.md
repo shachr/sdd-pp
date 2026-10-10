@@ -10,6 +10,7 @@ openspec/changes/<id>/
   specs/<cap>/spec.md  OpenSpec  - delta specs: the ONLY place behaviour is written down
   handoff.md           handoff   - tool (ai-hero | superpowers), implementation_model, base_ref, links
   execution/           owned by the execution tool; cites requirements/scenarios by name + link only
+    spec-check.md                (/spec-check: design output vs proposal + delta, end of planning)
     design.md, spec.md, tickets/ (AI Hero grill-with-docs, to-spec, to-tickets)
     design.md, plan-<id>.md,     (Superpowers brainstorming, writing-plans,
       progress.md                 executing-plans/SDD ledger summary)
@@ -26,7 +27,8 @@ Schema order: **proposal → specs → handoff → tasks**, then apply. There is
 | Path | What |
 |---|---|
 | `schemas/handoff-driven/` | Custom OpenSpec schema (`schema.yaml` + templates incl. `handoff.md`) - story 1 |
-| `scripts/check-handoff.mjs` | Lint: handoff fields, reference-not-duplicate (errors: verbatim copies, delta headers, SHALL; warnings: token-overlap paraphrases and User-Stories-style sections with no link to the proposal/delta - errors with `strictDuplication`), ownership (no OpenSpec design.md), outputs in change folder, PR size |
+| `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + contradictions (agent); writes `execution/spec-check.md` |
+| `scripts/check-handoff.mjs` | Lint: handoff fields, reference-not-duplicate (errors: verbatim copies, delta headers, SHALL; warnings: token-overlap paraphrases and User-Stories-style sections with no link to the proposal/delta - errors with `strictDuplication`), requirement links (every user story / ticket / plan task names an existing delta requirement: error), `apply_mode`, ownership (no OpenSpec design.md), outputs in change folder, PR size |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
 | `commands/{claude,cursor}/handoff.md` | `/handoff` - story 2 |
 | `commands/{claude,cursor}/adversarial-review.md`, `scripts/adversarial-review.mjs` | `/adversarial-review` - story 3 |
@@ -62,8 +64,11 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
       openspec-handoff-superpowers: brainstorming -> execution/design.md, writing-plans -> execution/plan-<id>.md
       (to-spec's / brainstorming's user-facing parts link the proposal + delta; their decisions are written in full)
    -> tasks.md (one link per ticket / plan task)
-/opsx:apply add-greeting-name            # implement+tdd+code-review  |  executing-plans / subagent-driven-development
-/adversarial-review add-greeting-name     # different model, headless, -> execution/reviews/ (+ triage.md)
+   -> /spec-check add-greeting-name (automatic; stops on GAPS) -> execution/spec-check.md
+# implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply)
+/implement  |  /implement-spec  |  executing-plans  |  subagent-driven-development
+   -> ticks tasks.md; tool's code review (code-review / requesting-code-review) -> execution/reviews/code-review.md
+/adversarial-review add-greeting-name     # optional: different model, headless, -> execution/reviews/
 openspec validate add-greeting-name --strict && node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name
 /opsx:verify add-greeting-name            # save the report to execution/verify.md
 /opsx:archive add-greeting-name           # agent-driven sync, then move; handoff + execution archive with the change
@@ -110,7 +115,7 @@ before acting on them (the example's `execution/reviews/triage.md` shows a 3B mo
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 51 tests: lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
+npm test               # 56 tests: lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```

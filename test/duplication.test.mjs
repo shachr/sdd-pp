@@ -47,7 +47,7 @@ const PARA = '**What to build:** when the user passes a name argument the greet 
 
 test('check-handoff: paraphrased ticket line is an advisory warning with file:line', () => {
   const { dir, changeDir } = makeFixture();
-  write(changeDir, 'execution/tickets/03-x.md', PARA);
+  write(changeDir, 'execution/tickets/03-x.md', PARA + '\n\nCovers "Requirement: Greeting by name".');
   const r = run('check-handoff.mjs', [CHANGE], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /! execution\/tickets\/03-x\.md:3: likely paraphrases requirement "Greeting by name"/);
@@ -55,7 +55,7 @@ test('check-handoff: paraphrased ticket line is an advisory warning with file:li
 
 test('check-handoff: strictDuplication turns paraphrases and restating sections into errors', () => {
   const { dir, changeDir } = makeFixture();
-  write(changeDir, 'execution/tickets/03-x.md', PARA);
+  write(changeDir, 'execution/tickets/03-x.md', PARA + '\n\nCovers "Requirement: Greeting by name".');
   write(changeDir, 'execution/spec.md', '## User Stories\n\n1. As a user I want a greeting.');
   const cfg = path.join(dir, 'strict.json');
   fs.writeFileSync(cfg, JSON.stringify({ ...JSON.parse(fs.readFileSync(new URL('../config/handoff-review.json', import.meta.url))), strictDuplication: true }));

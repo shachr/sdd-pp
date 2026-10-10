@@ -1,0 +1,69 @@
+// /spec-check + the requirement-link rule in check-handoff.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { makeFixture, run, setHandoff, CHANGE } from './helpers.mjs';
+
+const ex = (changeDir, f) => path.join(changeDir, 'execution', f);
+const replaceIn = (file, a, b) => fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(a, b));
+
+test('spec-check: the example change passes and maps every requirement to stories and tickets', () => {
+  const { dir, changeDir } = makeFixture();
+  const r = run('spec-check.mjs', [CHANGE, '--write'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /\| Greeting by name \| story 1<br>01: greet\(\) - name parameter<br>02: CLI - argv wiring \| ✓ Name given/);
+  assert.match(r.out, /\| Blank name falls back to default \| story 2<br>01: greet\(\) - name parameter \| ✓ Whitespace-only name/);
+  assert.match(r.out, /^PASS \(mechanical checks\)/m);
+  assert.ok(fs.existsSync(ex(changeDir, 'spec-check.md')));
+  assert.equal(run('check-handoff.mjs', [CHANGE], dir).code, 0);
+});
+
+test('spec-check: a requirement nobody names is missing; an invented one is unknown', () => {
+  const { dir, changeDir } = makeFixture();
+  for (const f of ['spec.md', 'tickets/01-greet-accepts-a-name.md']) {
+    replaceIn(ex(changeDir, f), /"Requirement: Blank name falls back to default"/, '"Requirement: Shout the name"');
+  }
+  const r = run('spec-check.mjs', [CHANGE], dir);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /- Requirement "Blank name falls back to default" - no story \/ ticket \/ plan task names it/);
+  assert.match(r.out, /names requirement "Shout the name"/);
+  const c = run('check-handoff.mjs', [CHANGE], dir);
+  assert.equal(c.code, 1);
+  assert.match(c.out, /execution\/tickets\/01-greet-accepts-a-name\.md:1: ticket "01: greet\(\) - name parameter" names requirement "Shout the name", which is not in any delta/);
+});
+
+test('requirement-link rule: a story or ticket that names no requirement fails; restated text only warns', () => {
+  const { dir, changeDir } = makeFixture();
+  replaceIn(ex(changeDir, 'spec.md'), /## Implementation Decisions/, '3. As a CLI user, I want colours.\n\n## Implementation Decisions');
+  const r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /execution\/spec\.md:\d+: user story "story 3" names no delta requirement/);
+  const s = run('spec-check.mjs', [CHANGE], dir);
+  assert.match(s.out, /Added without source[\s\S]*story 3/);
+});
+
+test('requirement-link rule: plan tasks need a Covers line naming a delta requirement; unknown scenarios fail', () => {
+  const { dir, changeDir } = makeFixture();
+  setHandoff(dir, { tool: 'superpowers', apply_mode: 'executing-plans' });
+  fs.rmSync(ex(changeDir, 'tickets'), { recursive: true });
+  fs.rmSync(ex(changeDir, 'spec.md'));
+  fs.writeFileSync(ex(changeDir, `plan-${CHANGE}.md`), [
+    '# Plan', '', '**Spec:** [proposal](../proposal.md) · [delta](../specs/greeting/spec.md)', '',
+    '### Task 1: greet(name)', '', '**Covers:** "Requirement: Greeting by name", "Requirement: Blank name falls back to default"', '',
+    'Tests: Scenario "Name given", Scenario "Name with surrounding spaces", Scenario "Whitespace-only name"', '',
+    '### Task 2: CLI wiring', '', 'Wire argv; Scenario "Name typed twice".', '',
+  ].join('\n'));
+  const r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /plan task "Task 2: CLI wiring" names no delta requirement/);
+  assert.match(r.out, /names scenario "Name typed twice", which is not in any delta/);
+});
+
+test('check-handoff: apply_mode must be one of the tool\'s own implement commands', () => {
+  const { dir } = makeFixture();
+  setHandoff(dir, { apply_mode: 'opsx-apply' });
+  const r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /apply_mode "opsx-apply" is not a ai-hero implement command \(one of implement, implement-spec\)/);
+});

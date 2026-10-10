@@ -4,6 +4,8 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 export const TOOLS = ['ai-hero', 'superpowers'];
+/** The tools' own implement commands (handoff.md apply_mode); /opsx:apply is not used. */
+export const APPLY_MODES = { 'ai-hero': ['implement', 'implement-spec'], superpowers: ['executing-plans', 'subagent-driven-development'] };
 export const REQUIRED_KEYS = ['change', 'tool', 'implementation_model', 'base_ref', 'execution_dir'];
 
 /** Walk up from `start` to the first directory containing openspec/. */
@@ -300,3 +302,85 @@ export function restatingSections(md) {
 /** Installed tooling (this toolkit, agent skills/commands) is not a change's implementation. */
 export const TOOLING_EXCLUDES = ['.openspec-handoff', '.opencode', '.claude', '.cursor', '.agents', 'docs/agents']
   .map((p) => `:(exclude,glob)${p}/**`);
+
+// ---------------------------------------------------------------------------
+// Requirement links: every design unit (to-spec user story, ticket, plan task)
+// names the delta requirement(s) it covers. Citation forms (any of):
+//   "Requirement: <name>"     Requirement "<name>"     Requirement: "<name>"
+// Scenarios: "Scenario: <name>" / Scenario "<name>".
+
+/** Requirements of every delta: [{ name, delta, scenarios: [name] }]. */
+export function deltaRequirements(change) {
+  const out = [];
+  for (const d of change.deltas) {
+    let req = null;
+    for (const line of change.read(d).split(/\r?\n/)) {
+      let m;
+      if ((m = /^###\s+Requirement:\s*(.*)$/.exec(line))) { req = { name: m[1].trim(), delta: d, scenarios: [] }; out.push(req); continue; }
+      if ((m = /^####\s+Scenario:\s*(.*)$/.exec(line)) && req) req.scenarios.push(m[1].trim());
+      if (/^##\s/.test(line)) req = null;
+    }
+  }
+  return out;
+}
+
+const cite = (kind) => new RegExp(`"${kind}:\\s*([^"\\n]+)"|${kind}:?\\s+"([^"\\n]+)"`, 'g');
+/** Requirement and scenario names cited in a piece of markdown. */
+export function citations(md) {
+  const pick = (re) => [...md.matchAll(re)].map((m) => (m[1] || m[2]).trim());
+  return { requirements: pick(cite('Requirement')), scenarios: pick(cite('Scenario')) };
+}
+
+/**
+ * Design units the requirement-link rule and /spec-check look at:
+ *  - ai-hero: each numbered item under "## User Stories" in execution/spec.md, each ticket file
+ *  - superpowers: each "### Task N:" section of the plan
+ */
+export function designUnits(change) {
+  const units = [];
+  const lines = (f) => change.read(f).split(/\r?\n/);
+  if (change.execution.includes('execution/spec.md')) {
+    const ls = lines('execution/spec.md');
+    let inStories = false; let cur = null;
+    ls.forEach((l, i) => {
+      if (/^#{1,6}\s/.test(l)) { inStories = /^#{1,6}\s*user stories\s*$/i.test(l); cur = null; return; }
+      if (!inStories) return;
+      const m = /^\s{0,3}(\d+)\.\s+(.*)$/.exec(l);
+      if (m) { cur = { kind: 'user story', file: 'execution/spec.md', line: i + 1, label: `story ${m[1]}`, text: m[2] }; units.push(cur); }
+      else if (cur && l.trim()) cur.text += `\n${l}`;
+      else if (!l.trim()) cur = null;
+    });
+  }
+  for (const f of change.execution.filter((x) => /^execution\/tickets\/[^/]+\.md$/.test(x)).sort()) {
+    const text = change.read(f);
+    const title = (/^#\s+(.*)$/m.exec(text) || [, path.basename(f)])[1];
+    units.push({ kind: 'ticket', file: f, line: 1, label: title, text });
+  }
+  const plan = findPlan(change);
+  if (plan) {
+    const ls = lines(plan);
+    let cur = null;
+    ls.forEach((l, i) => {
+      const m = /^###\s+Task\s+(\d+)\s*:\s*(.*)$/.exec(l);
+      if (m) { cur = { kind: 'plan task', file: plan, line: i + 1, label: `Task ${m[1]}: ${m[2]}`, text: '' }; units.push(cur); return; }
+      if (cur && /^#{1,3}\s/.test(l)) { cur = null; return; }
+      if (cur) cur.text += `${l}\n`;
+    });
+  }
+  return units;
+}
+
+/** Requirement-link findings: units citing no requirement, or unknown requirements/scenarios. */
+export function requirementLinkFindings(change) {
+  const reqs = deltaRequirements(change);
+  const reqNames = new Map(reqs.map((r) => [r.name.toLowerCase(), r]));
+  const scenNames = new Set(reqs.flatMap((r) => r.scenarios.map((s) => s.toLowerCase())));
+  const findings = [];
+  for (const u of designUnits(change)) {
+    const c = citations(u.text);
+    if (!c.requirements.length) findings.push({ ...u, problem: 'names no delta requirement' });
+    for (const r of c.requirements) if (!reqNames.has(r.toLowerCase())) findings.push({ ...u, problem: `names requirement "${r}", which is not in any delta` });
+    for (const s of c.scenarios) if (!scenNames.has(s.toLowerCase())) findings.push({ ...u, problem: `names scenario "${s}", which is not in any delta` });
+  }
+  return findings;
+}

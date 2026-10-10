@@ -4,6 +4,8 @@
 //   - reference-not-duplicate: handoff.md and execution/** link the proposal/deltas and
 //     do not copy (verbatim lines, delta headers, SHALL: errors); restating sections and token-overlap
 //     paraphrases are advisory warnings (errors with config.strictDuplication)
+//   - requirement links: every user story / ticket / plan task names an existing delta requirement
+//   - handoff.md apply_mode names the tool's own implement command
 //   - ownership: no OpenSpec design.md; design lives in execution/ (to-spec output: execution/spec.md)
 //   - execution outputs live in the change folder, not the tools' default locations
 //   - the change is PR-sized (.openspec-handoff/small-changes.md)
@@ -15,7 +17,7 @@ import { parseArgs } from 'node:util';
 import {
   findProjectRoot, loadChange, loadConfig, normativeLines, normalize, countRequirements,
   countWorkUnits, diffSize, git, TOOLS, REQUIRED_KEYS, UsageError,
-  paraphraseFindings, PARAPHRASE, restatingSections, findPlan,
+  paraphraseFindings, PARAPHRASE, restatingSections, findPlan, requirementLinkFindings, APPLY_MODES,
 } from './lib/change.mjs';
 
 export function checkChange(change, config, { useGit = true } = {}) {
@@ -38,6 +40,11 @@ export function checkChange(change, config, { useGit = true } = {}) {
   }
   if (h.change && h.change !== change.id) errors.push(`handoff.md: change "${h.change}" does not match folder "${change.id}"`);
   if (h.tool && !TOOLS.includes(h.tool)) errors.push(`handoff.md: tool "${h.tool}" must be one of ${TOOLS.join(', ')}`);
+  // apply_mode: the execution tool's own implement command (this workflow does not use /opsx:apply)
+  if (h.tool && APPLY_MODES[h.tool]) {
+    if (!h.apply_mode) errors.push(`handoff.md: front matter "apply_mode" is missing (one of ${APPLY_MODES[h.tool].join(', ')})`);
+    else if (!APPLY_MODES[h.tool].includes(h.apply_mode)) errors.push(`handoff.md: apply_mode "${h.apply_mode}" is not a ${h.tool} implement command (one of ${APPLY_MODES[h.tool].join(', ')})`);
+  }
   if (h.execution_dir && h.execution_dir.replace(/\/?$/, '/') !== 'execution/') errors.push('handoff.md: execution_dir must be "execution/"');
   if (h.reviewer_model && h.implementation_model && h.reviewer_model === h.implementation_model) {
     errors.push('handoff.md: reviewer_model must differ from implementation_model');
@@ -84,6 +91,12 @@ export function checkChange(change, config, { useGit = true } = {}) {
         (p.level === 'error' ? advisory : warnings).push(msg);
       }
     }
+  }
+
+  // 3b. requirement links: every to-spec user story, ticket and plan task names the delta
+  //     requirement(s) it covers, and only requirements/scenarios that exist.
+  for (const f of requirementLinkFindings(change)) {
+    errors.push(`${f.file}:${f.line}: ${f.kind} "${f.label.slice(0, 60)}" ${f.problem} - cite it as "Requirement: <name>" (see /spec-check)`);
   }
 
   // 4. execution artifacts link back to the source of truth
