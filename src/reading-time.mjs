@@ -6,6 +6,9 @@ function countWords(text) {
 }
 
 export function readingTime(text, { wordsPerMinute = DEFAULT_WORDS_PER_MINUTE } = {}) {
+  if (!Number.isFinite(wordsPerMinute) || wordsPerMinute <= 0) {
+    throw new RangeError(`wordsPerMinute must be a finite number greater than 0, got ${wordsPerMinute}`);
+  }
   const words = countWords(text);
   return Math.ceil(words / wordsPerMinute);
 }

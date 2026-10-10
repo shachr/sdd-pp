@@ -6,6 +6,6 @@
 
 **Blocked by:** 01 (reading-time module - estimate from counted words).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Scenario "Invalid speed rejected" passes
+- [x] Scenario "Invalid speed rejected" passes

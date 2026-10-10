@@ -29,3 +29,10 @@ test('Punctuation-only tokens ignored', () => {
 test('Mixed whitespace', () => {
   assert.equal(readingTime('café\tnaïve\n\n  über', { wordsPerMinute: 1 }), 3);
 });
+
+test('Invalid speed rejected', () => {
+  for (const wordsPerMinute of [0, -5, NaN, Infinity]) {
+    assert.throws(() => readingTime('some words', { wordsPerMinute }), RangeError, `wordsPerMinute ${wordsPerMinute}`);
+    assert.throws(() => readingTime('', { wordsPerMinute }), RangeError, `empty text, wordsPerMinute ${wordsPerMinute}`);
+  }
+});
