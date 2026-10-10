@@ -47,11 +47,11 @@
 **Interfaces:**
 - Produces: `countWords(text: string): number` exported from `src/index.mjs`.
 
-- [ ] **Step 1: Write the failing tests** `Counts words` (`countWords("one two\tthree\nfour, five") === 5`), `No words` (`countWords(" \t\n ") === 0`), `CRLF separates words` (`countWords("a\r\nb") === 2`), `Edges are not words` (`countWords("  a  ") === 1`), `Text is not a string (countWords)` (`assert.throws(() => countWords(null), TypeError)`).
-- [ ] **Step 2: Run to verify they fail** - `node --test test/stats.test.mjs`; expected FAIL: `countWords` is not exported.
-- [ ] **Step 3: Implement `countWords(text)` in `src/stats.mjs`** - split on `/[ \t\n\r]+/`, drop empty pieces; `TypeError('countWords: text must be a string')` first. Re-export from `src/index.mjs`.
-- [ ] **Step 4: Run to verify they pass** - `npm test`; expected all PASS.
-- [ ] **Step 5: Commit** - `git add src/stats.mjs src/index.mjs test/stats.test.mjs && git commit -m "feat(stats): countWords"`
+- [x] **Step 1: Write the failing tests** `Counts words` (`countWords("one two\tthree\nfour, five") === 5`), `No words` (`countWords(" \t\n ") === 0`), `CRLF separates words` (`countWords("a\r\nb") === 2`), `Edges are not words` (`countWords("  a  ") === 1`), `Text is not a string (countWords)` (`assert.throws(() => countWords(null), TypeError)`).
+- [x] **Step 2: Run to verify they fail** - `node --test test/stats.test.mjs`; expected FAIL: `countWords` is not exported.
+- [x] **Step 3: Implement `countWords(text)` in `src/stats.mjs`** - split on `/[ \t\n\r]+/`, drop empty pieces; `TypeError('countWords: text must be a string')` first. Re-export from `src/index.mjs`.
+- [x] **Step 4: Run to verify they pass** - `npm test`; expected all PASS.
+- [x] **Step 5: Commit** - `git add src/stats.mjs src/index.mjs test/stats.test.mjs && git commit -m "feat(stats): countWords"`
 
 ### Task 2: Reading-time estimate
 
