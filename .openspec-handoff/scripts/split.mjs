@@ -46,7 +46,10 @@ export function lossCheck(root, parentId, { final = false } = {}) {
     const holders = child.filter((c) => lc(c.name) === lc(r.name));
     const splits = child.filter((c) => c.splitFrom && lc(c.splitFrom) === lc(r.name));
     const amends = am('Requirement', r.name);
-    const gone = amends.find((a) => a.type === 'dropped' || a.type === 'changed');
+    let gone = amends.find((a) => a.type === 'dropped' || a.type === 'changed');
+    // "changed, see change <slice>" pointing at the slice that holds it = behaviour edited in that slice's live delta
+    const inPlace = gone && gone.type === 'changed' && holders.length === 1 && !splits.length && holders[0].slice === gone.change;
+    if (inPlace) gone = null;
     const where = (xs) => xs.map((c) => `${c.slice}`).join(', ');
     let verdict;
     if (gone) {
@@ -58,7 +61,7 @@ export function lossCheck(root, parentId, { final = false } = {}) {
     } else if (holders.length === 1 && splits.length) {
       verdict = 'DUPLICATE'; errors.push(`Requirement "${r.name}": kept whole in ${holders[0].slice} and also split (${splits.map((c) => `"${c.name}" in ${c.slice}`).join(', ')})`);
     } else if (holders.length === 1) {
-      verdict = holders[0].slice;
+      verdict = inPlace ? `${holders[0].slice} (edited there, amendment)` : holders[0].slice;
     } else if (splits.length) {
       const ok = amends.find((a) => a.type === 'split' && a.confirmed);
       const names = splits.map((c) => c.name);

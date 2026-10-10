@@ -69,10 +69,14 @@ them. Nothing is split automatically.
 
 ```markdown
 - Requirement "<name>" dropped: <why>
-- Requirement "<name>" changed, see change <id>
+- Requirement "<name>" changed, see change <id>: <why>   (<id> = another change, or the slice that holds it
+                                                      when a slice session edited its live delta)
 - Requirement "<name>" added in <slice>: <why>        (e.g. the feature-flag requirement)
 - Scenario "<name>" dropped: <why> | added in <slice>: <why>
 ```
+
+A slice gate (`/split-check <slice>`) uses the approved slice estimate from `slices.md` when the slice has no
+`execution/size-estimate.md` of its own (one line when it fits).
 
 Edit the child delta, add the amendment, rerun `split.mjs loss <parent>`, then update the tool files
 (rerun the planning command, then `/spec-check`).
