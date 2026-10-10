@@ -16,7 +16,7 @@ Size never fails a change. It is checked at two points and only warns:
 
 Thresholds: `.openspec-handoff/config.json` → `split.maxRequirements`, `split.maxCapabilities` (gate),
 `split.limitLines` (estimate after planning). The real PR diff is not measured by this toolkit (decisions section 16).
-Over budget after planning: re-split the change with `/split-check <id>`; new slices join the same parent.
+Over budget after planning: re-split the change with `/split-check <id>`; a slice is re-split into its existing parent and `/split-apply` builds the new slice ids (continuing the numbering).
 
 ## Splitting a change (the gate)
 
