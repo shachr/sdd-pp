@@ -100,6 +100,8 @@ test('split apply: refuses without approval or with uncommitted deltas; the pare
   assert.ok(totals.includes(req('Report totals', ['Totals per day', 'Empty week']).trim()));
   assert.match(R(dir, 'openspec/changes/add-csv-export/proposal.md'), /Behind the feature flag `csv-export`[\s\S]*## Split notes[\s\S]*_None\._/);
   assert.deepEqual(proposalLeaks(R(dir, 'openspec/changes/add-csv-export/proposal.md')), [], 'the split-notes template is not an implementation-detail leak');
+  assert.match(R(dir, 'openspec/changes/add-report-totals/proposal.md'), /### New Capabilities\n\n- `reports`/);
+  assert.match(R(dir, 'openspec/changes/add-report-filters/proposal.md'), /### New Capabilities\n\n_None\._\n\n### Modified Capabilities\n\n- `reports`/, 'an earlier slice in depends_on creates the capability');
   addFlag(dir);
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
