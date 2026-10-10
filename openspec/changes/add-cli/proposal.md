@@ -32,4 +32,4 @@ See the parent plan [slices.md](../add-text-stats-cli/slices.md); depends on: no
      - renamed_from: Requirement|Scenario "<original name>" -> "<new name>" - <why equivalent>
      - split_from: Requirement "<original name>" - confirmed -->
 
-_None._
+- renamed_from: Requirement "Command errors" -> "Usage errors" - same behaviour (usage message on stderr, exit 2 for unknown or missing command); the new name matches what the user sees, decided in the add-cli grill session (Q2)

@@ -15,7 +15,7 @@ The system SHALL provide a `textkit slugify` command that prints the slug of its
 - **WHEN** the user runs `textkit slugify` with "Café au lait" on standard input
 - **THEN** the output is "cafe-au-lait" and the exit code is 0
 
-### Requirement: Command errors
+### Requirement: Usage errors
 The system SHALL print a usage message to standard error and exit with code 2 when the command is unknown or missing.
 
 #### Scenario: Unknown command
