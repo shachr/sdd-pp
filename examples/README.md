@@ -2,6 +2,8 @@
 
 Test projects used to develop and prove this toolkit, each with its full git history (merged in subtree-style).
 
+These are historical runs and predate the current toolkit: they still use `install.sh`, the `implementation_model` / `reviewer_model` handoff fields and the Ollama fallback reviewer (see `docs/decisions.md` section 13).
+
 | Folder | What it shows |
 |---|---|
 | `handoff-flows/` | v1: first end-to-end runs of the handoff with AI Hero and Superpowers |
