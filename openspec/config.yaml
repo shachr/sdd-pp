@@ -1,0 +1,42 @@
+schema: handoff-driven
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
+
+# Added by openspec-handoff-workflow (install.sh). Edit freely.
+context: |
+  Handoff-driven workflow: OpenSpec owns only proposal.md and the delta specs (specs/**/spec.md).
+  Design and implementation are owned by the execution tool named in each change's handoff.md
+  (AI Hero or Superpowers). Its design (execution/design.md or execution/plan-<change>.md), tickets,
+  plan, progress and reviews live in the change's execution/ folder and were reviewed by that tool.
+  There is no OpenSpec design.md in this workflow: do not create one, and do not report it missing.
+  Verify changes against proposal.md + delta specs. Execution artifacts cite requirements and
+  scenarios by name with a link and never restate them (node .openspec-handoff/scripts/check-handoff.mjs).
