@@ -6,11 +6,11 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Scenario "Default reading speed" passes
-- [ ] Scenario "Partial minute rounds up" passes
-- [ ] Scenario "Custom reading speed" passes
-- [ ] Scenario "Empty text" passes
-- [ ] Scenario "Punctuation-only tokens ignored" passes
-- [ ] Scenario "Mixed whitespace" passes
+- [x] Scenario "Default reading speed" passes
+- [x] Scenario "Partial minute rounds up" passes
+- [x] Scenario "Custom reading speed" passes
+- [x] Scenario "Empty text" passes
+- [x] Scenario "Punctuation-only tokens ignored" passes
+- [x] Scenario "Mixed whitespace" passes
