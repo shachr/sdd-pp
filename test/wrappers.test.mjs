@@ -67,3 +67,9 @@ test('too many tickets is a hard size error', () => {
   assert.equal(r.code, 1);
   assert.match(r.out, /tickets\/plan tasks 13 > hard limit 12/);
 });
+
+test('fixtures are real copies: writing a fixture config never touches the toolkit config', () => {
+  const { dir } = makeFixture();
+  const f = path.join(dir, '.openspec-handoff', 'config.json');
+  assert.equal(fs.lstatSync(f).isSymbolicLink(), false);
+});

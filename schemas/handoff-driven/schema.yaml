@@ -290,9 +290,11 @@ artifacts:
         `- [ ] 1.2 Plan Task 2 <title> - execution/plan.md#task-2 - verify: <command>`
       - `## 2. Review and verification`:
         `- [ ] 2.1 Run /adversarial-review <change> and resolve Critical/Important findings - verify: review file in execution/reviews/`
-        `- [ ] 2.2 Run openspec validate <change> --strict and /opsx:verify <change> - verify: both pass`
+        `- [ ] 2.2 Run openspec validate <change> --strict - verify: exit 0`
         `- [ ] 2.3 Run node .openspec-handoff/scripts/check-handoff.mjs <change> - verify: exit 0`
-      - Optional `## Workflow follow-up` with plain bullets (archive etc.).
+      - `## Workflow follow-up` with plain bullets (no checkboxes): /opsx:verify
+        and archive. Do NOT make /opsx:verify a checkbox: verify reports every
+        unticked box as CRITICAL, so a verify task could never pass its own check.
 
       When the execution tool completes a ticket / plan task, tick the matching
       box here in the same commit.

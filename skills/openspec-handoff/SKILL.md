@@ -11,14 +11,14 @@ You are moving an OpenSpec change from *planning* (OpenSpec owns proposal + spec
 
 ## Steps
 
-1. **Check the change is ready.** Run `openspec status --change "<id>" --json`. `schemaName` must be `handoff-driven`, and `proposal`, `specs`, `design` must be `done`. If not, stop and tell the user which artifact is missing (`/opsx:continue` or `/opsx:propose` creates it).
+1. **Check the change is ready.** Run `openspec status --change "<id>" --json`. `schemaName` must be `handoff-driven`, `proposal` and `specs` must be `done`, and `design` must be `done` or deliberately skipped (its instruction makes it conditional; `handoff` then shows `blocked` only on `design` - proceed anyway, OpenSpec treats skipped conditional dependencies as enablers, not gates). If proposal or specs are missing, stop and tell the user (`/opsx:continue` or `/opsx:propose` creates them).
 2. **Check size before handing off.** Read the proposal's *Size Budget*. If it is over budget (more than 5 requirements, 8 tickets/plan tasks, or 400 changed lines), stop and propose a split (see `.openspec-handoff/small-changes.md`). Handing off an oversized change makes review and `/opsx:verify` unreliable.
 3. **Write `handoff.md`.** Run `openspec instructions handoff --change "<id>"` and follow it with the template it returns. Fill:
    - `tool`: `ai-hero` or `superpowers`
    - `implementation_model`: the exact model id that will write code (your own model id if you are the implementer; never a placeholder)
    - `harness`: claude-code, cursor, codex, ...
    - `base_ref`: output of `git rev-parse HEAD` right now
-   - links to `proposal.md`, `design.md`, and every `specs/**/spec.md` delta - links only, no copied requirement text
+   - links to `proposal.md`, `design.md` (if it exists), and every `specs/**/spec.md` delta - links only, no copied requirement text
 4. **Lint.** Run `node .openspec-handoff/scripts/check-handoff.mjs <id>`. Fix every error before continuing.
 5. **Commit** the planning artifacts and `handoff.md` (`handoff(<id>): <tool> / <model>`), so the handoff is visible in history. `base_ref` stays the commit before any implementation.
 6. **Route.** Run the *Planning* part of `openspec-handoff-ai-hero` (`tool: ai-hero`) or `openspec-handoff-superpowers` (`tool: superpowers`). They write `execution/` and `tasks.md` and stop; implementation starts with `/opsx:apply`.

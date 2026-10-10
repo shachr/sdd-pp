@@ -13,7 +13,10 @@ export const OPENSPEC = path.join(TOOLKIT, 'node_modules', '.bin', 'openspec');
  */
 export function makeFixture({ handoff = {}, keepExecution = true } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handoff-fixture-'));
-  fs.cpSync(path.join(TOOLKIT, 'example'), dir, { recursive: true, dereference: true });
+  // fs.cpSync's `dereference` only applies to the top-level source, so nested symlinks
+  // (example/.openspec-handoff/config.json -> ../../config/...) would be copied as links and a
+  // test writing the fixture config would overwrite the toolkit's real config. Copy link targets.
+  copyDeref(path.join(TOOLKIT, 'example'), dir);
   const changeDir = path.join(dir, 'openspec', 'changes', CHANGE);
   if (!keepExecution) fs.rmSync(path.join(changeDir, 'execution'), { recursive: true, force: true });
   // start every fixture without prior review output so tests can assert on what a run writes
@@ -27,6 +30,16 @@ export function makeFixture({ handoff = {}, keepExecution = true } = {}) {
   const base = g('rev-parse', 'HEAD');
   setHandoff(dir, { base_ref: base, ...handoff });
   return { dir, changeDir, base, git: g };
+}
+
+function copyDeref(src, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const e of fs.readdirSync(src)) {
+    if (e === 'node_modules') continue;
+    const s = path.join(src, e), d = path.join(dest, e);
+    if (fs.statSync(s).isDirectory()) copyDeref(s, d);
+    else fs.copyFileSync(s, d);
+  }
 }
 
 /** Overwrite (or delete with null) front matter keys in the fixture's handoff.md. */
