@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-10T22:06:22.531Z",
+  "checked_at": "2026-10-10T22:06:42.715Z",
   "requirements": {
     "Wrap at word boundaries": {
       "delta": "specs/text-wrap/spec.md",
@@ -15,7 +15,7 @@
       "delta": "specs/text-wrap/spec.md",
       "hash": "76b812f939c9",
       "scenarios": {
-        "Word longer than the width": "b3d35b1cf2cc"
+        "Word longer than the width": "ff07a0413231"
       }
     },
     "Paragraphs kept": {

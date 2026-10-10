@@ -23,7 +23,7 @@ See [proposal.md - What Changes](../proposal.md); behaviour is in the [text-wrap
 
 Summary of [grill.md - Decisions](grill.md#decisions):
 - One new module exporting a single pure function `wordWrap(text, width = 80)` returning a string, re-exported from the package entry point; no dependencies.
-- Greedy line fill per input line; words are runs of non-space characters (glossary: **Word**); overlong words are chunked at the line width.
+- Greedy line fill per input line; words are runs of non-space characters (glossary: **Word**); overlong words are cut so each cut piece plus its hyphen fits the line width (the delta's Scenario "Word longer than the width" supersedes the plain-chunk decision in grill.md, which predates the delta edit).
 - Validation runs before any wrapping, with the same error style as `slugify` (message prefixed with the function name).
 
 ## Testing Decisions

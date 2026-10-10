@@ -26,11 +26,11 @@
 
 ### Size (line estimate after planning, warn-only; the ~300-line budget is checked only here)
 
-- 2/2 tickets / plan tasks carry an "Estimate: ~N lines" line; total ~140 lines (code + tests), budget ~300.
+- 2/2 tickets / plan tasks carry an "Estimate: ~N lines" line; total ~150 lines (code + tests), budget ~300.
 
-### Spec changes since the last check (report-only)
+### Spec changes since the last check (report-only; baseline 2026-10-10T22:06:34.215Z)
 
-- none: first check - baseline recorded in execution/.spec-check.json (content hash per requirement and scenario)
+- none
 
 ### Agent review
 
