@@ -37,6 +37,7 @@ put() { # put <src> <dest>
 
 echo "Installing into $TARGET"
 put "$SRC/schemas/handoff-driven" "$TARGET/openspec/schemas/handoff-driven"
+put "$SRC/schemas/split-plan" "$TARGET/openspec/schemas/split-plan"
 put "$SRC/scripts" "$TARGET/.openspec-handoff/scripts"
 put "$SRC/docs/small-changes.md" "$TARGET/.openspec-handoff/small-changes.md"
 put "$SRC/docs/switching-tools.md" "$TARGET/.openspec-handoff/switching-tools.md"
@@ -87,12 +88,16 @@ grep -qxF '.superpowers/' "$gi" 2>/dev/null || { echo '.superpowers/' >> "$gi"; 
 cat <<MSG
 
 Done. Next:
-  openspec schema validate handoff-driven
+  openspec schema validate handoff-driven && openspec schema validate split-plan
   openspec new change <id>                              # handoff-driven is the project default
   /opsx:propose <id>  (or /opsx:continue)               # proposal phase runs the tool's design session:
                                                         #   ai-hero -> grill-with-docs -> execution/grill.md
                                                         #   superpowers -> brainstorming -> execution/brainstorm.md (stops before writing-plans)
   node .openspec-handoff/scripts/execution-tool.mjs <id> --set superpowers   # per-change override, before the session
+  /split-check <id>                                     # size gate at the end of the specs stage (runs automatically; rerunnable)
+                                                        #   over ~300 lines: slices proposed -> engineer approves -> split.mjs apply
+  node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets   # split changes: ready / parallel-safe slices + tickets
+  node .openspec-handoff/scripts/split.mjs loss <parent> [--final]         # loss check; archive the parent last with --skip-specs
   /handoff <id> <model>                                 # last OpenSpec stage: handoff.md + prints the next steps
   node .openspec-handoff/scripts/next-steps.mjs <id>    # reprint them: planning, /spec-check, implement, review, verify, archive
   /adversarial-review <id> --dry-run                    # optional; the default review is the tool's own code review

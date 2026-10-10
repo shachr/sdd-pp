@@ -5,8 +5,9 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, loadChange, UsageError, SESSION_FILES, APPLY_MODES } from './lib/change.mjs';
+import { findParentOf } from './lib/split.mjs';
 
-export function nextSteps({ id, tool, applyMode }) {
+export function nextSteps({ id, tool, applyMode, parent = null }) {
   const S = '.openspec-handoff/scripts';
   const c = `openspec/changes/${id}`;
   const common = (n, review) => [
@@ -24,6 +25,7 @@ export function nextSteps({ id, tool, applyMode }) {
       `4. ${impl} with tdd, ticket by ticket; set "Status: done" and tick the ticket's checkboxes as each lands.`,
       ...common(5, '/code-review (Standards + Spec reviewers)'),
       `8. /opsx:archive ${id}`,
+      ...afterArchive(parent, 9),
     ].join('\n');
   }
   const impl = applyMode === 'subagent-driven-development' ? 'subagent-driven-development' : 'executing-plans';
@@ -35,7 +37,13 @@ export function nextSteps({ id, tool, applyMode }) {
     ...common(4, 'requesting-code-review (final whole-branch review, code-reviewer.md)'),
     `7. finishing-a-development-branch`,
     `8. /opsx:archive ${id}`,
+    ...afterArchive(parent, 9),
   ].join('\n');
+}
+
+/** A slice of a split change: after archiving, report what became ready in the parent. */
+function afterArchive(parent, n) {
+  return parent ? [`${n}. node .openspec-handoff/scripts/split.mjs next ${parent} --write-tickets - slices now ready (and their tickets) in the split parent ${parent}.`] : [];
 }
 
 function main() {
@@ -44,9 +52,14 @@ function main() {
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
   if (!root) throw new UsageError('no openspec/ directory found');
   const change = loadChange(root, positionals[0]);
+  if (change.files.includes('slices.md')) {
+    console.log(`${change.id} is a split parent: no handoff or implementation. Run: node .openspec-handoff/scripts/split.mjs next ${change.id}`);
+    return 0;
+  }
   const h = change.handoff;
   if (!h?.tool || !APPLY_MODES[h.tool]) throw new Error(`${change.id}: handoff.md has no valid tool - write handoff.md first`);
-  console.log(nextSteps({ id: change.id, tool: h.tool, applyMode: h.apply_mode || APPLY_MODES[h.tool][0] }));
+  const parent = findParentOf(root, change.id);
+  console.log(nextSteps({ id: change.id, tool: h.tool, applyMode: h.apply_mode || APPLY_MODES[h.tool][0], parent: parent && parent.id !== change.id ? parent.id : null }));
   return 0;
 }
 

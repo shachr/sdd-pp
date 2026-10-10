@@ -10,7 +10,8 @@
 //   - proposal.md what/why only (warning heuristic); new capabilities have ## Purpose (warning)
 //   - ownership: no OpenSpec design.md; design lives in execution/ (grill.md / brainstorm.md, spec.md, plan)
 //   - execution outputs live in the change folder, not the tools' default locations
-//   - the change is PR-sized (.openspec-handoff/small-changes.md)
+//   - the change is PR-sized (.openspec-handoff/small-changes.md): warn-only, real diff of code + tests
+//     (lockfiles, generated files and installed tooling excluded)
 // Usage: node check-handoff.mjs <change-id> [--root <dir>] [--config <file>] [--json] [--no-git]
 // Exit: 0 ok (warnings allowed), 1 errors found, 2 usage error.
 import fs from 'node:fs';
@@ -31,6 +32,10 @@ export function checkChange(change, config, opts = {}) {
   const h = change.handoff;
 
   // 1. handoff.md presence and front matter
+  if (change.files.includes('slices.md')) {
+    errors.push(`${change.id} is a split parent (slices.md, schema split-plan): it has no handoff, verify or implementation. Use: split.mjs next ${change.id} / split.mjs loss ${change.id} [--final]`);
+    return { errors, warnings, metrics };
+  }
   if (!change.handoffText) {
     errors.push('handoff.md is missing (create it with: openspec instructions handoff --change ' + change.id + ')');
     return { errors, warnings, metrics };
@@ -171,8 +176,9 @@ export function checkChange(change, config, opts = {}) {
   }
   const sizeRule = (key, label) => {
     if (metrics[key] === undefined) return;
-    const [soft, hard] = t[key];
-    if (metrics[key] > hard) errors.push(`size: ${label} ${metrics[key]} > hard limit ${hard} - split the change (.openspec-handoff/small-changes.md)`);
+    // Size is warn-only (never fails): the gate is /split-check before handoff.
+    const [soft, high] = t[key];
+    if (metrics[key] > high) warnings.push(`size: ${label} ${metrics[key]} > ${high} (well over the budget ${soft}) - this PR is hard to review; split the remaining work (/split-check, .openspec-handoff/small-changes.md)`);
     else if (metrics[key] > soft) warnings.push(`size: ${label} ${metrics[key]} > budget ${soft} - consider splitting`);
   };
   sizeRule('requirements', 'requirements in deltas');

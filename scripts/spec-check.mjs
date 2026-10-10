@@ -15,9 +15,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { findProjectRoot, loadChange, UsageError, deltaRequirements, designUnits, citations, findPlan } from './lib/change.mjs';
+import { findProjectRoot, loadChange, loadConfig, UsageError, deltaRequirements, designUnits, citations, findPlan } from './lib/change.mjs';
 
-export function specCheck(change) {
+export function specCheck(change, { limit = 300 } = {}) {
   const reqs = deltaRequirements(change);
   const units = designUnits(change).map((u) => ({ ...u, cites: citations(u.text) }));
   const tool = change.handoff?.tool;
@@ -52,7 +52,11 @@ export function specCheck(change) {
   if (!units.length) problems.push(`no design output found for tool "${tool}" (expected ${tool === 'superpowers' ? `execution/plan-${change.id}.md` : 'execution/spec.md and execution/tickets/'})`);
   if (!reqs.length) problems.push('no delta requirements found (specs/**/spec.md)');
   const gaps = missing.length + unknown.length + unsourced.length + problems.length;
-  return { change: change.id, tool, sources, units: units.length, rows, missing, unknown, unsourced, problems, gaps };
+  // size re-estimate after planning (warn-only): "Estimate: ~N lines" in each ticket / plan task
+  const work = units.filter((u) => u.kind !== 'user story');
+  const est = work.map((u) => ({ label: u.label, lines: Number((/estimate:?\**\s*~?\s*(\d+)/i.exec(u.text) || [])[1]) }));
+  const size = { units: work.length, estimated: est.filter((e) => Number.isFinite(e.lines)).length, total: est.reduce((n, e) => n + (Number.isFinite(e.lines) ? e.lines : 0), 0), missing: est.filter((e) => !Number.isFinite(e.lines)).map((e) => e.label), limit };
+  return { change: change.id, tool, sources, units: units.length, rows, missing, unknown, unsourced, problems, gaps, size };
 }
 
 export function formatReport(r) {
@@ -70,6 +74,13 @@ export function formatReport(r) {
   list('Missing (in the delta, not in the design output)', r.missing);
   list('Unknown references (in the design output, not in the delta)', r.unknown);
   list('Added without source (units that name no delta requirement)', r.unsourced);
+  if (r.size) {
+    const s = r.size;
+    out.push('', '### Size (re-estimate after planning, warn-only)', '');
+    out.push(`- ${s.estimated}/${s.units} tickets / plan tasks carry an "Estimate: ~N lines" line; total ~${s.total} lines (code + tests), budget ~${s.limit}.`);
+    if (s.missing.length) out.push(`- ! no estimate: ${s.missing.join('; ')}`);
+    if (s.total > s.limit) out.push(`- ! over budget: consider re-splitting with /split-check ${r.change} before implementing (new slices join the same parent).`);
+  }
   out.push('', '### Contradictions (agent review)', '', '<!-- /spec-check: the agent reads each unit against the requirement it names and lists contradictions here, or "- none". -->');
   out.push('', '### Result', '', r.gaps ? `GAPS: ${r.gaps} mechanical finding(s). Fix the design output (or the delta) before implementation.` : 'PASS (mechanical checks). Contradictions: see agent review above.');
   return out.join('\n') + '\n';
@@ -86,7 +97,8 @@ async function main() {
   }
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
   const change = loadChange(root, positionals[0]);
-  const r = specCheck(change);
+  const config = loadConfig(root);
+  const r = specCheck(change, { limit: config.split?.limitLines ?? config.sizeThresholds?.lines?.[0] ?? 300 });
   const text = formatReport(r);
   if (values.write) {
     const f = path.join(change.dir, 'execution', 'spec-check.md');

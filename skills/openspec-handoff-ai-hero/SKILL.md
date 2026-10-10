@@ -18,6 +18,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 |---|---|---|
 | Proposal | `grill-with-docs` (= `grilling` + `domain-modeling`) | `execution/grill.md`; `GLOSSARY.md`, `docs/adr/` (linked) |
 | Proposal | (OpenSpec) proposal.md + delta, informed by the session | `proposal.md`, `specs/**/spec.md` |
+| Specs (end) | `/split-check` size gate (~300 lines code + tests; over it: slices proposed, engineer approves, `split.mjs apply`) | `execution/size-estimate.md`, `execution/split-check.md` |
 | Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
 | Planning (engineer) | `to-spec`, reading `execution/grill.md` | `execution/spec.md` |
 | Planning (engineer) | `to-tickets` | `execution/tickets/NN-<slug>.md` |
@@ -61,12 +62,28 @@ After `/handoff` wrote `handoff.md` (`tool: ai-hero`, the session file must exis
 - First line: `> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/<cap>/spec.md) · [spec](../spec.md) · [grill session](../grill.md)`
 - **What to build**: the requirement(s) this slice makes work, by name + link (`[delta](../../specs/<cap>/spec.md) - "Requirement: <name>"`), plus the slice's path through the code. Do not re-describe behaviour.
 - Checkboxes: one per scenario, by name only: `- [ ] Scenario "<name>" passes`.
+- One `Estimate: ~N lines` line (code + tests) per ticket: `/spec-check` totals them as the size re-estimate after planning (warn-only, budget ~300).
 - At most 8 tickets (hard cap 12). Quiz step: if decisions were delegated, approve the breakdown yourself and note it in `grill.md`.
 
 ### Then
 
 1. `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors, read warnings.
 2. `/spec-check <id>`; stop on GAPS. Planning ends here. There is no `tasks.md`: the tickets are the tracker.
+
+
+## Slice of a split change
+
+A change created by `split.mjs apply` (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `node .openspec-handoff/scripts/split.mjs next <parent>` says READY (all `depends_on` archived), on its own branch from main (`git switch -c change/<slice> main`).
+- **Design session, narrowed:** the parent keeps the shared session (`../<parent>/execution/grill.md`). Before `/handoff <slice>`, run a SHORT ``grill-with-docs`` session limited to this slice: read the parent's session file first, ask only what the slice needs (its seams, what earlier slices left in the code), and write the slice's own `execution/grill.md` (first body line links the parent's session file). Do not re-decide what the parent settled; if the slice needs different behaviour, change its delta and record an amendment in the parent (`slices.md`), then `split.mjs loss <parent>`.
+- A flagged slice keeps its user-visible behaviour behind the flag its delta describes; the cleanup slice removes the flag (its delta `## REMOVED Requirements`).
+- After `/opsx:archive <slice>`: `node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets` (next-steps prints it).
+
+## Updating tool files after a delta edit
+
+AI Hero's `to-spec` and `to-tickets` have no update mode: `to-spec` writes the whole spec again, and `to-tickets` drafts a new set and publishes it ("write one file per ticket ... numbered from 01"; on a real tracker it creates new issues and never modifies existing ones). So:
+1. `to-spec` again -> overwrite `execution/spec.md`.
+2. Tickets: keep tickets with `Status: done` as they are. Delete the open ones, then run `to-tickets` for the remaining work only, numbering after the last kept ticket (it reads the existing files as context). On a real tracker, close the obsolete issues by hand.
+After any delta edit (a /spec-check gap, an amendment, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `check-handoff <id>` and `/spec-check <id>` again.
 
 ## Implementation (the engineer runs `implement` / `implement-spec`)
 

@@ -37,6 +37,7 @@ Optional per-change override, **before** the design session:
 |---|---|---|---|
 | 1 | `/opsx:propose <id>` runs the tool's **design session** first | `grill-with-docs` → `execution/grill.md` | `brainstorming` → `execution/brainstorm.md`, **stopped** after the approved design (no writing-plans yet) |
 | 2 | Proposal + **specs** | `proposal.md` = what/why only; behaviours from the session become delta scenarios; new capability → `## Purpose` first | same |
+| 2a | `/split-check <id>` (automatic at the end of the specs stage): the agent estimates each requirement → `execution/size-estimate.md`. Under ~300 lines it says "fits". Over it, it proposes slices and **waits for your approval**; then `split.mjs apply` makes a parent + one child change per slice (see [Splitting](#splitting-a-big-change)) | | |
 | 3 | `/handoff <id> <model>`: OpenSpec's **last stage**. Writes `handoff.md` (tool, model, `apply_mode`, `base_ref`), then **prints the next steps and stops** (`next-steps.mjs <id>` reprints them) | | |
 | 3a | Planning (you run it) | `/to-spec` (reads grill.md) → `execution/spec.md`, `/to-tickets` → `execution/tickets/` | `writing-plans` (reads brainstorm.md) → `execution/plan-<id>.md` |
 | 4 | `/spec-check <id>` → `execution/spec-check.md` | stops on GAPS: fix, re-run | same |
@@ -63,8 +64,28 @@ Full steps: [switching-tools.md](switching-tools.md).
 
 ## Small changes
 
-Budget per change: ≤ 5 requirements, ≤ 8 tickets/plan tasks, ≤ 400 changed lines (hard cap 12 units). Record it in the proposal's *Size Budget*.
-If you are over budget, split into several changes before handoff. See [small-changes.md](small-changes.md).
+Budget per change (all warn-only): ~300 changed lines of code + tests, ≤ 5 requirements, ≤ 8 tickets/plan tasks.
+Checked three times: the `/split-check` gate after the specs, the re-estimate in `/spec-check` (`Estimate: ~N lines`
+per ticket / plan task), and the real diff in `check-handoff`. See [small-changes.md](small-changes.md).
+
+## Splitting a big change
+
+1. `/split-check <id>` over budget → the agent writes `execution/split-proposal.md` (slices: goal, capabilities,
+   requirements, depends_on, flag, estimate). **You approve or edit it** (`approved_by:`).
+2. `node .openspec-handoff/scripts/split.mjs apply <id>` → `<id>` becomes the parent (schema `split-plan`:
+   `proposal.md` + `slices.md` with the slices, a checklist of the original requirement/scenario **names** and
+   amendments) and each slice becomes a normal change with live deltas.
+3. `split.mjs loss <id>` must PASS (nothing lost, nothing duplicated, nothing unsourced). Commit the parent and
+   all children together as one planning PR.
+4. `split.mjs next <id> --write-tickets` → READY slices (all dependencies archived), parallel-safe pairs (no
+   dependency, no shared capability), and `tickets/<slice>.md` for each ready slice.
+5. Per slice, on a branch from main: short design session reading the parent's session file → `/handoff <slice>` →
+   the normal flow → `/opsx:archive <slice>` → `split.mjs next <id> --write-tickets`.
+6. All slices archived → `split.mjs loss <id> --final --write` → `openspec archive <id> --skip-specs --yes`.
+
+Changing the plan later: edit the child delta, add an amendment line to `slices.md`
+(`Requirement "X" dropped` / `changed, see change Y` / `added in <slice>`), rerun `split.mjs loss`, then rerun the
+tool's planning command and `/spec-check` (the tools rewrite their files; they have no update mode).
 
 ## Known limitations
 
@@ -73,5 +94,6 @@ If you are over budget, split into several changes before handoff. See [small-ch
 - **Weak local reviewer:** qwen3:4b-instruct gives shallow reviews and can be confidently wrong (it raised one false Critical). Triage every finding; use a stronger model if you can.
 - **Heuristic lints:** the paraphrase lint and the proposal implementation-detail lint are token/keyword heuristics, warnings only. Expect false positives and misses. Session records written before the delta naturally trigger paraphrase warnings.
 - **`/spec-check` contradictions are agent judgement:** the script checks coverage mechanically and exits 0 if it cannot see a contradiction. Whether it stops depends on the agent's review.
+- **Splitting is new (v5):** tested on one demo feature (`handoff-flows-v5`). Size estimates are the agent's guesses; the loss check matches names, not meaning.
 - **`openspec status` / `openspec list` don't show implementation progress:** with no tasks stage, `status` says "All planning artifacts complete!" right after `/handoff`, and `list` shows "No tasks". Real progress is `check-handoff` → `progress=` (tickets / plan checkboxes, ticked by hand). `/opsx:verify` reports Task Completion as not applicable.
 - **Undocumented OpenSpec key:** the project default lives in a toolkit-owned file (`.openspec-handoff/project.json`), so OpenSpec itself does not know about the tool.

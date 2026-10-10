@@ -42,10 +42,9 @@ Handoff-driven addition - **Size Budget** section (required):
 State the expected size of this change so it stays PR-sized: number of
 requirements in the deltas, expected tickets/plan tasks, and a rough
 changed-lines estimate. Default budget (see .openspec-handoff/small-changes.md):
-<= 5 requirements, <= 8 tickets/plan tasks, <= 400 changed lines.
-If the estimate exceeds the budget, split now: create one change per
-independently shippable capability slice (e.g. \`add-x-core\`, \`add-x-cli\`)
-and say which change this one is. Do not defer splitting to execution.
+<= 5 requirements, <= 8 tickets/plan tasks, ~300 changed lines of code + tests.
+Do not split by hand here: the size gate (/split-check) runs at the end of the
+specs stage, when the requirements exist, and proposes slices for the engineer.
 `;
 
 const specs = { ...by.specs };
@@ -62,6 +61,20 @@ The delta is the ONLY place behaviour is written down.
 After /handoff, execution artifacts cite requirements and scenarios by name and
 link (\`../specs/<capability>/spec.md\` - "Requirement: <name>"), so give every
 requirement and scenario a short, distinctive name.
+
+SIZE GATE - run automatically when the deltas are written, before /handoff (rerunnable):
+\`/split-check <change>\` (\`node .openspec-handoff/scripts/split-check.mjs <change> --write\`).
+1. Estimate each requirement's changed lines of code + tests from its scenarios and the
+   code it touches, in execution/size-estimate.md
+   (| Requirement | Scenarios | Code touched | Estimate |, exact requirement names).
+2. Under ~300 lines it prints one line ("fits") - carry on to /handoff.
+3. Over it (a warning, never a failure): propose slices in execution/split-proposal.md
+   (scope, requirements, depends_on, estimate, flag if any - the /split-check command
+   lists the format), show them to the engineer and STOP until they approve or edit
+   (approved_by:). Nothing is split automatically. After approval:
+   \`node .openspec-handoff/scripts/split.mjs apply <change>\` turns this change into the
+   parent (schema split-plan, names only) and creates one handoff-driven child per slice;
+   then \`split.mjs loss <parent>\` must pass. See .openspec-handoff/small-changes.md.
 `;
 
 const handoff = {

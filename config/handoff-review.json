@@ -107,6 +107,7 @@
     }
   },
   "sizeThresholds": {
+    "$comment": "Warn-only (never fails). [budget, well-over]. lines/files: real diff since base_ref, code + tests only (lockfiles, generated files, installed tooling excluded). The gate before handoff is /split-check (split.limitLines).",
     "requirements": [
       5,
       8
@@ -116,8 +117,8 @@
       12
     ],
     "lines": [
-      400,
-      800
+      300,
+      600
     ],
     "files": [
       15,
@@ -129,5 +130,9 @@
     "claude": "qwen2.5-coder:3b",
     "gpt": "qwen2.5-coder:3b",
     "qwen": "llama3.2:3b"
+  },
+  "split": {
+    "$comment": "/split-check gate at the end of the specs stage: estimated changed lines (code + tests) per PR. Warn-only.",
+    "limitLines": 300
   }
 }

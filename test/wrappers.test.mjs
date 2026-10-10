@@ -66,14 +66,14 @@ test('superpowers handoff with execution/plan-<id>.md passes and counts plan tas
   assert.match(r2.warnings.join('\n'), /name the plan execution\/plan-add-greeting-name\.md/);
 });
 
-test('too many tickets is a hard size error', () => {
+test('too many tickets is a size warning, not a failure', () => {
   const { dir, changeDir } = makeFixture();
   for (let i = 3; i <= 13; i += 1) {
     fs.writeFileSync(path.join(changeDir, 'execution', 'tickets', `${String(i).padStart(2, '0')}-x.md`), '> Source of truth: [proposal](../../proposal.md)\n');
   }
   const r = run('check-handoff.mjs', [CHANGE], dir);
-  assert.equal(r.code, 1);
-  assert.match(r.out, /tickets\/plan tasks 13 > hard limit 12/);
+  assert.match(r.out, /! size: tickets\/plan tasks 13 > 12 \(well over the budget 8\)/);
+  assert.doesNotMatch(r.out, /✗ size/);
 });
 
 test('fixtures are real copies: writing a fixture config never touches the toolkit config', () => {

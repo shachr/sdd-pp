@@ -157,7 +157,7 @@ export function diffSize(root, baseRef, diffPaths = []) {
     lines += (a === '-' ? 0 : Number(a)) + (d === '-' ? 0 : Number(d));
   }
   // untracked files count too (new code not yet committed)
-  const untracked = git(gitRoot, ['ls-files', '--others', '--exclude-standard', '--', ...pathspec, ':(exclude)**/openspec/**', ':(exclude)openspec/**'])
+  const untracked = git(gitRoot, ['ls-files', '--others', '--exclude-standard', '--', ...pathspec, ':(exclude)**/openspec/**', ':(exclude)openspec/**', ...TOOLING_EXCLUDES])
     .split('\n').filter(Boolean);
   for (const f of untracked) {
     files += 1;
@@ -300,8 +300,12 @@ export function restatingSections(md) {
 }
 
 /** Installed tooling (this toolkit, agent skills/commands) is not a change's implementation. */
-export const TOOLING_EXCLUDES = ['.openspec-handoff', '.opencode', '.claude', '.cursor', '.agents', 'docs/agents']
-  .map((p) => `:(exclude,glob)${p}/**`);
+export const TOOLING_EXCLUDES = ['.openspec-handoff', '.opencode', '.claude', '.cursor', '.agents', 'docs/agents', '.superpowers']
+  .map((p) => `:(exclude,glob)${p}/**`)
+  // lockfiles and generated output are not reviewable code (size budget counts code + tests)
+  .concat(['**/package-lock.json', '**/npm-shrinkwrap.json', '**/yarn.lock', '**/pnpm-lock.yaml', '**/bun.lockb', '**/Cargo.lock', '**/poetry.lock', '**/Gemfile.lock', '**/go.sum', '**/composer.lock',
+    '**/dist/**', '**/build/**', '**/coverage/**', '**/*.min.js', '**/*.min.css', '**/*.map', '**/*.generated.*', '**/__generated__/**', '**/__snapshots__/**']
+    .map((p) => `:(exclude,glob)${p}`));
 
 // ---------------------------------------------------------------------------
 // Requirement links: every design unit (to-spec user story, ticket, plan task)

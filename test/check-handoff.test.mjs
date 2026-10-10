@@ -73,17 +73,29 @@ test('bad base_ref fails', () => {
   assert.match(r.out, /base_ref "deadbeef" is not a commit/);
 });
 
-test('changed lines over budget warn, over hard limit fail', () => {
+test('changed lines: warn over ~300, warn louder over 600, never fail', () => {
   const { dir } = makeFixture();
   const big = (n) => Array.from({ length: n }, (_, i) => `export const x${i} = ${i};`).join('\n');
-  fs.writeFileSync(path.join(dir, 'src', 'big.mjs'), big(500));
+  fs.writeFileSync(path.join(dir, 'src', 'big.mjs'), big(350));
   let r = run('check-handoff.mjs', [CHANGE], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /! size: changed lines since base_ref 500 > budget 400/);
+  assert.match(r.out, /! size: changed lines since base_ref 350 > budget 300/);
   fs.writeFileSync(path.join(dir, 'src', 'big.mjs'), big(900));
   r = run('check-handoff.mjs', [CHANGE], dir);
-  assert.equal(r.code, 1);
-  assert.match(r.out, /✗ size: changed lines since base_ref 900 > hard limit 800/);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /! size: changed lines since base_ref 900 > 600 \(well over the budget 300\)/);
+});
+
+test('lockfiles, generated output and installed tooling do not count toward size', () => {
+  const { dir } = makeFixture();
+  fs.writeFileSync(path.join(dir, 'package-lock.json'), '{}\n'.repeat(3000));
+  fs.mkdirSync(path.join(dir, 'dist'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'dist', 'bundle.js'), 'x\n'.repeat(3000));
+  fs.writeFileSync(path.join(dir, 'src', 'api.generated.ts'), 'x\n'.repeat(3000));
+  fs.mkdirSync(path.join(dir, '.agents', 'skills', 'x'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.agents', 'skills', 'x', 'SKILL.md'), 'x\n'.repeat(3000));
+  const r = run('check-handoff.mjs', [CHANGE, '--json'], dir);
+  assert.equal(JSON.parse(r.stdout).metrics.lines, 0, r.out);
 });
 
 test('openspec/ planning files and paths outside diff_paths do not count toward size', () => {

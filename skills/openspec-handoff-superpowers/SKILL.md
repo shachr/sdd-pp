@@ -17,6 +17,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 |---|---|---|
 | Proposal | `brainstorming` - **stopped after the written design** | `execution/brainstorm.md` |
 | Proposal | (OpenSpec) proposal.md + delta, informed by the session | `proposal.md`, `specs/**/spec.md` |
+| Specs (end) | `/split-check` size gate (~300 lines code + tests; over it: slices proposed, engineer approves, `split.mjs apply`) | `execution/size-estimate.md`, `execution/split-check.md` |
 | Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
 | Planning (engineer) | `writing-plans`, reading `execution/brainstorm.md` | `execution/plan-<id>.md` |
 | Planning (engineer) | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
@@ -51,6 +52,7 @@ After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must 
 - **Global Constraints**: one line per requirement as a link to its **name** (`[delta](../specs/<cap>/spec.md) - "Requirement: <name>"`), plus non-behavioural constraints. No values or SHALL text.
 - **Architecture, File Structure, Interfaces, Review Focus, task steps, test code, commands**: in full as writing-plans says. Test code may contain scenario values.
 - `### Task N: <name>` headings, named after the component/slice. At most 8 tasks (hard cap 12).
+- One `**Estimate:** ~N lines` line (code + tests) per task, after **Covers:**: `/spec-check` totals them as the size re-estimate after planning (warn-only, budget ~300).
 - Each task starts with `**Covers:** [delta](../specs/<cap>/spec.md) - "Requirement: <name>"`. check-handoff fails on a task that names no requirement or a nonexistent one.
 - Execution Handoff: record the choice (= `apply_mode`) at the end of the plan.
 
@@ -58,6 +60,19 @@ After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must 
 
 1. `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors, read warnings.
 2. `/spec-check <id>`; stop on GAPS. Planning ends here. There is no `tasks.md`: the plan's step checkboxes are the tracker.
+
+
+## Slice of a split change
+
+A change created by `split.mjs apply` (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `node .openspec-handoff/scripts/split.mjs next <parent>` says READY (all `depends_on` archived), on its own branch from main (`git switch -c change/<slice> main`).
+- **Design session, narrowed:** the parent keeps the shared session (`../<parent>/execution/brainstorm.md`). Before `/handoff <slice>`, run a SHORT ``brainstorming`` session limited to this slice: read the parent's session file first, ask only what the slice needs (its seams, what earlier slices left in the code), and write the slice's own `execution/brainstorm.md` (first body line links the parent's session file). Do not re-decide what the parent settled; if the slice needs different behaviour, change its delta and record an amendment in the parent (`slices.md`), then `split.mjs loss <parent>`.
+- A flagged slice keeps its user-visible behaviour behind the flag its delta describes; the cleanup slice removes the flag (its delta `## REMOVED Requirements`).
+- After `/opsx:archive <slice>`: `node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets` (next-steps prints it).
+
+## Updating tool files after a delta edit
+
+Superpowers `writing-plans` writes a whole plan; it has no update mode. Rerun it with the existing plan as input and keep finished tasks (all step checkboxes ticked) unchanged; replan only open tasks, keeping their `### Task N:` numbers stable where possible.
+After any delta edit (a /spec-check gap, an amendment, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `check-handoff <id>` and `/spec-check <id>` again.
 
 ## Implementation (the engineer runs `executing-plans` / `subagent-driven-development`)
 
