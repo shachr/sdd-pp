@@ -74,3 +74,20 @@ test('runners/ollama.mjs fails clearly when no server is running', async () => {
   assert.equal(code, 1);
   assert.match(err, /cannot reach .*ollama serve/);
 });
+
+test('review diff leaves out installed tooling (.openspec-handoff, agent skills/commands)', async () => {
+  const fs = await import('node:fs');
+  const { execFileSync } = await import('node:child_process');
+  const { dir, changeDir } = makeFixture();
+  const hf = path.join(changeDir, 'handoff.md'); // whole-repo diff (no diff_paths), like a real project
+  fs.writeFileSync(hf, fs.readFileSync(hf, 'utf8').replace(/^diff_paths:\n(  - .*\n)+/m, ''));
+  fs.mkdirSync(path.join(dir, '.agents/skills/x'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.agents/skills/x/SKILL.md'), 'TOOLING_MARKER\n');
+  fs.writeFileSync(path.join(dir, 'IMPL_MARKER.txt'), 'IMPL_MARKER\n');
+  execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '-A'], { cwd: dir });
+  execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'toolkit update + impl'], { cwd: dir });
+  const r = run('adversarial-review.mjs', [CHANGE, '--dry-run', '--json', '--reviewer-model', 'qwen2.5-coder:3b'], dir);
+  const plan = JSON.parse(r.stdout);
+  assert.match(plan.prompt, /IMPL_MARKER/);
+  assert.doesNotMatch(plan.prompt, /TOOLING_MARKER|\.agents\/skills/);
+});
