@@ -41,9 +41,9 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 |---|---|---|
 | `/tool <id> [--set <tool>]` | `tool <id> [--set <tool>]`, `tool --default <tool>` | `execution-tool.mjs` |
 | `/split-check <id>` (agent: proposes slices) | `split-check <id>` (counts only) | `split-check.mjs <id> --write` |
-| `/handoff <id>` (agent skill) | - | writes handoff.md, `check-handoff.mjs`, `next-steps.mjs` |
+| `/handoff <id>` (agent skill) | - | writes handoff.md, then `next-steps.mjs` |
 | `/next-steps <id>` | `next <id>` | `next-steps.mjs <id>` |
-| `/spec-check <id>` (agent: adds the contradiction review) | `spec-check <id>` (mechanical report) | `spec-check.mjs <id> --write` |
+| `/spec-check <id>` (agent: adds the review for missing / invented / contradicted / restated, sets PASS or GAPS) | `spec-check <id>` (mechanical report) | `spec-check.mjs <id> --write` |
 | `/split-apply <id>` | `split apply <id>` | `split.mjs apply <id>` |
 | `/split-next <parent>` | `split next <parent>` | `split.mjs next <parent> --write-tickets` |
 | `/split-mark <parent> <slice> <in-progress\|planned>` | `split mark ...` | `split.mjs mark ...` |
@@ -74,7 +74,7 @@ the execution tool's: AI Hero's ticket `Status: done`, Superpowers' ledger and p
 
 Useful checks at any time:
 - `/tool <id>` shows which tool applies and why.
-- `check-handoff.mjs` is internal: `/handoff` runs it as its lint (and the wrappers rerun it after planning or a delta edit). It is optional for CI (`node .openspec-handoff/scripts/check-handoff.mjs <id> [--expect-complete]`); it is not a step of the flow. It errors on missing/inconsistent tool settings, copied requirement text and unlinked units, and warns on paraphrases, implementation detail in proposal.md and a missing `## Purpose`.
+- `/spec-check <id>` is the only plan-vs-spec check: requirement links (every story / ticket / task names a real delta requirement), coverage, and the agent review (missing / invented / contradicted; restated requirement text is advisory).
 
 ## Switching tools
 
@@ -86,7 +86,7 @@ Full steps: [switching-tools.md](switching-tools.md).
 
 Budget per change (all warn-only): ≤ 5 requirements and ≤ 2 capabilities (counted by `/split-check` after the
 specs), ~300 changed lines of code + tests (estimated after planning by `/spec-check` from `Estimate: ~N lines`
-per ticket / plan task; measured at the PR by `check-handoff`), ≤ 8 tickets/plan tasks.
+per ticket / plan task; the PR diff itself is not measured), ≤ 8 tickets/plan tasks.
 See [small-changes.md](small-changes.md).
 
 ## Splitting a big change
@@ -114,21 +114,20 @@ See [small-changes.md](small-changes.md).
 **Parent session vs. slice: the delta wins.** The parent's design session (`execution/grill.md` /
 `brainstorm.md`) is frozen at the split commit and uses the original names. Where it and a slice's delta or split
 notes differ, the delta wins; the slice's narrowed session lists which parent decisions it overrides in an
-`## Overrides` section (check-handoff warns when a slice with split notes has none). `split.mjs loss` prints an
+`## Overrides` section (`split.mjs loss` warns when a slice with split notes has none). `split.mjs loss` prints an
 info line (`i ...`) for an unchanged parent session and a warning only if the session changed since the split
 commit; neither fails the check.
 
 Changing the plan later: edit the child delta, add the split note to the child's proposal, rerun
 `split.mjs loss`, then regenerate the tool's **open** tickets / tasks only (never a done one) and rerun
-`check-handoff` and `/spec-check`.
+`/spec-check`.
 
 ## Known limitations
 
 - **Pilot:** proven only on toy changes (two ~50-line utilities in a demo repo, `handoff-flows-v3`). There has been no real-project use yet.
 - **Not exercised:** `implement-spec` and `subagent-driven-development` (the test harness had no sub-agent tool), and PR-based finishing.
 - **Review independence:** the tool's own review runs in the implementing agent's environment; the independent review is CI's review on the PR.
-- **Heuristic lints:** the paraphrase lint and the proposal implementation-detail lint are token/keyword heuristics, warnings only. Expect false positives and misses. Session records written before the delta naturally trigger paraphrase warnings.
-- **`/spec-check` contradictions are agent judgement:** the script checks coverage mechanically and exits 0 if it cannot see a contradiction. Whether it stops depends on the agent's review.
+- **`/spec-check`'s review is agent judgement:** the script checks links and coverage mechanically and writes `PENDING`; missing / invented / contradicted behaviour and restated text are the agent's call, and the agent sets PASS or GAPS.
 - **Splitting:** tested on demo features (`handoff-flows-v5`, `-v6`). The loss check matches names; for an unmatched name it lists rename candidates and the agent judges semantic equivalence (`renamed_from`), so that step is agent judgement. "In progress" is a manual mark in the parent's `slices.md`; the next report does not scan branches. Line estimates are the agent's guesses.
-- **`openspec status` / `openspec list` don't show implementation progress:** with no tasks stage, `status` says "All planning artifacts complete!" right after `/handoff`, and `list` shows "No tasks". Real progress is `check-handoff` → `progress=` (tickets / plan checkboxes, ticked by hand). `/opsx:verify` reports Task Completion as not applicable.
+- **`openspec status` / `openspec list` don't show implementation progress:** with no tasks stage, `status` says "All planning artifacts complete!" right after `/handoff`, and `list` shows "No tasks". Real progress is the tool's own tracking (ticket `Status:` / plan step checkboxes). `/opsx:verify` reports Task Completion as not applicable.
 - **Undocumented OpenSpec key:** the project default lives in a toolkit-owned file (`.openspec-handoff/project.json`), so OpenSpec itself does not know about the tool.

@@ -11,7 +11,7 @@ apply_mode: <implement | implement-spec | executing-plans | subagent-driven-deve
 
 ## Source of truth
 
-<!-- Links only. Never copy or paraphrase requirement text, scenarios or SHALL/MUST sentences. -->
+<!-- Links only. Never copy or reword requirement text, scenarios or SHALL/MUST sentences. -->
 - Proposal: [proposal.md](proposal.md)
 - Spec deltas:
   - [specs/<capability>/spec.md](specs/<capability>/spec.md)

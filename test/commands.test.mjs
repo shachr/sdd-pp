@@ -117,11 +117,3 @@ test('verify gets no review instruction: the schema apply instruction (what /ops
   assert.match(j.instruction, /\/next-steps <change>/);
   assert.doesNotMatch(j.instruction, /review|CRITICAL|check-handoff/i);
 });
-
-test('check-handoff: review files need no Source of truth link (v8 finding 11)', () => {
-  const { dir, changeDir } = makeFixture();
-  fs.mkdirSync(path.join(changeDir, 'execution/reviews'), { recursive: true });
-  fs.writeFileSync(path.join(changeDir, 'execution/reviews/code-review.md'), '# Code review\n\nNo findings.\n');
-  const r = spawnSync(process.execPath, [path.join(TOOLKIT, 'scripts/check-handoff.mjs'), CHANGE], { cwd: dir, encoding: 'utf8' });
-  assert.doesNotMatch(r.stdout + r.stderr, /code-review\.md: must start with a "Source of truth"/);
-});

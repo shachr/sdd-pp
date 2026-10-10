@@ -7,8 +7,9 @@
 //   - MISSING:   a requirement no unit names, or a scenario no unit / test name mentions
 //   - UNKNOWN:   a unit names a requirement or scenario that is not in the delta
 //   - UNSOURCED: a unit (story, ticket, task) names no delta requirement at all
-// Contradictions (a unit that names a requirement but plans different behaviour) need judgement:
-// the /spec-check command has the agent read the units and append that section.
+// Missing / invented / contradicted behaviour and restated (instead of cited) requirement text need
+// judgement: the /spec-check command has the agent fill "Agent review" and set the Result line
+// (the script writes PENDING when the mechanical checks pass). This is the only plan-vs-spec check.
 // Usage: node spec-check.mjs <change-id> [--root <dir>] [--json] [--write]
 //   --write  save the report to openspec/changes/<id>/execution/spec-check.md
 // Exit: 0 no gaps, 1 gaps found, 2 usage error.
@@ -76,13 +77,15 @@ export function formatReport(r) {
   list('Added without source (units that name no delta requirement)', r.unsourced);
   if (r.size) {
     const s = r.size;
-    out.push('', '### Size (line estimate after planning, warn-only - the real diff is measured at the PR by check-handoff)', '');
+    out.push('', '### Size (line estimate after planning, warn-only; the ~300-line budget is checked only here)', '');
     out.push(`- ${s.estimated}/${s.units} tickets / plan tasks carry an "Estimate: ~N lines" line; total ~${s.total} lines (code + tests), budget ~${s.limit}.`);
     if (s.missing.length) out.push(`- ! no estimate: ${s.missing.join('; ')}`);
     if (s.total > s.limit) out.push(`- ! over budget: consider re-splitting with /split-check ${r.change} before implementing (new slices join the same parent).`);
   }
-  out.push('', '### Contradictions (agent review)', '', '<!-- /spec-check: the agent reads each unit against the requirement it names and lists contradictions here, or "- none". -->');
-  out.push('', '### Result', '', r.gaps ? `GAPS: ${r.gaps} mechanical finding(s). Fix the design output (or the delta) before implementation.` : 'PASS (mechanical checks). Contradictions: see agent review above.');
+  out.push('', '### Agent review', '', '<!-- /spec-check: the agent reads each unit against the requirement(s) it names and replaces this comment with four lists (bullets or "- none"): Missing, Invented, Contradicted, Restated (advisory). -->');
+  out.push('', '### Result', '', r.gaps
+    ? `GAPS: ${r.gaps} mechanical finding(s). Fix the design output (or the delta) before implementation.`
+    : 'PENDING: mechanical checks pass. The agent review decides: write PASS if Missing, Invented and Contradicted are all "none", otherwise GAPS: <n> agent finding(s).');
   return out.join('\n') + '\n';
 }
 
@@ -98,7 +101,7 @@ async function main() {
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
   const change = loadChange(root, positionals[0]);
   const config = loadConfig(root);
-  const r = specCheck(change, { limit: config.split?.limitLines ?? config.sizeThresholds?.lines?.[0] ?? 300 });
+  const r = specCheck(change, { limit: config.split?.limitLines ?? 300 });
   const text = formatReport(r);
   if (values.write) {
     const f = path.join(change.dir, 'execution', 'spec-check.md');

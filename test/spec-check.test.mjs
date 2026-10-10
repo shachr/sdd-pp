@@ -1,4 +1,4 @@
-// /spec-check + the requirement-link rule in check-handoff.
+// /spec-check: the only plan-vs-spec check (requirement links, coverage; the agent review is in the command).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -14,9 +14,9 @@ test('spec-check: the example change passes and maps every requirement to storie
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /\| Greeting by name \| story 1<br>01: greet\(\) - name parameter<br>02: CLI - argv wiring \| ✓ Name given/);
   assert.match(r.out, /\| Blank name falls back to default \| story 2<br>01: greet\(\) - name parameter \| ✓ Whitespace-only name/);
-  assert.match(r.out, /^PASS \(mechanical checks\)/m);
+  assert.match(r.out, /^PENDING: mechanical checks pass\. The agent review decides: write PASS if Missing, Invented and Contradicted are all "none", otherwise GAPS/m);
+  assert.match(r.out, /### Agent review\n\n<!-- [^\n]*Missing, Invented, Contradicted, Restated \(advisory\)/);
   assert.ok(fs.existsSync(ex(changeDir, 'spec-check.md')));
-  assert.equal(run('check-handoff.mjs', [CHANGE], dir).code, 0);
 });
 
 test('spec-check: a requirement nobody names is missing; an invented one is unknown', () => {
@@ -27,20 +27,16 @@ test('spec-check: a requirement nobody names is missing; an invented one is unkn
   const r = run('spec-check.mjs', [CHANGE], dir);
   assert.equal(r.code, 1, r.out);
   assert.match(r.out, /- Requirement "Blank name falls back to default" - no story \/ ticket \/ plan task names it/);
-  assert.match(r.out, /names requirement "Shout the name"/);
-  const c = run('check-handoff.mjs', [CHANGE], dir);
-  assert.equal(c.code, 1);
-  assert.match(c.out, /execution\/tickets\/01-greet-accepts-a-name\.md:1: ticket "01: greet\(\) - name parameter" names requirement "Shout the name", which is not in any delta/);
+  assert.match(r.out, /execution\/tickets\/01-greet-accepts-a-name\.md:1 ticket "01: greet\(\) - name parameter" names requirement "Shout the name"/);
+  assert.match(r.out, /^GAPS: \d+ mechanical finding/m);
 });
 
-test('requirement-link rule: a story or ticket that names no requirement fails; restated text only warns', () => {
+test('requirement-link rule: a story or ticket that names no requirement is a gap', () => {
   const { dir, changeDir } = makeFixture();
   replaceIn(ex(changeDir, 'spec.md'), /## Implementation Decisions/, '3. As a CLI user, I want colours.\n\n## Implementation Decisions');
-  const r = run('check-handoff.mjs', [CHANGE], dir);
-  assert.equal(r.code, 1);
-  assert.match(r.out, /execution\/spec\.md:\d+: user story "story 3" names no delta requirement/);
   const s = run('spec-check.mjs', [CHANGE], dir);
-  assert.match(s.out, /Added without source[\s\S]*story 3/);
+  assert.equal(s.code, 1);
+  assert.match(s.out, /Added without source[\s\S]*execution\/spec\.md:\d+ user story "story 3" names no delta requirement/);
 });
 
 test('requirement-link rule: plan tasks need a Covers line naming a delta requirement; unknown scenarios fail', () => {
@@ -54,16 +50,8 @@ test('requirement-link rule: plan tasks need a Covers line naming a delta requir
     'Tests: Scenario "Name given", Scenario "Name with surrounding spaces", Scenario "Whitespace-only name"', '',
     '### Task 2: CLI wiring', '', 'Wire argv; Scenario "Name typed twice".', '',
   ].join('\n'));
-  const r = run('check-handoff.mjs', [CHANGE], dir);
+  const r = run('spec-check.mjs', [CHANGE], dir);
   assert.equal(r.code, 1);
   assert.match(r.out, /plan task "Task 2: CLI wiring" names no delta requirement/);
-  assert.match(r.out, /names scenario "Name typed twice", which is not in any delta/);
-});
-
-test('check-handoff: apply_mode must be one of the tool\'s own implement commands', () => {
-  const { dir } = makeFixture();
-  setHandoff(dir, { apply_mode: 'opsx-apply' });
-  const r = run('check-handoff.mjs', [CHANGE], dir);
-  assert.equal(r.code, 1);
-  assert.match(r.out, /apply_mode "opsx-apply" is not a ai-hero implement command \(one of implement, implement-spec\)/);
+  assert.match(r.out, /plan task "Task 2: CLI wiring" names scenario "Name typed twice"/);
 });

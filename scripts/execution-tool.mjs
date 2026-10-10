@@ -42,7 +42,7 @@ function main() {
     const f = path.join(change.dir, SESSION_FILES[values.set]);
     if (!fs.existsSync(f)) {
       fs.mkdirSync(path.dirname(f), { recursive: true });
-      fs.writeFileSync(f, `---\ntool: ${values.set}\nsession: ${SESSION_SKILLS[values.set]}\n---\n\n> Source of truth: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md\n\n# ${SESSION_SKILLS[values.set]} session: ${change.id}\n`);
+      fs.writeFileSync(f, `---\ntool: ${values.set}\nsession: ${SESSION_SKILLS[values.set]}\n---\n\n> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md\n\n# ${SESSION_SKILLS[values.set]} session: ${change.id}\n`);
     }
     change = loadChange(root, positionals[0]);
   }

@@ -94,6 +94,11 @@ export function init(dir, opts = {}, log = console.log) {
   for (const h of targets) {
     for (const s of fs.readdirSync(S('skills'))) put(S('skills', s), T(`.${h}`, 'skills', s), root, log);
     for (const c of fs.readdirSync(S('commands', h)).filter((f) => f.endsWith('.md'))) put(S('commands', h, c), T(`.${h}`, 'commands', c), root, log);
+    // retired commands (decisions section 16): remove the copy an earlier install left
+    for (const c of ['check-handoff.md']) {
+      const f = T(`.${h}`, 'commands', c);
+      if (fs.existsSync(f)) { fs.rmSync(f); log(`  ${rel(root, f)} (removed: retired)`); }
+    }
   }
 
   if (setDefault) {

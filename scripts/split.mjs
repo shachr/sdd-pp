@@ -201,6 +201,17 @@ export function sessionMentions(root, parentId) {
   const { dir } = parentDir(root, parentId);
   const plan = parseSlices(fs.readFileSync(path.join(dir, 'slices.md'), 'utf8'));
   const res = { info: [], warnings: [] };
+  // each active slice with split notes lists the parent session decisions it overrides in its narrowed session
+  // ("## Overrides"; the delta wins where they differ) - warn-only
+  for (const s of plan.slices) {
+    const loc = changeLocation(root, s.id);
+    if (!loc || loc.archived || !fs.existsSync(path.join(loc.dir, 'proposal.md'))) continue;
+    if (!parseSplitNotes(fs.readFileSync(path.join(loc.dir, 'proposal.md'), 'utf8')).notes.length) continue;
+    for (const f of ['execution/grill.md', 'execution/brainstorm.md']) {
+      const p = path.join(loc.dir, f);
+      if (fs.existsSync(p) && !/^#{2,3}\s+Overrides\b/m.test(fs.readFileSync(p, 'utf8'))) res.warnings.push(`${s.id}/${f}: this slice has split notes but its narrowed session has no "## Overrides" section - list the parent session decisions this slice overrides (the delta wins where they differ; "None" if nothing)`);
+    }
+  }
   const commit = plan.front.split_commit;
   if (!commit) return res;
   const orig = plan.front.original || parentId;

@@ -53,13 +53,12 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 | `schemas/handoff-driven/` | Custom OpenSpec schema (`schema.yaml` + templates incl. `handoff.md`) - story 1 |
 | `schemas/split-plan/` | Parent of a split change: proposal → slices (no specs; OpenSpec sets `skip_specs: true`; archived last with `--skip-specs`) |
 | `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/split-check.md` | `/split-check <id>`: split gate at the end of the specs stage (counts requirements and capabilities, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children named `<parent>-<nn>-<slice>`, cleanup slice `99`, re-split into the same parent continues the numbering; records `split_commit`), `loss` (exactly-once vs the original deltas at `split_commit` via git show, split notes, rename candidates, `--final` against main specs), `next` (ready / in progress / parallel-safe slices, tickets), `mark` (in-progress status) |
-| `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + contradictions (agent); writes `execution/spec-check.md` |
+| `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + agent review for missing / invented / contradicted behaviour and restated text (advisory); the agent sets PASS / GAPS. The only plan-vs-spec check; writes `execution/spec-check.md` |
 | `scripts/sdd.mjs` + `commands/*/{next-steps,tool,split-apply,split-next,split-mark,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|mark\|loss\|archive` (archive = final loss check + `openspec archive --skip-specs -y`). The agent slash commands and the `sdd-pp` CLI subcommands both call it |
 | `scripts/execution-tool.mjs` | Setup phase: `--default <tool>` (project), `<id> --set <tool>` (per-change override; starts the session file), `<id>` (resolve: handoff.md > session front matter > project default). Refuses a switch once a session exists (`docs/switching-tools.md`) |
-| `scripts/check-handoff.mjs` | **Internal / optional (e.g. CI):** `/handoff` runs it as its lint; not a flow step. Lint: execution tool set and consistent (handoff.md vs session file; one session file; error), proposal.md implementation-detail heuristic (warning), new capability without `## Purpose` (warning), handoff fields, reference-not-duplicate (errors: verbatim copies, delta headers, SHALL; warnings: token-overlap paraphrases and User-Stories-style sections with no link to the proposal/delta - errors with `strictDuplication`), requirement links (every user story / ticket / plan task names an existing delta requirement: error), `apply_mode`, ownership (no OpenSpec design.md), outputs in change folder, PR size (warn-only: ~300 changed lines of code + tests, lockfiles / generated / tooling excluded) |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
 | `commands/{claude,cursor}/handoff.md` | `/handoff` - story 2 |
-| `config/handoff-review.json` | review skill per tool, size thresholds, split limits |
+| `config/handoff-review.json` | review skill per tool, split limits |
 | `docs/small-changes.md` | PR-size budget, when/how to split, validate vs verify - story 4 |
 | `bin/sdd-pp.mjs` (`package.json` `bin`) | `sdd-pp init`: cross-platform Node installer for all of the above |
 | `example/` | minimal test repo with a complete change `add-greeting-name` (AI Hero) |
@@ -101,17 +100,17 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
 /opsx:propose add-greeting-name          # proposal phase: the tool's design session first
       ai-hero:     grill-with-docs -> execution/grill.md
       superpowers: brainstorming -> execution/brainstorm.md, STOPPED after the written design (no writing-plans)
-   -> proposal.md (what/why only; lint warns on implementation detail) + delta (scenarios found in the session)
+   -> proposal.md (what/why only) + delta (scenarios found in the session)
 /split-check add-greeting-name           # split gate, end of the specs stage (automatic): "fits", or > 5 requirements / > 2 capabilities
    -> slices proposed (execution/split-proposal.md) -> engineer approves -> commit deltas -> /split-apply -> parent + children <parent>-<nn>-<slice>
    -> loss check PASS -> one planning PR -> /split-next <parent> -> per slice: /split-mark, branch, design session, /handoff <slice>
    -> all slices archived -> /split-archive <parent>
 /handoff add-greeting-name
-   -> handoff.md (tool = per-change override or project default, apply_mode, base_ref, links), check-handoff,
+   -> handoff.md (tool = per-change override or project default, apply_mode, base_ref, links),
    -> prints the next steps (/next-steps reprints them) and STOPS. The engineer then runs them:
       ai-hero:     /to-spec (reads grill.md) -> execution/spec.md, /to-tickets -> execution/tickets/
       superpowers: writing-plans (reads brainstorm.md) -> execution/plan-<id>.md
-/spec-check add-greeting-name             # stops on GAPS -> execution/spec-check.md
+/spec-check add-greeting-name             # the only plan-vs-spec check; stops on GAPS -> execution/spec-check.md
 # implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply)
 /implement  |  /implement-spec  |  executing-plans  |  subagent-driven-development
    -> ticket Status/checkboxes or plan step checkboxes; the tool's own code review (CI also reviews the PR)
@@ -147,7 +146,7 @@ The tool's own review (`ai-hero → code-review`, two-axis Standards + Spec; `su
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 70 tests: installer CLI, lint rules incl. paraphrase detection, split gate, git-baseline loss check, split notes, renames, done-work reset, ready report, real OpenSpec CLI, e2e
+npm test               # 45 tests: installer CLI, commands, /spec-check, split gate, slice naming, git-baseline loss check, split notes, renames, ready report, real OpenSpec CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```
@@ -163,6 +162,6 @@ node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream sp
   its Problem Statement / Solution / User Stories point at the proposal and the delta's scenarios, its
   Implementation / Testing Decisions are written in full (issue-tracker.md + wrapper instructions, skill unedited).
 - Superpowers: plans default to `docs/superpowers/plans/`, brainstorm specs to `docs/superpowers/specs/`; both
-  redirected. `check-handoff` fails if a change's outputs are left in either default location.
+  redirected via the wrapper skills.
 
 See `docs/assumptions.md` for everything not validated against a real tool.

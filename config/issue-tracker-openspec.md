@@ -19,7 +19,7 @@ in each change are the requirements; this file tells the engineering skills wher
   numbered from `01` in dependency order, never a single combined file. Use the local ticket template from `to-tickets`.
 - Triage state is a `Status:` line near the top of each ticket (role strings in `triage-labels.md`); `done` when finished.
 - Comments append to the bottom of the ticket under `## Comments`.
-- Requirements are never restated or paraphrased in these files: cite requirements and scenarios by name with a link to the delta (`../specs/<capability>/spec.md` from `execution/`, `../../specs/<capability>/spec.md` from `execution/tickets/`).
+- Requirements are never restated (verbatim or in other words) in these files: cite requirements and scenarios by name with a link to the delta (`../specs/<capability>/spec.md` from `execution/`, `../../specs/<capability>/spec.md` from `execution/tickets/`).
 - Nothing for a change goes in `.scratch/`, GitHub/GitLab issues, or anywhere outside its change folder.
 
 ## When a skill says "publish to the issue tracker"

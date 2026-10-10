@@ -4,7 +4,7 @@
 // split.maxCapabilities (2) it warns and asks for a split proposal in execution/split-proposal.md,
 // which it lints; the engineer approves it (approved_by:) and /split-apply (split.mjs apply) performs it.
 // Nothing is split automatically. Line estimates are NOT made here: the ~300-line budget is
-// checked after planning (/spec-check, from the tool's tickets / plan) and at the PR (check-handoff).
+// checked after planning (/spec-check, from the tool's tickets / plan).
 // On a slice it is the same check (a re-split joins the same parent); on a parent it lints slices.md.
 // Usage: node split-check.mjs <change-id> [--root <dir>] [--write] [--json]
 // Exit: 0 (warn-only), 2 usage error.
@@ -35,6 +35,15 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
   if (reqs.length > maxRequirements) over.push(`${reqs.length} requirements (> ${maxRequirements})`);
   if (caps.length > maxCapabilities) over.push(`${caps.length} capabilities (> ${maxCapabilities})`);
   const out = { ...r, kind: 'change', requirements: reqs.length, capabilities: caps.length, byCap, over, status: over.length ? 'over' : 'fits' };
+  // a new capability's delta needs "## Purpose", or archive writes a TBD placeholder into the main spec (warn-only)
+  const specsDir = path.join(loc.dir, 'specs');
+  if (!loc.archived && fs.existsSync(specsDir)) {
+    for (const cap of fs.readdirSync(specsDir)) {
+      const f = path.join(specsDir, cap, 'spec.md');
+      if (!fs.existsSync(f) || fs.existsSync(path.join(root, 'openspec', 'specs', cap, 'spec.md'))) continue;
+      if (!/^##\s+Purpose\s*$/m.test(fs.readFileSync(f, 'utf8'))) out.warnings.push(`specs/${cap}/spec.md: new capability without "## Purpose" - archive would write a TBD placeholder into the main spec`);
+    }
+  }
   if (!over.length) return out;
   const pf = path.join(loc.dir, 'execution', 'split-proposal.md');
   if (fs.existsSync(pf)) {
@@ -76,8 +85,10 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
 /** names: false for the file written into the change (it becomes the parent, which carries no requirement names). */
 export function formatSplitCheck(r, { names = true } = {}) {
   if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /split-next ${r.change})`].join('\n');
-  if (r.status === 'fits') return `split-check ${r.change}: fits (${r.requirements} requirements, ${r.capabilities} capabilities)`;
+  const warn = (r.warnings || []).map((w) => `  ! ${w}`);
+  if (r.status === 'fits') return [`split-check ${r.change}: fits (${r.requirements} requirements, ${r.capabilities} capabilities)`, ...warn].join('\n');
   const out = [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (re-split: the new slices join parent ${r.parent}; no nested parents)` : ''}`, ''];
+  out.push(...warn);
   for (const c of r.byCap) out.push(names ? `- ${c.capability} (${c.requirements.length}): ${c.requirements.join('; ')}` : `- ${c.capability}: ${c.requirements.length} requirements`);
   if (!r.proposal) {
     out.push('', 'Next: propose slices in execution/split-proposal.md (front matter "approved_by:" left empty), show them to the engineer, and wait for approval or edits. Format:',
@@ -113,7 +124,7 @@ async function main() {
   if (values.write && r.kind === 'change') {
     const f = path.join(changeLocation(root, positionals[0]).dir, 'execution', 'split-check.md');
     fs.mkdirSync(path.dirname(f), { recursive: true });
-    fs.writeFileSync(f, `> Source of truth: [proposal](../proposal.md) · specs: ../specs/\n\n<!-- written by split-check.mjs (counts only; names stay in the deltas) -->\n\n${formatSplitCheck(r, { names: false })}\n`);
+    fs.writeFileSync(f, `<!-- written by split-check.mjs (counts only; names stay in the deltas) -->\n\n${formatSplitCheck(r, { names: false })}\n`);
   }
   console.log(values.json ? JSON.stringify(r, null, 2) : formatSplitCheck(r));
   return 0;
