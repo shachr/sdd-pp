@@ -384,3 +384,75 @@ export function requirementLinkFindings(change) {
   }
   return findings;
 }
+
+// ---------------------------------------------------------------------------
+// Execution tool selection (setup phase) and the design-session file (proposal phase).
+//   project default:  .openspec-handoff/project.json  { "defaultTool": "ai-hero" | "superpowers" }
+//                     (written by install.sh --tool / execution-tool.mjs --default; never overwritten by install)
+//   per-change:       front matter `tool:` of the session file, written when the session starts
+//                     (OpenSpec warns on unknown keys in .openspec.yaml, so the override does not live there)
+//   after handoff:    handoff.md `tool:` (must agree with the session file)
+
+/** The design-session file each tool writes during the proposal phase. */
+export const SESSION_FILES = { 'ai-hero': 'execution/grill.md', superpowers: 'execution/brainstorm.md' };
+export const SESSION_SKILLS = { 'ai-hero': 'grill-with-docs', superpowers: 'brainstorming' };
+
+export function projectToolConfigPath(root) { return path.join(root, '.openspec-handoff', 'project.json'); }
+
+export function projectDefaultTool(root) {
+  const f = projectToolConfigPath(root);
+  if (!fs.existsSync(f)) return null;
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')).defaultTool || null; } catch { return null; }
+}
+
+/** Session files present in a change, with the tool their front matter records. */
+export function sessionFiles(change) {
+  return Object.entries(SESSION_FILES)
+    .filter(([, f]) => change.execution.includes(f))
+    .map(([fileTool, file]) => ({ file, fileTool, tool: parseFrontMatter(change.read(file)).data?.tool || null }));
+}
+
+/** Resolve the change's execution tool: handoff.md > session file front matter > project default. */
+export function resolveTool(change) {
+  const sessions = sessionFiles(change);
+  const def = projectDefaultTool(change.root);
+  if (change.handoff?.tool) return { tool: change.handoff.tool, source: 'handoff.md', projectDefault: def, sessions };
+  const s = sessions.find((x) => x.tool);
+  if (s) return { tool: s.tool, source: s.file, projectDefault: def, sessions };
+  if (def) return { tool: def, source: '.openspec-handoff/project.json (project default)', projectDefault: def, sessions };
+  return { tool: null, source: null, projectDefault: def, sessions };
+}
+
+/** Delta specs for capabilities that have no main spec yet (new capabilities). */
+export function newCapabilityDeltas(change) {
+  return change.deltas.filter((d) => {
+    const cap = d.replace(/^specs\//, '').replace(/\/spec\.md$/, '');
+    return !fs.existsSync(path.join(change.root, 'openspec', 'specs', cap, 'spec.md')) || change.archived;
+  });
+}
+
+/**
+ * Cheap heuristic: implementation detail leaking into proposal.md (what/why only).
+ * Returns [{ line, hint, text }]. Warning-level only; the design session file is where the how goes.
+ */
+export function proposalLeaks(md) {
+  const rules = [
+    [/^\s*(```|~~~)/, 'code block'],
+    [/(^|[\s(`])((src|lib|test|tests|bin|app|packages)\/[\w./-]+|[\w-]+\.(mjs|cjs|js|ts|tsx|py|go|rs|java|rb))\b/, 'file path'],
+    [/\b(algorithms?|regex(es)?|regular expressions?|(for|while) loops?|data structures?|helper (function|module)s?|internally|refactor(ing)?|module-private|hash ?maps?|recursion|recursive|greedy|lookup table|cache|caching)\b/i, 'implementation term'],
+    [/\b(we will implement|implemented (by|with|as|via)|the implementation (uses|will))\b/i, 'implementation plan'],
+  ];
+  const out = [];
+  let fence = false;
+  let impact = false; // OpenSpec's own template asks for affected code/APIs under ## Impact - not a leak
+  md.split(/\r?\n/).forEach((l, i) => {
+    if (!fence && /^##\s/.test(l)) impact = /^##\s+Impact\b/i.test(l);
+    if (impact) return;
+    if (/^\s*(```|~~~)/.test(l)) { if (!fence) out.push({ line: i + 1, hint: 'code block', text: l.trim() }); fence = !fence; return; }
+    if (fence) return;
+    for (const [re, hint] of rules.slice(1)) {
+      if (re.test(l)) { out.push({ line: i + 1, hint, text: l.trim() }); break; }
+    }
+  });
+  return out;
+}

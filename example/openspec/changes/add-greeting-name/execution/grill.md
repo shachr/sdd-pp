@@ -1,6 +1,11 @@
+---
+tool: ai-hero
+session: grill-with-docs
+---
+
 > Source of truth: [proposal](../proposal.md) · [specs/greeting/spec.md](../specs/greeting/spec.md) · [handoff](../handoff.md)
 
-# Design: add-greeting-name (AI Hero `grill-with-docs` output)
+# grill-with-docs session: add-greeting-name (AI Hero, proposal phase)
 
 ## Grilling record
 

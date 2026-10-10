@@ -28,7 +28,7 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
   // project with existing code + main spec
   g('init', '-q', '-b', 'main');
   osx('init', '--tools', 'none', '--no-animation', '.');
-  sh('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--set-default']);
+  sh('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--set-default', '--tool', 'ai-hero']);
   for (const p of ['src/greet.mjs', 'src/cli.mjs', 'test/greet.test.mjs', 'openspec/specs/greeting/spec.md', 'package.json']) {
     fs.mkdirSync(path.dirname(path.join(dir, p)), { recursive: true });
     fs.copyFileSync(path.join(TOOLKIT, 'example', p), path.join(dir, p));
@@ -42,6 +42,9 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
   // planning (OpenSpec)
   assert.match(osx('new', 'change', ID), /Schema: handoff-driven/);
   assert.equal(status().proposal, 'ready');
+  // proposal phase: the project default tool's design session, then proposal + delta
+  assert.match(sh(process.execPath, ['.openspec-handoff/scripts/execution-tool.mjs', ID]), /ai-hero \(from \.openspec-handoff\/project\.json/);
+  copy('execution/grill.md');
   copy('proposal.md'); copy('specs');
   assert.equal(status().handoff, 'ready');
   assert.equal(status().tasks, 'blocked');
@@ -57,7 +60,7 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
   assert.equal(status().tasks, 'ready');
 
   // execution planning (AI Hero grill-with-docs + to-tickets, redirected into the change folder) + implementation
-  copy('execution/design.md'); copy('execution/tickets');
+  copy('execution/spec.md'); copy('execution/tickets');
   copy('tasks.md');
   for (const p of ['src/greet.mjs', 'src/cli.mjs', 'test/greet.test.mjs', 'test/cli.test.mjs']) {
     fs.copyFileSync(path.join(TOOLKIT, 'example', p), path.join(dir, p));

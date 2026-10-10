@@ -4,7 +4,7 @@
     "ai-hero": {
       "skill": "code-review",
       "source": "mattpocock/skills skills/engineering/code-review",
-      "howTo": "Two-axis review (Standards + Spec) of `git diff {base_ref}...HEAD`. Use the OpenSpec change folder as the Spec source: proposal.md and the spec deltas are the requirements; execution/design.md and execution/tickets/ are implementation context only."
+      "howTo": "Two-axis review (Standards + Spec) of `git diff {base_ref}...HEAD`. Use the OpenSpec change folder as the Spec source: proposal.md and the spec deltas are the requirements; execution/grill.md, execution/spec.md and execution/tickets/ are implementation context only."
     },
     "superpowers": {
       "skill": "requesting-code-review",

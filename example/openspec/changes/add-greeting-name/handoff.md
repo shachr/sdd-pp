@@ -25,10 +25,12 @@ Design and implementation are owned by the execution tool (below); OpenSpec has 
 
 | Tool step | Writes to |
 |-----------|-----------|
-| ai-hero `grill-with-docs` | `execution/design.md` |
+| ai-hero `grill-with-docs` (proposal phase, before handoff) | `execution/grill.md` |
+| ai-hero `to-spec` (reads `execution/grill.md`) | `execution/spec.md` |
 | ai-hero `to-tickets` | `execution/tickets/NN-<slug>.md` |
-| ai-hero `implement` (+ `tdd`) | code in `src/`, `test/`; ticks `tasks.md` |
-| `/adversarial-review` | `execution/reviews/<timestamp>-<reviewer-model>.md` |
+| `/spec-check` (end of handoff) | `execution/spec-check.md` |
+| ai-hero `implement` (apply_mode) + `tdd`, then `code-review` | code in `src/`, `test/`; ticks `tasks.md`; `execution/reviews/code-review.md` |
+| `/opsx:verify` report | `execution/verify.md` |
 
 ## Size check
 
@@ -40,9 +42,3 @@ Design and implementation are owned by the execution tool (below); OpenSpec has 
 
 - `diff_paths` scopes size checks to this example project (the toolkit repo is a monorepo).
 - Run `npm test` in `example/` after each ticket.
-
-## Reviews
-
-- qwen2.5-coder:3b via code-review: [execution/reviews/20261009-230321-qwen2.5-coder-3b.md](execution/reviews/20261009-230321-qwen2.5-coder-3b.md)
-- qwen2.5-coder:3b via code-review: [execution/reviews/20261009-230358-qwen2.5-coder-3b.md](execution/reviews/20261009-230358-qwen2.5-coder-3b.md)
-- qwen2.5-coder:3b via code-review: [execution/reviews/20261009-230422-qwen2.5-coder-3b.md](execution/reviews/20261009-230422-qwen2.5-coder-3b.md)

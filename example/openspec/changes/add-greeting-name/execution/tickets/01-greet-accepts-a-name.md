@@ -1,8 +1,8 @@
-> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/greeting/spec.md) · [design](../design.md)
+> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/greeting/spec.md) · [grill session](../grill.md)
 
 # 01: greet() - name parameter
 
-**What to build:** [delta](../../specs/greeting/spec.md) - "Requirement: Greeting by name" and "Requirement: Blank name falls back to default", implemented in `greet()` and proven at the `greet()` seam (see [design](../design.md)).
+**What to build:** [delta](../../specs/greeting/spec.md) - "Requirement: Greeting by name" and "Requirement: Blank name falls back to default", implemented in `greet()` and proven at the `greet()` seam (see [grill session](../grill.md)).
 
 **Blocked by:** None (can start immediately)
 

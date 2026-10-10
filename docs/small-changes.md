@@ -68,7 +68,7 @@ Run order: `check-handoff` → `/adversarial-review` → fix → `openspec valid
 - **No behavior change** (refactor, tooling, docs): set `skip_specs: true` in the change's
   `.openspec.yaml`; the deltas are empty and `check-handoff` only warns.
 - **Design**: OpenSpec has no design step. For a trivial change the execution tool's design can be a short
-  `execution/design.md` grilling record + a short `execution/spec.md` (AI Hero) or a short brainstorming design + the plan's Architecture line (Superpowers).
+  a short `execution/grill.md` grilling record + a short `execution/spec.md` (AI Hero) or a short `execution/brainstorm.md` + the plan's Architecture line (Superpowers).
 - **One-ticket changes**: `to-tickets` / `writing-plans` with a single ticket/task is fine; `tasks.md`
   then has one execution checkbox plus the review group.
 

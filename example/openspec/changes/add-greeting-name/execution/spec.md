@@ -1,4 +1,4 @@
-> Source of truth: [proposal](../proposal.md) · [spec delta](../specs/greeting/spec.md) · [design](design.md)
+> Source of truth: [proposal](../proposal.md) · [spec delta](../specs/greeting/spec.md) · [grill session](grill.md)
 
 # Spec: add-greeting-name (AI Hero `to-spec` output)
 
@@ -19,7 +19,7 @@ See [proposal - What Changes](../proposal.md#what-changes); behaviour is the [gr
 
 ## Implementation Decisions
 
-- `greet()` gains an optional name parameter; the CLI only forwards argv (see [design](design.md)).
+- `greet()` gains an optional name parameter; the CLI only forwards argv (see [grill session](grill.md)).
 
 ## Testing Decisions
 

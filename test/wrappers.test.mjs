@@ -45,10 +45,12 @@ test('superpowers handoff with execution/plan-<id>.md passes and counts plan tas
   const { dir, changeDir } = makeFixture();
   setHandoff(dir, { tool: 'superpowers', implementation_model: 'gpt-5-codex', apply_mode: 'executing-plans' });
   fs.rmSync(path.join(changeDir, 'execution', 'tickets'), { recursive: true });
-  fs.rmSync(path.join(changeDir, 'execution', 'design.md'));
+  fs.rmSync(path.join(changeDir, 'execution', 'grill.md'));
+  fs.rmSync(path.join(changeDir, 'execution', 'spec.md'));
+  fs.writeFileSync(path.join(changeDir, 'execution', 'brainstorm.md'), '---\ntool: superpowers\nsession: brainstorming\n---\n\n> Source of truth: [proposal](../proposal.md)\n');
   fs.writeFileSync(path.join(changeDir, 'execution', `plan-${CHANGE}.md`), [
     '# Greeting by name Implementation Plan', '',
-    '**Spec:** [proposal](../proposal.md) · [specs/greeting/spec.md](../specs/greeting/spec.md)', '',
+    '**Spec:** [proposal](../proposal.md) · [specs/greeting/spec.md](../specs/greeting/spec.md) · [brainstorm](brainstorm.md)', '',
     '### Task 1: greet(name)', '', '**Covers:** "Requirement: Greeting by name", "Requirement: Blank name falls back to default"', '',
     '### Task 2: CLI wiring', '', '**Covers:** "Requirement: Greeting by name"', '',
   ].join('\n'));

@@ -9,7 +9,7 @@ in each change are the requirements; this file tells the engineering skills wher
   `openspec/changes/<change-id>/`. Find the active change with `openspec list --json`; if several are active,
   use the one named in the request or in `handoff.md`.
 - The change's `proposal.md` + `specs/**/spec.md` delta are the requirements (the *what*).
-- Design decisions (from `grill-with-docs`) go to `openspec/changes/<change-id>/execution/design.md`.
+- Design decisions (from `grill-with-docs`, run in the proposal phase) go to `openspec/changes/<change-id>/execution/grill.md`.
 - The spec (from `to-spec`) goes to `openspec/changes/<change-id>/execution/spec.md`. Its **Problem Statement**,
   **Solution** and **User Stories** sections reference the source of truth instead of restating it: link
   `../proposal.md` (Why / What Changes) and the delta `../specs/<capability>/spec.md`, naming requirements and

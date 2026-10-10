@@ -1,6 +1,6 @@
 ---
-description: Hand an OpenSpec change to AI Hero or Superpowers and record tool + model in handoff.md
-argument-hint: <change-id> [ai-hero|superpowers] [implementation-model]
+description: Hand an OpenSpec change to its execution tool (chosen at setup), record the model in handoff.md, run the tool planning and /spec-check
+argument-hint: <change-id> [implementation-model]
 allowed-tools: Bash(openspec:*), Bash(node .openspec-handoff/scripts/*), Bash(git rev-parse:*)
 ---
 

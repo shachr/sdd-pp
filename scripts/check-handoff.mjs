@@ -6,7 +6,9 @@
 //     paraphrases are advisory warnings (errors with config.strictDuplication)
 //   - requirement links: every user story / ticket / plan task names an existing delta requirement
 //   - handoff.md apply_mode names the tool's own implement command
-//   - ownership: no OpenSpec design.md; design lives in execution/ (to-spec output: execution/spec.md)
+//   - execution tool set (project default / per-change session file) and consistent with handoff.md
+//   - proposal.md what/why only (warning heuristic); new capabilities have ## Purpose (warning)
+//   - ownership: no OpenSpec design.md; design lives in execution/ (grill.md / brainstorm.md, spec.md, plan)
 //   - execution outputs live in the change folder, not the tools' default locations
 //   - the change is PR-sized (.openspec-handoff/small-changes.md)
 // Usage: node check-handoff.mjs <change-id> [--root <dir>] [--config <file>] [--json] [--no-git]
@@ -18,6 +20,7 @@ import {
   findProjectRoot, loadChange, loadConfig, normativeLines, normalize, countRequirements,
   countWorkUnits, diffSize, git, TOOLS, REQUIRED_KEYS, UsageError,
   paraphraseFindings, PARAPHRASE, restatingSections, findPlan, requirementLinkFindings, APPLY_MODES,
+  resolveTool, SESSION_FILES, proposalLeaks, newCapabilityDeltas,
 } from './lib/change.mjs';
 
 export function checkChange(change, config, { useGit = true } = {}) {
@@ -40,6 +43,21 @@ export function checkChange(change, config, { useGit = true } = {}) {
   }
   if (h.change && h.change !== change.id) errors.push(`handoff.md: change "${h.change}" does not match folder "${change.id}"`);
   if (h.tool && !TOOLS.includes(h.tool)) errors.push(`handoff.md: tool "${h.tool}" must be one of ${TOOLS.join(', ')}`);
+  // execution tool: set in the setup phase (project default) or per change (session file
+  // front matter), and the handoff must agree with the design session that already ran.
+  const rt = resolveTool({ ...change, handoff: null });
+  metrics.tool = h.tool || '?';
+  if (rt.projectDefault && h.tool && h.tool !== rt.projectDefault) metrics.toolOverride = `${rt.projectDefault}->${h.tool}`;
+  if (rt.sessions.length > 1) errors.push(`both ${rt.sessions.map((x) => x.file).join(' and ')} exist: one change has one execution tool (switching tools means redoing the session - .openspec-handoff/switching-tools.md)`);
+  for (const sf of rt.sessions) {
+    if (sf.tool && sf.tool !== sf.fileTool) errors.push(`${sf.file}: front matter tool "${sf.tool}" does not match the file (${sf.fileTool} writes ${sf.file})`);
+    if (!sf.tool) warnings.push(`${sf.file}: no "tool:" front matter (record the tool the session was run with)`);
+    if (h.tool && sf.fileTool !== h.tool) errors.push(`handoff.md tool "${h.tool}" but the design session ran with ${sf.fileTool} (${sf.file}) - switching tools means redoing the session (.openspec-handoff/switching-tools.md)`);
+  }
+  if (h.tool && TOOLS.includes(h.tool) && !rt.sessions.some((x) => x.fileTool === h.tool)) {
+    errors.push(`${SESSION_FILES[h.tool]} is missing: the ${h.tool} design session runs in the proposal phase, before /handoff`);
+  }
+  if (!h.tool && !rt.tool) errors.push('no execution tool set: project default (.openspec-handoff/project.json, install.sh --tool) or per change (execution-tool.mjs <change> --set <tool>)');
   // apply_mode: the execution tool's own implement command (this workflow does not use /opsx:apply)
   if (h.tool && APPLY_MODES[h.tool]) {
     if (!h.apply_mode) errors.push(`handoff.md: front matter "apply_mode" is missing (one of ${APPLY_MODES[h.tool].join(', ')})`);
@@ -105,8 +123,15 @@ export function checkChange(change, config, { useGit = true } = {}) {
     if (!/proposal\.md/.test(change.read(f))) errors.push(`${f}: must start with a "Source of truth" line linking proposal.md`);
   }
 
+  // 4b. proposal.md is what/why only (warning heuristic) and new capabilities carry a ## Purpose
+  const prop = change.read('proposal.md');
+  if (prop) for (const l of proposalLeaks(prop)) warnings.push(`proposal.md:${l.line}: possible implementation detail (${l.hint}): "${l.text.slice(0, 70)}" - the how belongs in the design session file`);
+  for (const d of newCapabilityDeltas(change)) {
+    if (!/^##\s+Purpose\s*$/m.test(change.read(d))) warnings.push(`${d}: new capability without "## Purpose" - archive would write a TBD placeholder into the main spec`);
+  }
+
   // 5. ownership and locations: OpenSpec = proposal + deltas; design/plan/tickets = execution tool, in execution/
-  if (change.files.includes('design.md')) errors.push('design.md in the change folder: design is owned by the execution tool - move decisions to execution/design.md (ai-hero) or the plan (superpowers)');
+  if (change.files.includes('design.md')) errors.push('design.md in the change folder: design is owned by the execution tool - decisions go to the design session file (execution/grill.md or execution/brainstorm.md) or the plan');
   const strays = [
     path.join(change.root, '.scratch', change.id),
     ...['docs/superpowers/plans', 'docs/superpowers/specs'].flatMap((d) => {
