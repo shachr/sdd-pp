@@ -1,7 +1,6 @@
 ---
 change: <change-id>
 tool: <ai-hero | superpowers>
-implementation_model: <exact-model-id>
 harness: <claude-code | cursor | codex | opencode>
 base_ref: <git rev-parse HEAD at handoff>
 execution_dir: execution/
@@ -36,7 +35,6 @@ Implementation diff: `git diff <base_ref>...HEAD -- . ':!openspec'`
 | `/spec-check` (end of planning) | `execution/spec-check.md` |
 | superpowers `executing-plans` / `subagent-driven-development` (apply_mode) ledger | `execution/progress.md` |
 | superpowers `requesting-code-review` (final review) | `execution/reviews/code-review.md` |
-| `/adversarial-review` (optional) | `execution/reviews/<timestamp>-<reviewer-model>.md` |
 | `/opsx:verify` report | `execution/verify.md` |
 
 ## Size check

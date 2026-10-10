@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 export const TOOLS = ['ai-hero', 'superpowers'];
 /** The tools' own implement commands (handoff.md apply_mode); /opsx:apply is not used. */
 export const APPLY_MODES = { 'ai-hero': ['implement', 'implement-spec'], superpowers: ['executing-plans', 'subagent-driven-development'] };
-export const REQUIRED_KEYS = ['change', 'tool', 'implementation_model', 'base_ref', 'execution_dir'];
+export const REQUIRED_KEYS = ['change', 'tool', 'base_ref', 'execution_dir'];
 
 /** Walk up from `start` to the first directory containing openspec/. */
 export function findProjectRoot(start = process.cwd()) {
@@ -174,22 +174,6 @@ export function loadConfig(root, explicit) {
     if (fs.existsSync(c)) return { path: c, ...JSON.parse(fs.readFileSync(c, 'utf8')) };
   }
   throw new UsageError(`no config found (looked in: ${candidates.join(', ')})`);
-}
-
-/** Lowercase, strip provider prefix and date/latest suffixes. */
-export function normalizeModel(m) {
-  return String(m || '').trim().toLowerCase()
-    .replace(/^[a-z0-9-]+\//, '')
-    .replace(/[-@](\d{8}|latest)$/, '');
-}
-
-/** Family = first match of config.families patterns, else the first two dash segments. */
-export function modelFamily(m, families = {}) {
-  const n = normalizeModel(m);
-  for (const [family, prefixes] of Object.entries(families)) {
-    if (prefixes.some((p) => n.startsWith(p))) return family;
-  }
-  return n.split('-').slice(0, 2).join('-');
 }
 
 // ---------------------------------------------------------------------------
@@ -392,7 +376,7 @@ export function requirementLinkFindings(change) {
 // ---------------------------------------------------------------------------
 // Execution tool selection (setup phase) and the design-session file (proposal phase).
 //   project default:  .openspec-handoff/project.json  { "defaultTool": "ai-hero" | "superpowers" }
-//                     (written by install.sh --tool / execution-tool.mjs --default; never overwritten by install)
+//                     (written by `sdd-pp init --tool` / execution-tool.mjs --default; never overwritten by install)
 //   per-change:       front matter `tool:` of the session file, written when the session starts
 //                     (OpenSpec warns on unknown keys in .openspec.yaml, so the override does not live there)
 //   after handoff:    handoff.md `tool:` (must agree with the session file)

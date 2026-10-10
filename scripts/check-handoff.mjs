@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // check-handoff: lint one OpenSpec change that uses the handoff-driven schema.
-//   - handoff.md front matter is complete (tool, implementation_model, base_ref ...)
+//   - handoff.md front matter is complete (change, tool, base_ref, execution_dir, apply_mode)
 //   - reference-not-duplicate: handoff.md and execution/** link the proposal/deltas and
 //     do not copy (verbatim lines, delta headers, SHALL: errors); restating sections and token-overlap
 //     paraphrases are advisory warnings (errors with config.strictDuplication)
@@ -72,16 +72,13 @@ export function checkChange(change, config, opts = {}) {
   if (h.tool && TOOLS.includes(h.tool) && !rt.sessions.some((x) => x.fileTool === h.tool)) {
     errors.push(`${SESSION_FILES[h.tool]} is missing: the ${h.tool} design session runs in the proposal phase, before /handoff`);
   }
-  if (!h.tool && !rt.tool) errors.push('no execution tool set: project default (.openspec-handoff/project.json, install.sh --tool) or per change (execution-tool.mjs <change> --set <tool>)');
+  if (!h.tool && !rt.tool) errors.push('no execution tool set: project default (.openspec-handoff/project.json, `sdd-pp init --tool`) or per change (execution-tool.mjs <change> --set <tool>)');
   // apply_mode: the execution tool's own implement command (this workflow does not use /opsx:apply)
   if (h.tool && APPLY_MODES[h.tool]) {
     if (!h.apply_mode) errors.push(`handoff.md: front matter "apply_mode" is missing (one of ${APPLY_MODES[h.tool].join(', ')})`);
     else if (!APPLY_MODES[h.tool].includes(h.apply_mode)) errors.push(`handoff.md: apply_mode "${h.apply_mode}" is not a ${h.tool} implement command (one of ${APPLY_MODES[h.tool].join(', ')})`);
   }
   if (h.execution_dir && h.execution_dir.replace(/\/?$/, '/') !== 'execution/') errors.push('handoff.md: execution_dir must be "execution/"');
-  if (h.reviewer_model && h.implementation_model && h.reviewer_model === h.implementation_model) {
-    errors.push('handoff.md: reviewer_model must differ from implementation_model');
-  }
 
   // 2. reference, don't duplicate: links
   const links = [...change.handoffBody.matchAll(/\]\(([^)#\s]+)(#[^)]*)?\)/g)].map((m) => path.posix.normalize(m[1]));
@@ -166,7 +163,8 @@ export function checkChange(change, config, opts = {}) {
   metrics.progress = prog ? `${prog.done}/${prog.total} ${prog.kind} done (${prog.boxes.done}/${prog.boxes.total} checkboxes)` : 'not planned yet';
   if (useGit && !change.archived) for (const e of resetDoneWork(change, h.tool)) errors.push(`done work reset: ${e}`);
   const review = change.read('execution/reviews/code-review.md');
-  if (review && /\bollama\b|local model|qwen|llama/i.test(review) && !/weak fallback/i.test(review)) warnings.push('execution/reviews/code-review.md: a local-model review is a fallback - label it "weak fallback reviewer" at the top (the default reviewer is a fresh session of your own coding agent)');
+  // the code review is the tool's own review in a FRESH session of the engineer's coding agent; otherwise "self-review"
+  if (review && !/\bfresh\b/i.test(review) && !/self-review/i.test(review)) warnings.push('execution/reviews/code-review.md: say at the top how it ran - "fresh session" (default: a sub-agent or new session of your own coding agent) or "self-review" (same session)');
   if (opts.expectComplete) {
     if (!prog) errors.push(`--expect-complete: no ${h.tool === 'ai-hero' ? 'tickets in execution/tickets/' : `plan in execution/plan-${change.id}.md`} - planning has not run`);
     else if (prog.open.length) errors.push(`--expect-complete: ${prog.open.length} ${prog.kind} not done: ${prog.open.join('; ')}${h.tool === 'ai-hero' ? ' (set "Status: done" and tick every checkbox)' : ' (tick every step checkbox)'}`);

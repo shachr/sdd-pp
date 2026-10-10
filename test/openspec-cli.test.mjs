@@ -62,5 +62,6 @@ test('openspec instructions handoff carries the reference-not-duplicate rules', 
   const r = os(['instructions', 'handoff', '--change', CHANGE], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /REFERENCE, DON'T DUPLICATE/);
-  assert.match(r.out, /implementation_model/);
+  assert.match(r.out, /apply_mode/);
+  assert.doesNotMatch(r.out, /implementation_model|reviewer_model/);
 });

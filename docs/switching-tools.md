@@ -1,6 +1,6 @@
 # Switching execution tools mid-change
 
-Rare. The execution tool is picked in the setup phase (`install.sh --tool`, `.openspec-handoff/project.json`)
+Rare. The execution tool is picked in the setup phase (`sdd-pp init --tool`, `.openspec-handoff/project.json`)
 or overridden per change at proposal time (`execution-tool.mjs <id> --set <tool>`, recorded as `tool:` front
 matter in the session file). Its design session runs before `proposal.md` is written, and everything after it
 reads that session's output: AI Hero's to-spec reads `execution/grill.md`, Superpowers' writing-plans reads

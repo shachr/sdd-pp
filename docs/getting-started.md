@@ -11,7 +11,6 @@ Everything for a change stays in `openspec/changes/<id>/`. **Pilot status:** see
 | OpenSpec CLI 1.14.1 (tested version) | `npm i -g @fission-ai/openspec@1.14.1` |
 | AI Hero skills | `npx -y skills@latest add mattpocock/skills --skill '*' -a <agent> -y` |
 | Superpowers skills | `npx -y skills@latest add obra/superpowers --skill '*' -a <agent> -y` |
-| Optional: fallback reviewer | [Ollama](https://ollama.com) + `ollama pull qwen3:4b-instruct` (a weak fallback when your coding agent cannot open a fresh session) |
 
 `<agent>` is your harness, for example `opencode`, `claude-code` or `cursor`. You only need the skills for the tool(s) you use.
 
@@ -20,11 +19,13 @@ Everything for a change stays in `openspec/changes/<id>/`. **Pilot status:** see
 ```bash
 cd your-project && git init            # a git repo is required (base_ref, review diffs)
 openspec init --tools opencode         # or claude,cursor
-/path/to/openspec-handoff-workflow/install.sh . --tool ai-hero   # or --tool superpowers; add --opencode / --no-claude / --no-cursor as needed
+npx github:shachr/sdd-pp init . --tool ai-hero   # or a local checkout: npx /path/to/sdd-pp init . ...; --tool superpowers; --opencode / --no-claude / --no-cursor
 openspec schema validate handoff-driven
 ```
 
-`--tool` writes the project default to `.openspec-handoff/project.json`. Re-running `install.sh` (to upgrade) keeps it.
+`sdd-pp init` is a plain Node CLI (no bash, no symlinks; works on Windows, macOS and Linux). `--tool` writes the project default to
+`.openspec-handoff/project.json`. Re-running `init` without `--tool` (to upgrade) keeps it. `npx sdd-pp init` will work once the
+package is published to npm (not yet). `sdd-pp --help` lists every option.
 For AI Hero, also copy `.openspec-handoff/issue-tracker-openspec.md` to `docs/agents/issue-tracker.md` (or run `/setup-matt-pocock-skills` → "Other").
 That makes the change folder the issue tracker.
 
@@ -38,7 +39,7 @@ Optional per-change override, **before** the design session:
 | 1 | `/opsx:propose <id>` runs the tool's **design session** first | `grill-with-docs` → `execution/grill.md` | `brainstorming` → `execution/brainstorm.md`, **stopped** after the approved design (no writing-plans yet) |
 | 2 | Proposal + **specs** | `proposal.md` = what/why only; behaviours from the session become delta scenarios; new capability → `## Purpose` first | same |
 | 2a | `/split-check <id>` (automatic at the end of the specs stage) counts requirements and capabilities. Up to 5 and 2 it says "fits". Above, it proposes slices and **waits for your approval**; commit the deltas, then `split.mjs apply` makes a parent + one child change per slice (see [Splitting](#splitting-a-big-change)) | | |
-| 3 | `/handoff <id> <model>`: OpenSpec's **last stage**. Writes `handoff.md` (tool, model, `apply_mode`, `base_ref`), then **prints the next steps and stops** (`next-steps.mjs <id>` reprints them) | | |
+| 3 | `/handoff <id>`: OpenSpec's **last stage**. Writes `handoff.md` (tool - resolved from the per-change override or the project default -, `apply_mode`, `base_ref`), then **prints the next steps and stops** (`next-steps.mjs <id>` reprints them) | | |
 | 3a | Planning (you run it) | `/to-spec` (reads grill.md) → `execution/spec.md`, `/to-tickets` → `execution/tickets/` | `writing-plans` (reads brainstorm.md) → `execution/plan-<id>.md` |
 | 4 | `/spec-check <id>` → `execution/spec-check.md` | stops on GAPS: fix, re-run | same |
 | 5 | Implement with the tool's own command (`apply_mode`), **not** `/opsx:apply`. Progress lives in the tool's tracking, not a `tasks.md` | `/implement` or `/implement-spec`, with `tdd`; ticket `Status: done` + ticked checkboxes | `executing-plans` or `subagent-driven-development` (branch `change/<id>`); tick plan step checkboxes; copy the ledger to `execution/progress.md` |
@@ -47,12 +48,10 @@ Optional per-change override, **before** the design session:
 | 8 | `/opsx:verify <id>`; save the report verbatim to `execution/verify.md` | | then `finishing-a-development-branch` |
 | 9 | `/opsx:archive <id>` on the change branch: syncs the delta into `openspec/specs/`, moves the change to `archive/`; commit it in the change's PR with the code, then merge | | |
 
-The default reviewer is a **fresh session of your own coding agent** (a sub-agent, or a new session that sees
-only the filled review brief). Fallback when that is impossible: a local model,
-`node .openspec-handoff/scripts/runners/ollama.mjs qwen3:4b-instruct < prompt.md`, labelled
-`weak fallback reviewer: <model>` at the top of the review file (check-handoff warns without the label).
-If neither is possible, write "self-review" at the top of the review file.
-`/adversarial-review` (a different-model review) is optional.
+The code review is the tool's own review in a **fresh session of your own coding agent** (a sub-agent, or a new
+session that sees only the filled review brief); write "fresh session" at the top of the review file. If that is
+impossible, run it in the same session and write "self-review" at the top instead (check-handoff warns when the
+review says neither). There is no separate reviewer model or local fallback.
 
 Useful checks at any time:
 - `node .openspec-handoff/scripts/execution-tool.mjs <id>` shows which tool applies and why.
@@ -104,7 +103,7 @@ Changing the plan later: edit the child delta, add the split note to the child's
 
 - **Pilot:** proven only on toy changes (two ~50-line utilities in a demo repo, `handoff-flows-v3`). There has been no real-project use yet.
 - **Not exercised:** `implement-spec` and `subagent-driven-development` (the test harness had no sub-agent tool), and PR-based finishing.
-- **Weak fallback reviewer:** the local qwen3:4b-instruct is only a fallback; it gives shallow reviews and can be confidently wrong (false Criticals in v3 and v5). Triage every finding; prefer a fresh session of your own coding agent.
+- **Review independence:** a fresh session of the same coding agent is independent of the implementing conversation, not of the model. A "self-review" is weaker still; triage findings either way.
 - **Heuristic lints:** the paraphrase lint and the proposal implementation-detail lint are token/keyword heuristics, warnings only. Expect false positives and misses. Session records written before the delta naturally trigger paraphrase warnings.
 - **`/spec-check` contradictions are agent judgement:** the script checks coverage mechanically and exits 0 if it cannot see a contradiction. Whether it stops depends on the agent's review.
 - **Splitting:** tested on demo features (`handoff-flows-v5`, `-v6`). The loss check matches names; for an unmatched name it lists rename candidates and the agent judges semantic equivalence (`renamed_from`), so that step is agent judgement. "In progress" is a manual mark in the parent's `slices.md`; the next report does not scan branches. Line estimates are the agent's guesses.

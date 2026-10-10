@@ -1,7 +1,6 @@
 ---
 change: add-greeting-name
 tool: ai-hero
-implementation_model: claude-sonnet-4-5
 harness: claude-code
 base_ref: 379bb4d863a58aceb1e9f57b7860da2f4d3ab47a
 execution_dir: execution/

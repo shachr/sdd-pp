@@ -1,13 +1,13 @@
-// End to end in a fresh project: openspec init -> install.sh -> new change -> artifacts
-// in schema order -> handoff -> execution -> tasks -> check-handoff -> adversarial review
-// (local fake runner) -> openspec validate --strict -> openspec archive.
+// End to end in a fresh project: openspec init -> sdd-pp init (Node CLI) -> new change -> artifacts
+// in schema order -> handoff -> execution -> check-handoff -> the tool's code review (fresh session)
+// -> openspec validate --strict -> openspec archive.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CLI } from './helpers.mjs';
 
 const ID = 'add-greeting-name';
 const EX = path.join(TOOLKIT, 'example', 'openspec', 'changes', ID);
@@ -28,7 +28,7 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
   // project with existing code + main spec
   g('init', '-q', '-b', 'main');
   osx('init', '--tools', 'none', '--no-animation', '.');
-  sh('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--set-default', '--tool', 'ai-hero']);
+  sh(process.execPath, [CLI, 'init', dir, '--set-default', '--tool', 'ai-hero']);
   for (const p of ['src/greet.mjs', 'src/cli.mjs', 'test/greet.test.mjs', 'openspec/specs/greeting/spec.md', 'package.json']) {
     fs.mkdirSync(path.dirname(path.join(dir, p)), { recursive: true });
     fs.copyFileSync(path.join(TOOLKIT, 'example', p), path.join(dir, p));
@@ -71,14 +71,11 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
   assert.equal(lint.metrics.tickets, 2);
   assert.ok(lint.metrics.lines > 0 && lint.metrics.lines < 400);
 
-  // adversarial review with a different model, local runner
-  const cfgPath = path.join(dir, '.openspec-handoff', 'config.json');
-  const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-  cfg.runners = { fake: { match: '*', command: [process.execPath, path.join(TOOLKIT, 'test/fixtures/fake-reviewer.mjs'), '{model}'] } };
-  fs.writeFileSync(cfgPath, JSON.stringify(cfg));
-  assert.match(sh(process.execPath, ['.openspec-handoff/scripts/adversarial-review.mjs', ID, '--dry-run']), /reviewer:\s+gpt-5/);
-  assert.match(sh(process.execPath, ['.openspec-handoff/scripts/adversarial-review.mjs', ID]), /review written/);
-  assert.equal(fs.readdirSync(path.join(changeDir, 'execution', 'reviews')).length, 1);
+  // the tool's own code review, run in a fresh session (labelled at the top of the review file)
+  copy('execution/reviews');
+  const afterReview = JSON.parse(sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID, '--json']));
+  assert.deepEqual(afterReview.errors, []);
+  assert.ok(!afterReview.warnings.some((w) => /code-review\.md/.test(w)), afterReview.warnings.join('\n'));
 
   // OpenSpec validation + archive
   assert.match(osx('validate', ID, '--strict'), /is valid/);

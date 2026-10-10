@@ -1,10 +1,26 @@
 {
-  "name": "openspec-handoff-workflow",
+  "name": "sdd-pp",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "OpenSpec custom schema + AI Hero/Superpowers handoff wrappers + /adversarial-review",
-  "engines": { "node": ">=18.17" },
+  "description": "OpenSpec handoff workflow: custom schemas + AI Hero / Superpowers handoff wrappers, split gate and loss check. Install with: npx <this-repo> init --tool ai-hero|superpowers",
+  "bin": {
+    "sdd-pp": "bin/sdd-pp.mjs"
+  },
+  "files": [
+    "bin/",
+    "schemas/",
+    "scripts/",
+    "skills/",
+    "commands/",
+    "config/",
+    "docs/small-changes.md",
+    "docs/switching-tools.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "validate:example": "cd example && openspec schema validate handoff-driven && openspec validate --all --strict && node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name"

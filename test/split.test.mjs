@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, run } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, run, initCli } from './helpers.mjs';
 import { proposalLeaks } from '../scripts/lib/change.mjs';
 
 const W = (dir, rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
@@ -311,10 +311,10 @@ test('spec-check: line estimate after planning from "Estimate: ~N lines" in tick
   assert.equal(r.code, 0, r.out);
 });
 
-test('parallel slice branches: install.sh union merge for slices.md keeps both status marks; duplicate fields are flagged', () => {
+test('parallel slice branches: sdd-pp init union merge for slices.md keeps both status marks; duplicate fields are flagged', () => {
   const { dir, git } = splitProject();
   run('split.mjs', ['apply', 'add-reports'], dir);
-  const inst = spawnSync('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default'], { encoding: 'utf8' });
+  const inst = initCli(dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default');
   assert.equal(inst.status, 0, inst.stderr);
   assert.match(R(dir, '.gitattributes'), /^openspec\/changes\/\*\*\/slices\.md merge=union$/m);
   git('add', '-A'); git('commit', '-qm', 'plan');

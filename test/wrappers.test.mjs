@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run, initCli } from './helpers.mjs';
 import { parseFrontMatter } from '../scripts/lib/change.mjs';
 
 test('every skill has front matter whose name matches its folder', () => {
@@ -23,18 +23,18 @@ test('wrappers name the real upstream skills', () => {
   for (const s of ['brainstorming', 'writing-plans', 'subagent-driven-development', 'executing-plans', 'requesting-code-review']) assert.match(sp, new RegExp('`' + s + '`'));
 });
 
-test('install.sh installs schema, scripts, skills and commands into an openspec project', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('sdd-pp init installs schema, scripts, skills and commands into an openspec project', { skip: !fs.existsSync(OPENSPEC) }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handoff-install-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
   let r = spawnSync(OPENSPEC, ['init', '--tools', 'none', '--no-animation', '.'], { cwd: dir, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  r = spawnSync('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--set-default'], { encoding: 'utf8' });
+  r = initCli(dir, '--set-default');
   assert.equal(r.status, 0, r.stdout + r.stderr);
   for (const f of [
     'openspec/schemas/handoff-driven/schema.yaml', '.openspec-handoff/scripts/check-handoff.mjs',
-    '.openspec-handoff/scripts/adversarial-review.mjs', '.openspec-handoff/config.json', '.openspec-handoff/small-changes.md',
+    '.openspec-handoff/config.json', '.openspec-handoff/small-changes.md',
     '.claude/skills/openspec-handoff-ai-hero/SKILL.md', '.cursor/skills/openspec-handoff-superpowers/SKILL.md',
-    '.claude/commands/handoff.md', '.cursor/commands/handoff.md', '.claude/commands/adversarial-review.md', '.cursor/commands/adversarial-review.md',
+    '.claude/commands/handoff.md', '.cursor/commands/handoff.md',
   ]) assert.ok(fs.existsSync(path.join(dir, f)), `missing ${f}`);
   assert.match(fs.readFileSync(path.join(dir, 'openspec/config.yaml'), 'utf8'), /^schema: handoff-driven/m);
   r = spawnSync(OPENSPEC, ['new', 'change', 'demo'], { cwd: dir, encoding: 'utf8' });
@@ -43,7 +43,7 @@ test('install.sh installs schema, scripts, skills and commands into an openspec 
 
 test('superpowers handoff with execution/plan-<id>.md passes and counts plan tasks', () => {
   const { dir, changeDir } = makeFixture();
-  setHandoff(dir, { tool: 'superpowers', implementation_model: 'gpt-5-codex', apply_mode: 'executing-plans' });
+  setHandoff(dir, { tool: 'superpowers', apply_mode: 'executing-plans' });
   fs.rmSync(path.join(changeDir, 'execution', 'tickets'), { recursive: true });
   fs.rmSync(path.join(changeDir, 'execution', 'grill.md'));
   fs.rmSync(path.join(changeDir, 'execution', 'spec.md'));

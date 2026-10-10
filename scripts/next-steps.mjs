@@ -10,7 +10,7 @@ import { findParentOf } from './lib/split.mjs';
 export function nextSteps({ id, tool, applyMode, parent = null }) {
   const S = '.openspec-handoff/scripts';
   const c = `openspec/changes/${id}`;
-  const review = (n, what) => `${n}. ${what} in a FRESH session of your own coding agent (a sub-agent, or a new session that sees only the review prompt) -> ${c}/execution/reviews/code-review.md. Fallback when that is impossible: a local model via ${S}/runners/ollama.mjs, labelled "weak fallback reviewer" at the top of the review file; otherwise label it "self-review". Fix Critical/Important findings.`;
+  const review = (n, what) => `${n}. ${what} in a FRESH session of your own coding agent (a sub-agent, or a new session that sees only the review prompt) -> ${c}/execution/reviews/code-review.md. Write "fresh session" at the top of the review; if it could not run in a fresh session, write "self-review" instead. Fix Critical/Important findings.`;
   const finish = (n) => [
     `${n}. openspec validate ${id} --strict && node ${S}/check-handoff.mjs ${id} --expect-complete`,
     `${n + 1}. /opsx:verify ${id} - save the report verbatim to ${c}/execution/verify.md`,

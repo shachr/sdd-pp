@@ -35,41 +35,12 @@ Made autonomously while the user was unavailable. Each is cheap to change; the f
 - Duplicate detection is line-based (normalised requirement description and WHEN/THEN lines ≥ 25 chars).
   Paraphrases are not caught; it's a guardrail, not a proof.
 
-## Models and runners (`config/handoff-review.json`)
-
-- Model ids (`claude-sonnet-4-5`, `claude-opus-4-1`, `gpt-5`, `gpt-5-codex`, `gemini-2.5-pro`) are examples
-  for the mapping; edit `reviewerFor` / `defaultReviewer` to your accounts.
-- "Different model" = different after normalisation (lowercase, no `provider/` prefix, no `-YYYYMMDD` /
-  `-latest` suffix) **and**, by default, different family (`forbidSameFamily: true`).
-- Runner command lines (`claude -p --model … --permission-mode plan`, `codex exec --model … --sandbox
-  read-only -`, `cursor-agent -p --model … --output-format text <prompt>`) follow each CLI's documented
-  headless mode but were **not executed** here: none of those CLIs is installed on this machine (and no
-  credentials). Runner execution is tested with a local fake runner; `--emit-prompt` is the no-CLI fallback.
-
 ## Environment
 
-- Node ≥ 18.17 (developed on 20.19.2); bash for `install.sh`; git required for `base_ref` size/diff checks
+- Node ≥ 18.17 (developed on 20.19.2); the installer is a Node CLI (`bin/sdd-pp.mjs`, no bash); git required for `base_ref` size/diff checks
   (`--no-git` skips them).
 - The example project lives inside this toolkit repo, so its `handoff.md` uses `diff_paths` to scope size
   checks; standalone projects usually omit it.
 - Symlinks in `example/` (schema, scripts, config) point into the toolkit so there's one copy; tests copy the
   example with symlinks dereferenced.
 - The example change's `execution/reviews/code-review.md` is illustrative (no review was run for the example); `openspec validate --strict` and `check-handoff --expect-complete` pass.
-
-## Free local reviewer (Ollama)
-
-- Ollama v0.40.2 (MIT) installed user-local at `~/.local/ollama` (CPU-only libraries extracted; no root).
-  `ollama pull` failed on this box (`redirect target not allowed: …r2.cloudflarestorage.com resolves to non-public
-  198.18.0.1` - the sandbox DNS maps the model CDN to a private IP, which Ollama refuses), so the open-weight
-  GGUF `Qwen/Qwen2.5-Coder-3B-Instruct-GGUF` (`q4_k_m`, Apache-2.0) was downloaded from Hugging Face and
-  registered with `ollama create qwen2.5-coder:3b` using an explicit ChatML template (the GGUF's Jinja template
-  produced empty output).
-- 3B, not 7B: the box has 8 CPUs, 15 GiB RAM but only ~3 GiB available, no GPU. A 7B Q4 model needs ~5 GB.
-- Runner `ollama` (`scripts/runners/ollama.mjs`) calls the local HTTP API (`/api/generate`, `num_ctx` 8192)
-  rather than `ollama run`, which emitted only terminal control codes when piped. `codex exec --oss` was not
-  used (direct runner was simpler and needs no Codex config).
-- Plain models have no tools, so runners with `inlineContext: true` get the proposal, deltas, the tool's design/plan, tasks and
-  the full `git diff` pasted into the prompt. Fine for PR-sized changes; large diffs will overflow `num_ctx`
-  (the runner warns).
-- Review quality from the 3B model is weak (see `example/.../execution/reviews/triage.md`): one run copied the
-  format placeholder, two runs reported Critical findings that were false. Treat it as a smoke-test reviewer.

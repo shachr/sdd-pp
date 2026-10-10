@@ -8,14 +8,14 @@ artifact for a change inside the OpenSpec change folder, and lints that no requi
 openspec/changes/<id>/
   proposal.md          OpenSpec  - why / what, with a Size Budget
   specs/<cap>/spec.md  OpenSpec  - delta specs: the ONLY place behaviour is written down
-  handoff.md           handoff   - tool (must match the session), implementation_model, apply_mode, base_ref, links
+  handoff.md           handoff   - tool (must match the session), apply_mode, base_ref, links
   execution/           owned by the execution tool; cites requirements/scenarios by name + link only
     grill.md                     (AI Hero grill-with-docs - proposal phase; front matter tool: ai-hero)
     brainstorm.md                (Superpowers brainstorming - proposal phase, stopped before writing-plans)
     spec.md, tickets/            (AI Hero to-spec reading grill.md, to-tickets - after handoff; tickets track progress)
     plan-<id>.md, progress.md    (Superpowers writing-plans reading brainstorm.md - after handoff; plan checkboxes track progress)
     spec-check.md                (/spec-check: planning output vs proposal + delta, end of planning)
-    reviews/code-review.md       (the tool's own code review; reviews/<ts>-<model>.md if /adversarial-review is used)
+    reviews/code-review.md       (the tool's own code review, in a fresh session; "self-review" otherwise)
     verify.md                    (/opsx:verify report, saved before archive)
     split-check.md, split-proposal.md   (/split-check split gate, end of the specs stage; the proposal is removed at apply)
 
@@ -29,7 +29,7 @@ openspec/changes/<slice>/      one handoff-driven child per slice, live deltas (
                                (dropped / added / renamed_from / split_from)
 ```
 
-Phases: **setup** (pick the execution tool: `install.sh --tool`, project default in `.openspec-handoff/project.json`)
+Phases: **setup** (pick the execution tool: `sdd-pp init --tool`, project default in `.openspec-handoff/project.json`)
 → **proposal** (the tool's design session writes `execution/grill.md` or `execution/brainstorm.md`; then OpenSpec writes
 proposal.md (what/why) + the delta) → **handoff** (OpenSpec's last stage: handoff.md + printed next steps) → the engineer follows them: planning (to-spec +
 to-tickets, or writing-plans) → `/spec-check` → the tool's own implement command → the tool's code review → `/opsx:verify` → `/opsx:archive`.
@@ -50,11 +50,10 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 | `scripts/check-handoff.mjs` | Lint: execution tool set and consistent (handoff.md vs session file; one session file; error), proposal.md implementation-detail heuristic (warning), new capability without `## Purpose` (warning), handoff fields, reference-not-duplicate (errors: verbatim copies, delta headers, SHALL; warnings: token-overlap paraphrases and User-Stories-style sections with no link to the proposal/delta - errors with `strictDuplication`), requirement links (every user story / ticket / plan task names an existing delta requirement: error), `apply_mode`, ownership (no OpenSpec design.md), outputs in change folder, PR size (warn-only: ~300 changed lines of code + tests, lockfiles / generated / tooling excluded) |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
 | `commands/{claude,cursor}/handoff.md` | `/handoff` - story 2 |
-| `commands/{claude,cursor}/adversarial-review.md`, `scripts/adversarial-review.mjs` | `/adversarial-review` - story 3 |
-| `config/handoff-review.json` | review skill per tool, reviewer-model mapping, runners, size thresholds |
+| `config/handoff-review.json` | review skill per tool, size thresholds, split limits |
 | `docs/small-changes.md` | PR-size budget, when/how to split, validate vs verify - story 4 |
-| `install.sh` | installs all of the above into a project |
-| `example/` | minimal test repo with a complete change `add-greeting-name` (AI Hero, claude-sonnet-4-5) |
+| `bin/sdd-pp.mjs` (`package.json` `bin`) | `sdd-pp init`: cross-platform Node installer for all of the above |
+| `example/` | minimal test repo with a complete change `add-greeting-name` (AI Hero) |
 | `docs/decisions.md`, `docs/assumptions.md` | decision log (grill → spec → tickets) and assumptions |
 | `test/` | `node --test` suite incl. real OpenSpec CLI runs and a full e2e flow |
 
@@ -63,12 +62,23 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 ```bash
 npm i -g @fission-ai/openspec@1.14.1          # tested version
 cd your-project && openspec init --tools claude,cursor
-/path/to/openspec-handoff-workflow/install.sh . --tool ai-hero   # setup phase: default tool; sets schema: handoff-driven; --link to symlink
+npx github:shachr/sdd-pp init . --tool ai-hero   # setup phase: default tool; sets schema: handoff-driven
 openspec schema validate handoff-driven
 ```
 
-`install.sh` writes `openspec/schemas/handoff-driven/`, `.openspec-handoff/{scripts,config.json,project.json,small-changes.md}`,
-`.claude/{skills,commands}/…`, `.cursor/{skills,commands}/…`, and adds `.superpowers/` to `.gitignore`.
+Also works from a local checkout (`npx /path/to/sdd-pp init . --tool superpowers`, or `node /path/to/sdd-pp/bin/sdd-pp.mjs init ...`)
+and, once published to npm (not yet), as `npx sdd-pp init`. It is plain Node (no bash, plain copies, no symlinks), so it runs on
+Windows, macOS and Linux. Options:
+
+```text
+sdd-pp init [dir] [--tool ai-hero|superpowers] [--claude|--no-claude] [--cursor|--no-cursor]
+                  [--opencode|--no-opencode] [--no-set-default] [--force]
+```
+
+A re-install without `--tool` keeps the project default in `.openspec-handoff/project.json`; `config.json` is kept unless `--force`.
+`sdd-pp init` writes `openspec/schemas/handoff-driven/`, `.openspec-handoff/{scripts,config.json,project.json,small-changes.md}`,
+`.claude/{skills,commands}/…`, `.cursor/{skills,commands}/…` (`.opencode/` when present or `--opencode`), adds `.superpowers/` to
+`.gitignore` and `slices.md merge=union` to `.gitattributes`.
 Install the execution toolkits themselves from [mattpocock/skills](https://github.com/mattpocock/skills) and
 [obra/superpowers](https://github.com/obra/superpowers).
 
@@ -83,16 +93,15 @@ node .openspec-handoff/scripts/execution-tool.mjs add-greeting-name --set superp
 /split-check add-greeting-name           # split gate, end of the specs stage (automatic): "fits", or > 5 requirements / > 2 capabilities
    -> slices proposed (execution/split-proposal.md) -> engineer approves -> commit deltas -> split.mjs apply -> parent + children
    -> split.mjs loss <parent> PASS -> one planning PR -> split.mjs next <parent> --write-tickets -> per slice:
-/handoff add-greeting-name claude-sonnet-4-5
-   -> handoff.md (tool = session's tool, model, apply_mode, base_ref, links), check-handoff,
+/handoff add-greeting-name
+   -> handoff.md (tool = per-change override or project default, apply_mode, base_ref, links), check-handoff,
    -> prints the next steps (next-steps.mjs) and STOPS. The engineer then runs them:
       ai-hero:     /to-spec (reads grill.md) -> execution/spec.md, /to-tickets -> execution/tickets/
       superpowers: writing-plans (reads brainstorm.md) -> execution/plan-<id>.md
 /spec-check add-greeting-name             # stops on GAPS -> execution/spec-check.md
 # implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply)
 /implement  |  /implement-spec  |  executing-plans  |  subagent-driven-development
-   -> ticket Status/checkboxes or plan step checkboxes; tool's code review (fresh session of your own agent; local model = weak fallback) -> execution/reviews/code-review.md
-/adversarial-review add-greeting-name     # optional: different model, headless, -> execution/reviews/
+   -> ticket Status/checkboxes or plan step checkboxes; tool's code review in a fresh session of your own agent ("self-review" if not) -> execution/reviews/code-review.md
 openspec validate add-greeting-name --strict && node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name --expect-complete
 /opsx:verify add-greeting-name            # save the report to execution/verify.md
 /opsx:archive add-greeting-name           # agent-driven sync, then move; handoff + execution archive with the change
@@ -108,44 +117,21 @@ node .openspec-handoff/scripts/split.mjs apply <id>                          # a
 node .openspec-handoff/scripts/split.mjs loss <parent> [--final]            # nothing lost / duplicated / unsourced (baseline: git show split_commit)
 node .openspec-handoff/scripts/split.mjs next <parent> [--write-tickets]     # ready / in progress / parallel-safe slices, tickets
 node .openspec-handoff/scripts/split.mjs mark <parent> <slice> in-progress|planned   # the engineer's status mark
-node .openspec-handoff/scripts/adversarial-review.mjs <id> [--dry-run] [--emit-prompt] [--json]
-     [--reviewer-model <id>] [--runner claude|codex|cursor-agent] [--allow-same-family]
 ```
 
-### How `/adversarial-review` picks things
+### Code review
 
-- **Skill**: `ai-hero → code-review` (two-axis Standards + Spec), `superpowers → requesting-code-review`
-  (`code-reviewer.md` template). `config.reviewSkills`.
-- **Reviewer model** (optional step): `--reviewer-model` > optional `reviewer_model` in handoff.md > `config.reviewerFor[implementation_model]`
-  > `config.defaultReviewer`. Exit 1 if it equals the implementation model (after normalising provider
-  prefixes and date suffixes) or shares its family while `forbidSameFamily` is on.
-- **Runner**: first `config.runners` entry whose `match` is the reviewer's family (`claude` → `claude -p`,
-  `gpt` → `codex exec`), else `*` (`cursor-agent -p`). No runner installed? `--emit-prompt` writes the prompt
-  to `execution/reviews/` to paste into a session using the reviewer model.
-
-### Free local reviewer (no account, no API key)
-
-Run an open-weight model on your machine with [Ollama](https://ollama.com) (open source):
-
-```bash
-ollama serve &                       # or the desktop app
-ollama pull qwen2.5-coder:7b         # 3b if RAM is tight; any non-Claude family for a Claude implementer
-node .openspec-handoff/scripts/adversarial-review.mjs <id> --reviewer-model qwen2.5-coder:7b
-```
-
-`qwen*` models route to the `ollama` runner (`scripts/runners/ollama.mjs`, local HTTP API, `OLLAMA_HOST`,
-`OLLAMA_NUM_CTX`; output is capped by `OLLAMA_NUM_PREDICT`, default 1500, and a timed-out stream still prints its partial answer). Because a plain model can't open files, that runner sets `inlineContext: true` and the change's
-proposal, deltas, the tool's design/plan, tasks and full diff are pasted into the prompt. Add other local families (`llama`,
-`deepseek` are pre-declared) by adding a runner with the matching `match`. The same-model / same-family guard
-applies (a qwen implementer can't be reviewed by qwen). Each review file records runner, timing and a parsed
-`verdict` (`APPROVE`, `REQUEST_CHANGES`, or `unparsed`). Small CPU models produce shaky reviews - triage findings
-before acting on them (the example's `execution/reviews/triage.md` shows a 3B model's false positives).
+The tool's own review (`ai-hero → code-review`, two-axis Standards + Spec; `superpowers → requesting-code-review`,
+`code-reviewer.md` template; `config.reviewSkills`) runs in a **fresh session of the engineer's coding agent** (a sub-agent or a
+new session). Write "fresh session" at the top of `execution/reviews/code-review.md`, or "self-review" when it ran in the same
+session; check-handoff warns when the review says neither. There is no separate reviewer model, runner or local fallback
+(`docs/decisions.md` section 13).
 
 ## Develop / test
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 82 tests (split gate, git-baseline loss check, split notes, renames, done-work reset, ready report incl.): lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
+npm test               # 70 tests: installer CLI, lint rules incl. paraphrase detection, split gate, git-baseline loss check, split notes, renames, done-work reset, ready report, real OpenSpec CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```

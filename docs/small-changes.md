@@ -1,7 +1,7 @@
 # Keeping changes PR-sized
 
 One OpenSpec change = one handoff = one branch = one PR. The whole workflow assumes it:
-`openspec validate --strict`, `/opsx:verify`, and `/adversarial-review` all read the *entire*
+`openspec validate --strict`, `/opsx:verify`, and the tool's code review all read the *entire*
 change (proposal, deltas, the execution tool's design/plan/tickets, diff) at once. When a change outgrows a
 reviewer's context, verification degrades silently: findings get shallower, not louder.
 
@@ -92,7 +92,7 @@ Changing the plan later: edit the child delta, add the split note to that child'
 one; `check-handoff` errors with "done work reset" when a ticket marked done at git HEAD was overwritten),
 then `check-handoff` and `/spec-check`.
 
-`install.sh` still adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `mark`
+`sdd-pp init` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `mark`
 commits); `split.mjs loss` warns if a union merge left a slice field twice.
 
 **Re-split**: run `/split-check <slice>` on a slice that turns out too big (more requirements, or over the
@@ -118,9 +118,9 @@ path first and edge scenarios second (only if the first slice is correct and shi
 | `openspec validate <id> --strict` (CLI) | Structure of the deltas: headers, ≥1 scenario per requirement, Purpose length, ≤500-char requirement descriptions | Low - structural; passes on huge changes too |
 | `/opsx:verify <id>` (agent workflow, opt-in via `openspec config profile`; there is **no** `openspec verify` CLI command in 1.14.1) | Completeness (task tracking: *Not applicable* with this schema; every requirement implemented), correctness (code matches scenarios), coherence (code patterns; Design Adherence is *Not applicable* because the handoff-driven schema has no design artifact - design is reviewed by the execution tool) | High - an agent must read every artifact plus the code |
 | `check-handoff` (this toolkit) | Handoff fields, reference-not-duplicate, outputs inside the change folder, size budget | Warns on the budget (never fails on size) |
-| `/adversarial-review` (this toolkit) | A different model reviews the diff against the deltas | High - same as verify |
+| The tool's code review (fresh session of your coding agent) | `code-review` / `requesting-code-review` reviews the diff against the deltas | High - same as verify |
 
-Run order: `check-handoff` → `/adversarial-review` → fix → `openspec validate --strict` → `/opsx:verify` (report saved to `execution/verify.md`) → `/opsx:archive` (agent-driven sync) after merge.
+Run order: the tool's code review → fix → `check-handoff --expect-complete` → `openspec validate --strict` → `/opsx:verify` (report saved to `execution/verify.md`) → `/opsx:archive` (agent-driven sync) after merge.
 
 ## Small changes that don't need the full ceremony
 
