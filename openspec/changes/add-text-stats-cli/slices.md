@@ -69,3 +69,5 @@ Archive this parent last: `openspec archive add-text-stats-cli --skip-specs --ye
 ## Amendments
 
 - Requirement "Stats command flag" added in add-stats-cli: keeps the user-visible stats command off until remove-stats-cli-flag ships
+- Requirement "Sentence count" changed, see change add-text-stats-core: a run of marks ends one sentence; runs without a word are not sentences (narrowed slice session)
+- Scenario "Repeated punctuation" added in add-text-stats-core: pins the rule above

@@ -16,7 +16,7 @@ The system SHALL count as a word every whitespace-separated run of characters th
 - **THEN** the word count is 0
 
 ### Requirement: Sentence count
-The system SHALL count a sentence for every run of text that ends in ".", "!" or "?", plus one for trailing text with at least one word and no terminal punctuation.
+The system SHALL count a sentence for every run of text that contains at least one word and ends in one or more of ".", "!" or "?", plus one for trailing text with at least one word and no terminal punctuation.
 
 #### Scenario: Sentences ending in punctuation
 - **WHEN** the text is "Hi. How are you? Great!"
@@ -24,4 +24,8 @@ The system SHALL count a sentence for every run of text that ends in ".", "!" or
 
 #### Scenario: No terminal punctuation
 - **WHEN** the text is "One. two words"
+- **THEN** the sentence count is 2
+
+#### Scenario: Repeated punctuation
+- **WHEN** the text is "Wait... really?! ..."
 - **THEN** the sentence count is 2
