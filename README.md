@@ -114,7 +114,7 @@ node .openspec-handoff/scripts/adversarial-review.mjs <id> --reviewer-model qwen
 ```
 
 `qwen*` models route to the `ollama` runner (`scripts/runners/ollama.mjs`, local HTTP API, `OLLAMA_HOST`,
-`OLLAMA_NUM_CTX`). Because a plain model can't open files, that runner sets `inlineContext: true` and the change's
+`OLLAMA_NUM_CTX`; output is capped by `OLLAMA_NUM_PREDICT`, default 1500, and a timed-out stream still prints its partial answer). Because a plain model can't open files, that runner sets `inlineContext: true` and the change's
 proposal, deltas, the tool's design/plan, tasks and full diff are pasted into the prompt. Add other local families (`llama`,
 `deepseek` are pre-declared) by adding a runner with the matching `match`. The same-model / same-family guard
 applies (a qwen implementer can't be reviewed by qwen). Each review file records runner, timing and a parsed
