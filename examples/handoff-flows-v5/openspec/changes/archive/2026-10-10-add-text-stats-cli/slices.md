@@ -1,0 +1,77 @@
+---
+parent: add-text-stats-cli
+approved_by: Grok Bot on behalf of shachar bardavid (decisions delegated; slices accepted as proposed)
+split_at: 2026-10-10
+---
+
+# Slices: add-text-stats-cli
+
+Parent of a split change (schema split-plan). Names only - behaviour lives in the child deltas. Never edit behaviour here; record changes as amendments.
+Archive this parent last: `openspec archive add-text-stats-cli --skip-specs --yes` after `split.mjs loss add-text-stats-cli --final` passes. Never run /opsx:verify on it.
+
+## Slices
+
+### Slice: add-text-stats-core
+- goal: Count words and sentences in a text (library)
+- capabilities: text-stats
+- requirements: Word count; Sentence count
+- depends_on: none
+- flag: none
+- estimate: 100
+- ticket: tickets/add-text-stats-core.md
+
+### Slice: add-cli
+- goal: textkit command-line tool with the slugify command and usage errors
+- capabilities: cli
+- requirements: Slugify command; Command errors
+- depends_on: none
+- flag: none
+- estimate: 190
+- ticket: tickets/add-cli.md
+
+### Slice: add-stats-cli
+- goal: textkit stats command (text and JSON), behind the stats-cli flag
+- capabilities: stats-cli
+- requirements: Stats command; Stats JSON output
+- depends_on: add-text-stats-core, add-cli
+- flag: stats-cli
+- estimate: 135
+- ticket: tickets/add-stats-cli.md
+
+### Slice: remove-stats-cli-flag
+- goal: Release the stats command by removing the stats-cli flag
+- capabilities: stats-cli
+- depends_on: add-stats-cli
+- flag: none
+- removes_flag: stats-cli
+- estimate: 25
+- ticket: tickets/remove-stats-cli-flag.md
+
+## Checklist (original requirement and scenario names)
+
+- [x] Requirement: Slugify command
+  - [x] Scenario: Slugify argument
+  - [x] Scenario: Slugify from stdin
+- [x] Requirement: Command errors
+  - [x] Scenario: Unknown command
+  - [x] Scenario: Missing argument
+- [x] Requirement: Stats command
+  - [x] Scenario: Stats summary
+- [x] Requirement: Stats JSON output
+  - [x] Scenario: JSON flag
+- [x] Requirement: Word count
+  - [x] Scenario: Words in a sentence
+  - [x] Scenario: Whitespace only
+- [x] Requirement: Sentence count
+  - [x] Scenario: Sentences ending in punctuation
+  - [x] Scenario: No terminal punctuation
+## Amendments
+
+- Requirement "Stats command flag" added in add-stats-cli: keeps the user-visible stats command off until remove-stats-cli-flag ships
+- Requirement "Sentence count" changed, see change add-text-stats-core: a run of marks ends one sentence; runs without a word are not sentences (narrowed slice session)
+- Scenario "Repeated punctuation" added in add-text-stats-core: pins the rule above
+- Scenario "Slugify from stdin" dropped: slugify takes its text as an argument only in this feature (add-cli narrowed session; deliberate loss-check test, Grok Bot's call on the user's behalf)
+- Requirement "Slugify command" changed, see change add-cli: no standard-input fallback; a missing text is a usage error ("Requirement: Command errors")
+- Requirement "Command errors" changed, see change add-cli: also covers a command missing its argument
+- Requirement "Stats command" changed, see change add-stats-cli: arguments other than --json are a usage error (narrowed slice session)
+- Scenario "Unknown stats option" added in add-stats-cli: pins the rule above
