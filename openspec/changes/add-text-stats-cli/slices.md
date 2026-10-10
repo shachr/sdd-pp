@@ -74,3 +74,5 @@ Archive this parent last: `openspec archive add-text-stats-cli --skip-specs --ye
 - Scenario "Slugify from stdin" dropped: slugify takes its text as an argument only in this feature (add-cli narrowed session; deliberate loss-check test, Grok Bot's call on the user's behalf)
 - Requirement "Slugify command" changed, see change add-cli: no standard-input fallback; a missing text is a usage error ("Requirement: Command errors")
 - Requirement "Command errors" changed, see change add-cli: also covers a command missing its argument
+- Requirement "Stats command" changed, see change add-stats-cli: arguments other than --json are a usage error (narrowed slice session)
+- Scenario "Unknown stats option" added in add-stats-cli: pins the rule above
