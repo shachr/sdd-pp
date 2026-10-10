@@ -27,6 +27,8 @@ with the tool's own command → the tool's code review → `/opsx:verify` → `/
 Schema order: **proposal → specs → handoff → tasks**. There is no OpenSpec design artifact, so
 `/opsx:verify` checks proposal + specs and reports Design Adherence as *Not applicable* (see `docs/decisions.md` C1).
 
+**New here? Start with [docs/getting-started.md](docs/getting-started.md).**
+
 ## What's here
 
 | Path | What |
