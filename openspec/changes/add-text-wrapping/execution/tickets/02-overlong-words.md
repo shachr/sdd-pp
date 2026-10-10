@@ -6,8 +6,8 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Scenario "Word wider than the column" passes
-- [ ] Scenario "Overlong word after a short one" passes
-- [ ] Scenario "Remainder shares its line" passes
+- [x] Scenario "Word wider than the column" passes
+- [x] Scenario "Overlong word after a short one" passes
+- [x] Scenario "Remainder shares its line" passes
