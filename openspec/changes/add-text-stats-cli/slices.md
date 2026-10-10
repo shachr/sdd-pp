@@ -45,7 +45,7 @@ Archive this parent last: `openspec archive add-text-stats-cli --skip-specs --ye
 - flag: none
 - removes_flag: stats-cli
 - estimate: 25
-- ticket: none
+- ticket: tickets/remove-stats-cli-flag.md
 
 ## Checklist (original requirement and scenario names)
 
