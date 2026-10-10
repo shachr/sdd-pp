@@ -23,3 +23,4 @@ test('Already converted input unchanged', () => {
 test('Empty or separator-only input (camelCase)', () => assert.equal(camelCase(' _ '), ''));
 test('Text is not a string', () => assert.throws(() => camelCase(42), TypeError));
 test('single word', () => assert.equal(camelCase('USER'), 'user')); // Review Focus 5
+test('title-case letter kept', () => { assert.equal(snakeCase('ǅemal x'), 'ǆemal_x'); assert.equal(snakeCase('ǅ x'), 'ǆ_x'); }); // final review fix

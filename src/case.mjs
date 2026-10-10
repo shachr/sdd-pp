@@ -3,7 +3,7 @@
  */
 
 // Upper-case run before a Capitalised word | (optional capital +) lower/caseless letters, marks, digits | trailing upper-case run (+ digits)
-const WORD = /\p{Lu}+[\p{N}]*(?=\p{Lu}[\p{Ll}\p{M}])|\p{Lu}?[\p{Ll}\p{Lo}\p{Lm}\p{M}\p{N}]+|\p{Lu}+[\p{M}\p{N}]*/gu;
+const WORD = /\p{Lu}+[\p{N}]*(?=\p{Lu}[\p{Ll}\p{M}])|[\p{Lu}\p{Lt}]?[\p{Ll}\p{Lo}\p{Lm}\p{M}\p{N}]+|[\p{Lu}\p{Lt}]+[\p{M}\p{N}]*/gu;
 
 /**
  * Split text into words (internal; not exported from the entry point).
