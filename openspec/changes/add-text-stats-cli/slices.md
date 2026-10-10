@@ -36,7 +36,7 @@ Archive this parent last: `openspec archive add-text-stats-cli --skip-specs --ye
 - depends_on: add-text-stats-core, add-cli
 - flag: stats-cli
 - estimate: 135
-- ticket: none
+- ticket: tickets/add-stats-cli.md
 
 ### Slice: remove-stats-cli-flag
 - goal: Release the stats command by removing the stats-cli flag
