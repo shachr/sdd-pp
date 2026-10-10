@@ -51,7 +51,7 @@ export function checkChange(change, config, { useGit = true } = {}) {
   // 3. reference, don't duplicate: copied requirement text
   const protectedLines = new Map();
   for (const d of change.deltas) for (const l of normativeLines(change.read(d))) protectedLines.set(l, d);
-  const targets = [['handoff.md', change.handoffText], ...change.execution.filter((f) => f.endsWith('.md')).map((f) => [f, change.read(f)])];
+  const targets = [['handoff.md', change.handoffText], ...change.execution.filter((f) => f.endsWith('.md') && !f.startsWith('execution/reviews/')).map((f) => [f, change.read(f)])];
   for (const [file, text] of targets) {
     if (/^###\s+Requirement:|^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements|^####\s+Scenario:/m.test(text)) {
       errors.push(`${file}: contains spec-delta headers (Requirement/Scenario/ADDED...) - link the delta instead`);
@@ -65,7 +65,7 @@ export function checkChange(change, config, { useGit = true } = {}) {
   }
 
   // 4. execution artifacts link back to the source of truth
-  for (const f of change.execution.filter((x) => x.endsWith('.md'))) {
+  for (const f of change.execution.filter((x) => x.endsWith('.md') && !x.endsWith('.prompt.md'))) {
     if (!/proposal\.md/.test(change.read(f))) errors.push(`${f}: must start with a "Source of truth" line linking proposal.md`);
   }
 
@@ -134,7 +134,7 @@ async function main() {
   return result.errors.length ? 1 : 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('check-handoff.mjs')) {
+if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(new URL(import.meta.url).pathname)) {
   main().then((c) => process.exit(c)).catch((e) => {
     console.error(`check-handoff: ${e.message}`);
     process.exit(e instanceof UsageError ? 2 : 1);

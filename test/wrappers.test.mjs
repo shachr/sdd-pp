@@ -32,9 +32,9 @@ test('install.sh installs schema, scripts, skills and commands into an openspec 
   assert.equal(r.status, 0, r.stdout + r.stderr);
   for (const f of [
     'openspec/schemas/handoff-driven/schema.yaml', '.openspec-handoff/scripts/check-handoff.mjs',
-    '.openspec-handoff/config.json', '.openspec-handoff/small-changes.md',
+    '.openspec-handoff/scripts/adversarial-review.mjs', '.openspec-handoff/config.json', '.openspec-handoff/small-changes.md',
     '.claude/skills/openspec-handoff-ai-hero/SKILL.md', '.cursor/skills/openspec-handoff-superpowers/SKILL.md',
-    '.claude/commands/handoff.md', '.cursor/commands/handoff.md',
+    '.claude/commands/handoff.md', '.cursor/commands/handoff.md', '.claude/commands/adversarial-review.md', '.cursor/commands/adversarial-review.md',
   ]) assert.ok(fs.existsSync(path.join(dir, f)), `missing ${f}`);
   assert.match(fs.readFileSync(path.join(dir, 'openspec/config.yaml'), 'utf8'), /^schema: handoff-driven/m);
   r = spawnSync(OPENSPEC, ['new', 'change', 'demo'], { cwd: dir, encoding: 'utf8' });

@@ -23,32 +23,83 @@
   "defaultReviewer": "claude-opus-4-1",
   "forbidSameFamily": true,
   "families": {
-    "claude": ["claude-", "opus", "sonnet", "haiku"],
-    "gpt": ["gpt-", "o3", "o4", "codex"],
-    "gemini": ["gemini-"],
-    "grok": ["grok-"]
+    "claude": [
+      "claude-",
+      "opus",
+      "sonnet",
+      "haiku"
+    ],
+    "gpt": [
+      "gpt-",
+      "o3",
+      "o4",
+      "codex"
+    ],
+    "gemini": [
+      "gemini-"
+    ],
+    "grok": [
+      "grok-"
+    ]
   },
   "runners": {
     "claude": {
       "match": "claude",
-      "command": ["claude", "-p", "--model", "{model}", "--permission-mode", "plan"],
-      "promptVia": "stdin"
+      "command": [
+        "claude",
+        "-p",
+        "--model",
+        "{model}",
+        "--permission-mode",
+        "plan"
+      ],
+      "promptVia": "stdin",
+      "$comment": "Claude Code headless print mode; plan permission mode keeps the reviewer read-only."
     },
     "codex": {
       "match": "gpt",
-      "command": ["codex", "exec", "--model", "{model}", "--sandbox", "read-only", "-"],
-      "promptVia": "stdin"
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "{model}",
+        "--sandbox",
+        "read-only",
+        "-"
+      ],
+      "promptVia": "stdin",
+      "$comment": "OpenAI Codex CLI; \"-\" reads the prompt from stdin; read-only sandbox."
     },
     "cursor-agent": {
       "match": "*",
-      "command": ["cursor-agent", "-p", "--model", "{model}", "--output-format", "text"],
-      "promptVia": "stdin"
+      "command": [
+        "cursor-agent",
+        "-p",
+        "--model",
+        "{model}",
+        "--output-format",
+        "text"
+      ],
+      "promptVia": "arg",
+      "$comment": "Cursor CLI; prompt passed as the final argument. Catch-all runner."
     }
   },
   "sizeThresholds": {
-    "requirements": [5, 8],
-    "units": [8, 12],
-    "lines": [400, 800],
-    "files": [15, 25]
+    "requirements": [
+      5,
+      8
+    ],
+    "units": [
+      8,
+      12
+    ],
+    "lines": [
+      400,
+      800
+    ],
+    "files": [
+      15,
+      25
+    ]
   }
 }
