@@ -7,9 +7,9 @@
 
 ## 2. Review and verification
 
-- [ ] 2.1 Run /adversarial-review add-word-count and resolve Critical/Important findings - verify: review file exists in execution/reviews/
-- [ ] 2.2 Run `openspec validate add-word-count --strict` - verify: exit 0
-- [ ] 2.3 Run `node .openspec-handoff/scripts/check-handoff.mjs add-word-count` - verify: exit 0
+- [x] 2.1 Run /adversarial-review add-word-count and resolve Critical/Important findings - verify: review file exists in execution/reviews/
+- [x] 2.2 Run `openspec validate add-word-count --strict` - verify: exit 0
+- [x] 2.3 Run `node .openspec-handoff/scripts/check-handoff.mjs add-word-count` - verify: exit 0
 
 ## Workflow follow-up
 
