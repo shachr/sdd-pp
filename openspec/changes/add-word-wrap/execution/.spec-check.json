@@ -1,0 +1,38 @@
+{
+  "checked_at": "2026-10-10T22:06:22.531Z",
+  "requirements": {
+    "Wrap at word boundaries": {
+      "delta": "specs/text-wrap/spec.md",
+      "hash": "35c37cbf477c",
+      "scenarios": {
+        "Short text unchanged": "7720014b8afb",
+        "Wraps at the width": "44092bea8c36",
+        "Default width": "f219772c456e",
+        "Spaces collapsed": "6dab50c06174"
+      }
+    },
+    "Long words broken": {
+      "delta": "specs/text-wrap/spec.md",
+      "hash": "76b812f939c9",
+      "scenarios": {
+        "Word longer than the width": "b3d35b1cf2cc"
+      }
+    },
+    "Paragraphs kept": {
+      "delta": "specs/text-wrap/spec.md",
+      "hash": "76e18f565b03",
+      "scenarios": {
+        "Paragraphs wrapped separately": "d11fc1000d94",
+        "Empty text": "292caf8fb2eb"
+      }
+    },
+    "Input checked": {
+      "delta": "specs/text-wrap/spec.md",
+      "hash": "18719faa75a7",
+      "scenarios": {
+        "Text is not a string": "bc875fc9bb20",
+        "Width is not a positive integer": "97ebc0ffb8bd"
+      }
+    }
+  }
+}

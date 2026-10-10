@@ -50,3 +50,7 @@ Frontier empty after round 2; shared understanding confirmed by the agent on the
 ## Domain docs
 
 - [GLOSSARY.md](../../../../GLOSSARY.md): Line width, Word, Paragraph. No ADR (nothing hard to reverse).
+
+## to-tickets quiz (planning)
+
+Breakdown approved by the agent on the user's behalf (decisions delegated): 01 Wrap text at word boundaries (no blockers); 02 Break long words and check input (blocked by 01). Granularity: two tracer bullets, each demoable through the public function.
