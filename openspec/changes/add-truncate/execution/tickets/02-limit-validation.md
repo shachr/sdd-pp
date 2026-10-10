@@ -2,7 +2,7 @@
 
 # 02 - truncate: refuse invalid limits
 
-Status: ready-for-agent
+Status: done
 
 ## What to build
 
@@ -17,4 +17,4 @@ Makes [delta](../../specs/truncation/spec.md) - "Requirement: Limit validation" 
 Scenarios of the [delta](../../specs/truncation/spec.md), by name:
 
 
-- [ ] Scenario "Invalid limit rejected" passes
+- [x] Scenario "Invalid limit rejected" passes
