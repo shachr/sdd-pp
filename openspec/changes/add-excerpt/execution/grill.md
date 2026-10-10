@@ -13,12 +13,12 @@ All answers below were given **by the agent on the user's behalf** (the user del
 
 ### Round 1
 
-- **Q1 - Unit of the length limit.** Count the limit in user-visible characters (Unicode code points, so an emoji counts as one), with the ellipsis counted inside the limit? -> *agent for user:* yes -> delta Requirement "Length counted in characters", Scenario "Emoji count as one character".
+- **Q1 - Unit of the length limit.** Code points vs UTF-16 units vs bytes; ellipsis inside or outside the limit? -> *agent for user:* code points, ellipsis inside -> delta Requirement "Length counted in characters" (Scenario "Emoji count as one character").
 - **Q2 - Ellipsis.** Default to the single character "…" (U+2026), overridable per call, empty string allowed? -> *agent for user:* yes -> delta Requirement "Ellipsis option" (Scenarios "Default ellipsis", "Custom ellipsis", "No ellipsis").
 - **Q3 - Where to cut.** Cut at the last word boundary that fits; if the first word alone does not fit, cut inside it rather than return only the ellipsis? -> *agent for user:* yes -> delta Scenarios "Cut at a word boundary", "First word too long".
 - **Q4 - Short text.** Text that already fits comes back unchanged, with no ellipsis? -> *agent for user:* yes, but after whitespace normalisation (Q5) -> delta Scenario "Text that fits".
-- **Q5 - Whitespace.** Collapse every whitespace run (spaces, tabs, newlines) to one space and trim both ends before measuring - previews are single-line? -> *agent for user:* yes -> delta Requirement "Whitespace normalisation".
-- **Q6 - Bad input.** Non-string text is a TypeError; a limit that is not a non-negative integer, or is shorter than the ellipsis, is a RangeError? -> *agent for user:* yes -> delta Requirement "Input validation".
+- **Q5 - Whitespace.** Keep line breaks, or make previews single-line? -> *agent for user:* single-line -> delta Requirement "Whitespace normalisation" (Scenario "Whitespace collapsed").
+- **Q6 - Bad input.** Throw, or coerce/clamp silently? -> *agent for user:* throw (type error for the text, range error for the limit) -> delta Requirement "Input validation" (Scenarios "Text is not a string", "Invalid maximum length").
 
 ### Round 2 (unblocked by Q3/Q5)
 
