@@ -2,7 +2,7 @@
 
 # 02 - Reading time estimate
 
-Status: ready-for-agent
+Status: done
 Estimate: ~20 lines
 
 ## What to build
@@ -17,4 +17,4 @@ Makes [delta](../../specs/text-stats/spec.md) - "Requirement: Reading time estim
 
 Scenarios of the [delta](../../specs/text-stats/spec.md), by name:
 
-- [ ] Scenario "Short text reads in one minute" passes
+- [x] Scenario "Short text reads in one minute" passes

@@ -8,3 +8,13 @@ export function wordCount(text) {
 export function sentenceCount(text) {
   return String(text).split(/[.!?]+/).filter(hasWord).length;
 }
+
+const WORDS_PER_MINUTE = 200;
+
+export function readingMinutes(text) {
+  return Math.ceil(wordCount(text) / WORDS_PER_MINUTE);
+}
+
+export function textStats(text) {
+  return { words: wordCount(text), sentences: sentenceCount(text), readingMinutes: readingMinutes(text) };
+}
