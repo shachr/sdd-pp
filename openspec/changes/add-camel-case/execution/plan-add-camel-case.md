@@ -40,7 +40,7 @@
 - Consumes: nothing.
 - Produces: `export function camelCase(text: unknown): string` from `src/camel-case.mjs`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```js
 test('Mixed separators', () => assert.equal(camelCase('hello-world_foo  bar!'), 'helloWorldFooBar'));
@@ -55,19 +55,19 @@ test('Review focus: coercion, edges, digits, ß', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test` - Expected: FAIL (module `src/camel-case.mjs` not found).
 
-- [ ] **Step 3: Implement `camelCase(text: unknown): string` in `src/camel-case.mjs`**
+- [x] **Step 3: Implement `camelCase(text: unknown): string` in `src/camel-case.mjs`**
 
 Split `String(text)` on `/[^\p{L}\p{N}\p{M}]+/u`, filter out empty strings, map index 0 to `toLowerCase()` and later words to `w[0].toUpperCase() + w.slice(1).toLowerCase()`, `join('')`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm test` - Expected: PASS, all tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 `git add src/camel-case.mjs test/camel-case.test.mjs && git commit -m "feat(casing): camelCase word splitting and casing"`
 
