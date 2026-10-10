@@ -1,5 +1,11 @@
 # openspec-handoff-workflow
 
+> **Examples:** [`examples/`](examples/) holds the test projects used to prove this toolkit, with their history:
+> [v1 first runs](examples/handoff-flows/), [v2 clean handoff](examples/handoff-flows-v2/),
+> [v3 setup phase](examples/handoff-flows-v3/), [v4 no tasks stage](examples/handoff-flows-v4/),
+> [v5 first split](examples/handoff-flows-v5/), [v6 split control plane](examples/handoff-flows-v6/).
+> Third-party skills inside them are MIT-licensed; see [`examples/README.md`](examples/README.md).
+
 OpenSpec decides **what** to build (proposal + delta specs, nothing else); AI Hero or Superpowers decide
 **how** (design, plan, tickets, code, review) and build it. This toolkit makes the hand-off explicit, keeps every
 artifact for a change inside the OpenSpec change folder, and lints that no requirement is ever restated:
