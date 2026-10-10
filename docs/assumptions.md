@@ -23,9 +23,10 @@ Made autonomously while the user was unavailable. Each is cheap to change; the f
 ## Workflow
 
 - `tasks.md` comes *after* the execution tool's breakdown and only links to it (decisions G2/G3).
-- There is no OpenSpec `design.md` (v2, decisions C1-C4): design is the execution tool's (`execution/design.md` or the plan).
+- There is no OpenSpec `design.md` (v2, decisions C1, D1): design is the execution tool's (`execution/design.md`, `execution/spec.md` or the plan).
+- Whether an agent following to-spec / brainstorming keeps their user-facing sections reference-only depends on it honouring `docs/agents/issue-tracker.md` and the wrapper; the lint only warns.
 - `planningHome.defaultSchema` / the `openspec new change` spinner always says `spec-driven` (hard-coded in OpenSpec 1.14.1); the change itself gets `handoff-driven` from `openspec/config.yaml`.
-- Paraphrase detection is lexical (token overlap), not semantic: it catches restated rules that reuse the delta's words and warns on looser overlap, but a fully reworded paraphrase can pass. Forbidden sections and the wrapper templates cover the rest.
+- Paraphrase detection is lexical (token overlap), not semantic: it catches restated rules that reuse the delta's words and warns on looser overlap, but a fully reworded paraphrase can pass. Its findings are warnings (v2.1, D4); the wrapper templates and review carry the rest.
 - AI Hero's project-level outputs (ADRs, glossary/CONTEXT.md) are not redirected; Superpowers' git-ignored
   SDD scratch (`.superpowers/sdd/`) is not redirected; only their durable change-specific outputs are.
 - writing-plans' "copy Global Constraints verbatim" is overridden to "link the requirement name" to keep

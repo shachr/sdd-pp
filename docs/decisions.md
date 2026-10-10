@@ -44,7 +44,7 @@ home for everything about a change, with OpenSpec deltas as the only source of r
 
 Logged per story in the commit messages; see `git log`.
 
-## 5. Clean handoff (v2, 2026-10-09) - supersedes G3, G6, G7 and the to-spec step
+## 5. Clean handoff (v2, 2026-10-09) - supersedes G3, G6, G7 and the to-spec step (partly superseded by section 6)
 
 User direction: OpenSpec is used ONLY for proposal + delta specs; the execution tool owns design and
 implementation; no requirement is duplicated anywhere; `/opsx:verify` checks proposal + specs and passes
@@ -62,3 +62,13 @@ cleanly. Decisions taken autonomously on the user's behalf:
 | C8 | Ownership lint: a root `design.md` or `execution/spec.md` is an error. | Enforces C1/C4 mechanically. |
 | C9 | Process: verify runs before archive and its report is saved verbatim to `execution/verify.md`; archive follows `/opsx:archive` as written (agent-driven sync); the CLI `openspec archive --yes` is used only by the scripted e2e test. `/opsx:verify` is a follow-up bullet in tasks.md, not a checkbox. | User direction; v1 flow A archived via CLI and verified only after archive. |
 | C10 | `/adversarial-review` inlines the tool's design (`execution/design.md` or the plan) instead of OpenSpec `design.md`. | Design moved. |
+
+## 6. User feedback on v2 (2026-10-09, 23:47 PT) - v2.1
+
+| # | Decision | Why |
+|---|----------|-----|
+| D1 | Schema without design, `handoff-driven` default: **kept** (approved). | - |
+| D2 | AI Hero **runs `to-spec`** -> `execution/spec.md`, after grill-with-docs, before to-tickets. Steering is only through `docs/agents/issue-tracker.md` (installed from `config/issue-tracker-openspec.md`) and the wrapper: Problem Statement / Solution link the proposal, User Stories = the delta's scenarios listed by name + link, Implementation / Testing Decisions / Out of Scope / Further Notes in full. Supersedes C4's "no to-spec" and C8's spec.md error. | User: to-spec's value is mixing user view with implementation decisions; reference instead of restate. The skill itself is unedited. |
+| D3 | Superpowers **runs `brainstorming`** -> `execution/design.md` (location override, which the skill allows: "Your human partner's preferences override"), sized as "a project with a written design" so writing-plans follows. Intent / goals link the proposal; constraints and the decided how in full. Builder check done by the implementer when there is no subagent tool (the skill allows this). Supersedes C5's "brainstorming skipped". | User: run the normal steps, ideally referencing. |
+| D4 | Duplication lint is **advisory** for the fuzzy parts: paraphrase findings and User-Stories-style sections without a link to the proposal/delta are warnings; config `strictDuplication: true` makes them errors. Exact-copy rules (verbatim normative lines, delta headers, SHALL sentences) stay errors. Sections like `## User Stories` are fine when they link the source of truth. Supersedes C6's error levels and C8. | User: nice-to-have, must not fail flows over to-spec's user stories. The lexical scorer is cheap and its tests pass, so it stays on, as a warning. |
+| D5 | **No config `context:` steering for verify.** `install.sh` no longer appends a `context:` block; the example config keeps only project facts. Verify relies only on the schema having no design artifact (C1). Supersedes C2. | User: verify only checks drift against proposal + delta once the execution tool has reviewed its own design. |

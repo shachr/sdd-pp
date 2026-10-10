@@ -10,8 +10,9 @@ openspec/changes/<id>/
   specs/<cap>/spec.md  OpenSpec  - delta specs: the ONLY place behaviour is written down
   handoff.md           handoff   - tool (ai-hero | superpowers), implementation_model, base_ref, links
   execution/           owned by the execution tool; cites requirements/scenarios by name + link only
-    design.md, tickets/NN-*.md   (AI Hero grill-with-docs, to-tickets fed from the delta; no to-spec)
-    plan-<id>.md, progress.md    (Superpowers writing-plans, executing-plans/SDD ledger summary)
+    design.md, spec.md, tickets/ (AI Hero grill-with-docs, to-spec, to-tickets)
+    design.md, plan-<id>.md,     (Superpowers brainstorming, writing-plans,
+      progress.md                 executing-plans/SDD ledger summary)
     reviews/<ts>-<model>.md      (/adversarial-review + triage)
     verify.md                    (/opsx:verify report, saved before archive)
   tasks.md             link-only checklist (one box per ticket / plan task) for apply + verify
@@ -25,7 +26,7 @@ Schema order: **proposal → specs → handoff → tasks**, then apply. There is
 | Path | What |
 |---|---|
 | `schemas/handoff-driven/` | Custom OpenSpec schema (`schema.yaml` + templates incl. `handoff.md`) - story 1 |
-| `scripts/check-handoff.mjs` | Lint: handoff fields, reference-not-duplicate (verbatim copies, forbidden sections like User Stories, SHALL, and token-overlap paraphrase detection), ownership (no OpenSpec design.md, no to-spec output), outputs in change folder, PR size |
+| `scripts/check-handoff.mjs` | Lint: handoff fields, reference-not-duplicate (errors: verbatim copies, delta headers, SHALL; warnings: token-overlap paraphrases and User-Stories-style sections with no link to the proposal/delta - errors with `strictDuplication`), ownership (no OpenSpec design.md), outputs in change folder, PR size |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
 | `commands/{claude,cursor}/handoff.md` | `/handoff` - story 2 |
 | `commands/{claude,cursor}/adversarial-review.md`, `scripts/adversarial-review.mjs` | `/adversarial-review` - story 3 |
@@ -56,8 +57,10 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
 /opsx:propose add-greeting-name          # proposal + delta specs only (handoff-driven is the project default)
 /handoff add-greeting-name ai-hero claude-sonnet-4-5
    -> handoff.md (tool, model, base_ref, links), check-handoff, then the tool's planning:
-      openspec-handoff-ai-hero:     grill-with-docs -> execution/design.md, to-tickets (from the delta) -> execution/tickets/
-      openspec-handoff-superpowers: writing-plans -> execution/plan-<id>.md   (brainstorming skipped: the proposal is it)
+      openspec-handoff-ai-hero:     grill-with-docs -> execution/design.md, to-spec -> execution/spec.md,
+                                    to-tickets -> execution/tickets/
+      openspec-handoff-superpowers: brainstorming -> execution/design.md, writing-plans -> execution/plan-<id>.md
+      (to-spec's / brainstorming's user-facing parts link the proposal + delta; their decisions are written in full)
    -> tasks.md (one link per ticket / plan task)
 /opsx:apply add-greeting-name            # implement+tdd+code-review  |  executing-plans / subagent-driven-development
 /adversarial-review add-greeting-name     # different model, headless, -> execution/reviews/ (+ triage.md)
@@ -107,7 +110,7 @@ before acting on them (the example's `execution/reviews/triage.md` shows a 3B mo
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 48 tests: lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
+npm test               # 49 tests: lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```
@@ -119,8 +122,9 @@ node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream sp
   Changes carry `.openspec.yaml` with `schema:`. `openspec/config.yaml` `rules:` get injected into
   `openspec instructions` output.
 - AI Hero: `to-spec` and `to-tickets` are the real names (not to-prd / to-issues); local tracker default is
-  `.scratch/<feature>/`, redirected to the change folder via `docs/agents/issue-tracker.md`. `to-spec` is not used:
-  its template (Problem Statement, User Stories, Solution) restates behaviour that the delta already owns.
+  `.scratch/<feature>/`, redirected to the change folder via `docs/agents/issue-tracker.md`. `to-spec` writes `execution/spec.md`;
+  its Problem Statement / Solution / User Stories point at the proposal and the delta's scenarios, its
+  Implementation / Testing Decisions are written in full (issue-tracker.md + wrapper instructions, skill unedited).
 - Superpowers: plans default to `docs/superpowers/plans/`, brainstorm specs to `docs/superpowers/specs/`; both
   redirected. `check-handoff` fails if a change's outputs are left in either default location.
 
