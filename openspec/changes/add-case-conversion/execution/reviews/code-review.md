@@ -1,5 +1,7 @@
 self-review (no subagent tool: code-reviewer.md performed by the implementing session itself against the review package; weaker than a fresh reviewer - the user decides whether that is enough before merge)
 
+> Source of truth: [proposal](../../proposal.md) · [specs/case-conversion/spec.md](../../specs/case-conversion/spec.md) · [plan](../plan-add-case-conversion.md)
+
 # Final whole-branch review: add-case-conversion
 
 - Skill: superpowers `requesting-code-review` / `code-reviewer.md`, via `executing-plans` "Final Review" (without a subagent tool)
