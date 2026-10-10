@@ -29,7 +29,7 @@ Example with Claude: `openspec init --tools claude`, the skills with `-a claude-
 (`--no-claude` / `--no-cursor` skip one), and for opencode (`.opencode/`) only when that folder already exists (e.g. after
 `openspec init --tools opencode`) or with `--opencode`.
 
-`sdd-pp init` is a plain Node CLI (no bash, no symlinks; works on Windows, macOS and Linux). `--tool` writes the project default to
+`sdd-pp init` is a plain Node CLI (no bash, no symlinks; path handling tested on Linux incl. paths with spaces and written to be Windows-safe, not yet run on Windows). `--tool` writes the project default to
 `.openspec-handoff/project.json`. Re-running `init` without `--tool` (to upgrade) keeps it. `npx sdd-pp init` will work once the
 package is published to npm (not yet). `sdd-pp --help` lists every option.
 With `--tool ai-hero`, `init` also installs `docs/agents/issue-tracker.md` (from `.openspec-handoff/issue-tracker-openspec.md`)
@@ -53,6 +53,7 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 | `/split-apply <id>` | `split apply <id>` | `split.mjs apply <id>` |
 | `/split-next <parent>` | `split next <parent>` | `split.mjs next <parent> --write-tickets` |
 | `/split-start <slice> [--undo]` | `split start <slice> [--undo]` | `split.mjs start <slice> [--undo]` |
+| `/split-undo <parent> [--force]` | `split undo <parent> [--force]` | `split.mjs undo <parent> [--force]` |
 | `/split-archive <parent>` | `split archive <parent>` | `split.mjs loss <parent> --final`, then `openspec archive <parent> --skip-specs -y` |
 | - | `split loss <parent> [--final]` | `split.mjs loss` (the agent runs it during a split) |
 
@@ -117,6 +118,10 @@ See [small-changes.md](small-changes.md).
    session reading the parent's session file → `/handoff <slice>` → the normal flow → `/opsx:archive <slice>`
    committed in the slice's PR with its code → merge → `/split-next <id>` on main.
 6. All slices archived → `/split-archive <id>` (final loss check, then `openspec archive <id> --skip-specs -y`).
+
+Changed your mind before any slice is archived? `/split-undo <id>` restores the original change from `split_commit`
+(also after re-splits) and removes the slice folders, uncommitted; review `git status`, commit on main. It refuses with an
+archived slice or uncommitted changes in `openspec/changes`, and with a slice in progress unless `--force`.
 
 **Parent session vs. slice: the delta wins.** The parent's design session (`execution/grill.md` /
 `brainstorm.md`) is frozen at the split commit and uses the original names. Where it and a slice's delta or split

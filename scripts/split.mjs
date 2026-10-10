@@ -12,16 +12,20 @@
 //                                (Jira-pasteable) for READY slices into the parent
 //   start <slice> [--undo]       take a READY slice: finds its parent, marks it in-progress in slices.md and
 //                                prints the next lines; --undo sets it back to planned
+//   undo  <parent> [--force]     undo a split: restore openspec/changes/<parent>/ from split_commit (the original
+//                                change, also after re-splits), remove slices.md/tickets and every listed slice folder;
+//                                refuses with an archived slice, a dirty openspec/changes, or (without --force) a slice in progress
 // Options: --root <dir> --json
 // Exit: 0 ok, 1 findings (loss) / refused (apply), 2 usage error.
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { findProjectRoot, git, loadChange, resolveTool, SESSION_FILES, SESSION_SKILLS, UsageError } from './lib/change.mjs';
+import { findProjectRoot, git, listFiles, loadChange, resolveTool, SESSION_FILES, SESSION_SKILLS, UsageError } from './lib/change.mjs';
 import {
   baselineDeltas, changeDeltas, dependencyClosure, changeLocation, findParentOf, lintSlices, mainSpecRequirements,
   nameLeaks, nameSlices, parentDir, parseSlices, parseSplitNotes, readiness, SLICE_STATUSES,
 } from './lib/split.mjs';
+import { isMain } from './lib/main.mjs';
 
 const lc = (s) => s.trim().toLowerCase();
 const today = () => new Date().toISOString().slice(0, 10);
@@ -299,13 +303,15 @@ export function writeTickets(root, r) {
 
 function setSliceField(dir, id, key, value) {
   const f = path.join(dir, 'slices.md');
-  const lines = fs.readFileSync(f, 'utf8').split('\n');
+  const text = fs.readFileSync(f, 'utf8');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n'; // keep CRLF files (Windows checkouts) CRLF
+  const lines = text.split(/\r?\n/);
   const start = lines.findIndex((l) => new RegExp(`^###\\s+Slice:\\s*${id}\\s*$`).test(l));
   if (start < 0) throw new UsageError(`no slice "${id}" in ${f}`);
   let i = start + 1; let set = false;
   for (; i < lines.length && /^-\s+[a-z_]+:/.test(lines[i]); i++) if (lines[i].startsWith(`- ${key}:`)) { lines[i] = `- ${key}: ${value}`; set = true; }
   if (!set) lines.splice(i, 0, `- ${key}: ${value}`);
-  fs.writeFileSync(f, lines.join('\n'));
+  fs.writeFileSync(f, lines.join(eol));
 }
 
 function markSlice(root, parentId, sliceId, status) {
@@ -349,6 +355,53 @@ export function startSlice(root, sliceId, { undo = false } = {}) {
     `  3. ${session}`,
     `  4. /handoff ${sliceId}, then follow the next steps it prints`,
   ];
+}
+
+// ------------------------------------------------------------------ undo
+/** Undo a split: the parent goes back to the original change at split_commit; slice folders are removed. Nothing is committed. */
+export function undoSplit(root, parentId, { force = false } = {}) {
+  const loc = changeLocation(root, parentId);
+  if (!loc) throw new Refused(`change not found: ${parentId}`);
+  if (loc.archived) throw new Refused(`${parentId} is archived - a finished split cannot be undone.`);
+  const sf = path.join(loc.dir, 'slices.md');
+  if (!fs.existsSync(sf)) throw new Refused(`${parentId} is not a split parent (no slices.md).${findParentOf(root, parentId) ? ` It is a slice; undo its parent: /split-undo ${findParentOf(root, parentId).id}` : ''}`);
+  const plan = parseSlices(fs.readFileSync(sf, 'utf8'));
+  const commit = plan.front.split_commit;
+  const rel = `openspec/changes/${parentId}`;
+  const g = (args) => git(root, args).trim();
+  if (!commit) throw new Refused(`${rel}/slices.md has no split_commit - cannot tell what the original change was.`);
+  try { g(['cat-file', '-e', `${commit}^{commit}`]); } catch { throw new Refused(`split_commit ${commit} is not a commit in this repository (fetch it, or undo by hand).`); }
+  let orig = '';
+  try { orig = g(['ls-tree', '-r', '--name-only', commit, '--', `${rel}/specs`]); } catch { /* checked below */ }
+  if (!orig) throw new Refused(`split_commit ${commit.slice(0, 7)} has no ${rel}/specs - not this change's split commit.`);
+  const dirty = g(['status', '--porcelain', '--', 'openspec/changes']);
+  if (dirty) throw new Refused(`uncommitted changes in openspec/changes - commit or stash them first:\n  ${dirty.split('\n').join('\n  ')}`);
+  const { rows } = readiness(root, plan);
+  const done = rows.filter((x) => x.status === 'done');
+  if (done.length) throw new Refused(`slice(s) already archived on this checkout: ${done.map((x) => x.id).join(', ')} - their behaviour is in the main specs; a split with archived slices cannot be undone.`);
+  const taken = rows.filter((x) => x.status === 'in progress');
+  const out = [];
+  if (taken.length && !force) throw new Refused(`slice(s) in progress: ${taken.map((x) => x.id).join(', ')} - someone may be working on them. Check with them; to undo anyway: /split-undo ${parentId} --force`);
+  if (taken.length) out.push(`WARNING: undoing with slice(s) in progress: ${taken.map((x) => x.id).join(', ')} - someone may be working on them (their branches keep their work).`);
+  // files in the parent now that split_commit does not have and that are not split-plan files: listed, recoverable from git
+  const before = new Set(g(['ls-tree', '-r', '--name-only', commit, '--', rel]).split('\n').filter(Boolean));
+  const now = listFiles(loc.dir).map((f) => `${rel}/${f}`);
+  const planFiles = (f) => f === `${rel}/slices.md` || f.startsWith(`${rel}/tickets/`) || f === `${rel}/.openspec.yaml`;
+  const extra = now.filter((f) => !before.has(f) && !planFiles(f));
+  const removed = [];
+  for (const s of plan.slices) {
+    const d = path.join(root, 'openspec', 'changes', s.id);
+    if (fs.existsSync(d)) { fs.rmSync(d, { recursive: true, force: true }); removed.push(s.id); }
+  }
+  fs.rmSync(loc.dir, { recursive: true, force: true });
+  g(['restore', `--source=${commit}`, '--worktree', '--', rel]);
+  out.unshift(`split undo ${parentId}: restored ${rel}/ from split_commit ${commit.slice(0, 7)} (the original change); removed slices.md${now.some((f) => f.startsWith(`${rel}/tickets/`)) ? ', tickets/' : ''} and ${removed.length} slice folder(s): ${removed.join(', ') || 'none'}`);
+  if (extra.length) out.push(`  not restored (added to the parent after split_commit; still in git history at HEAD): ${extra.map((f) => f.slice(rel.length + 1)).join(', ')}`);
+  out.push('Next (nothing is committed):',
+    '  1. Review: git status (and git diff --stat)',
+    `  2. Commit on main: git add -A openspec/changes && git commit -m "split: undo ${parentId}"`,
+    `  3. Then re-run /split-check ${parentId} for a new split, or continue unsplit (design session, /handoff ${parentId})`);
+  return out;
 }
 
 // ------------------------------------------------------------------ apply
@@ -395,7 +448,7 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
   let splitCommit = null;
   if (!resplit) {
     // the loss-check baseline: the original deltas, committed and unchanged
-    const rel = path.relative(root, path.join(src, 'specs'));
+    const rel = path.relative(root, path.join(src, 'specs')).split(path.sep).join('/'); // git pathspec: forward slashes
     let dirty; let tracked;
     try {
       dirty = git(root, ['status', '--porcelain', '--', rel]).trim();
@@ -523,11 +576,11 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
 async function main() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { root: { type: 'string' }, json: { type: 'boolean' }, undo: { type: 'boolean' }, final: { type: 'boolean' }, 'write-tickets': { type: 'boolean' }, proposal: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
+    options: { root: { type: 'string' }, json: { type: 'boolean' }, undo: { type: 'boolean' }, force: { type: 'boolean' }, final: { type: 'boolean' }, 'write-tickets': { type: 'boolean' }, proposal: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
   });
   const [cmd, id] = positionals;
-  if (values.help || !['apply', 'loss', 'next', 'start'].includes(cmd) || !id) {
-    console.log('usage: split apply <change> [--proposal <file>] | split loss <parent> [--final] | split next <parent> [--write-tickets] | split start <slice> [--undo]  [--root <dir>] [--json]');
+  if (values.help || !['apply', 'loss', 'next', 'start', 'undo'].includes(cmd) || !id) {
+    console.log('usage: split apply <change> [--proposal <file>] | split loss <parent> [--final] | split next <parent> [--write-tickets] | split start <slice> [--undo] | split undo <parent> [--force]  [--root <dir>] [--json]');
     return values.help ? 0 : 2;
   }
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
@@ -545,13 +598,13 @@ async function main() {
     console.log(`  tickets written for READY slices: ${t.join(', ') || 'none'}`);
     return loss.errors.length || leaks.length ? 1 : 0;
   }
-  if (cmd === 'start') {
+  if (cmd === 'start' || cmd === 'undo') {
     try {
-      console.log(startSlice(root, id, { undo: values.undo }).join('\n'));
+      console.log((cmd === 'start' ? startSlice(root, id, { undo: values.undo }) : undoSplit(root, id, { force: values.force })).join('\n'));
       return 0;
     } catch (e) {
       if (!(e instanceof Refused)) throw e;
-      console.log(`split start ${id}: REFUSED - ${e.message}`);
+      console.log(`split ${cmd} ${id}: REFUSED - ${e.message}`);
       return 1;
     }
   }
@@ -572,7 +625,7 @@ async function main() {
   return 0;
 }
 
-if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(new URL(import.meta.url).pathname)) {
+if (isMain(import.meta.url)) {
   main().then((c) => process.exit(c)).catch((e) => {
     console.error(`split: ${e.message}`);
     process.exit(e instanceof UsageError ? 2 : 1);

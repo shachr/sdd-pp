@@ -92,6 +92,12 @@ approves or edits them. Nothing is split automatically.
    (also checks the final names against the main specs), then `openspec archive <parent> --skip-specs -y`
    (must not sync specs; `/opsx:archive` cannot pass `--skip-specs`).
    Never run `/opsx:verify` on a parent.
+9. **Undo** - `/split-undo <parent>` puts the original change back exactly as it was at `split_commit` (the first
+   split, so re-splits are undone too) and removes `slices.md`, `tickets/` and every slice folder listed in `slices.md`.
+   Nothing is committed: review `git status`, commit on main, then `/split-check <id>` again or continue unsplit.
+   Refused when a slice is archived, the parent is archived, `split_commit` is unknown, or `openspec/changes` has
+   uncommitted changes; a slice in progress needs `--force` (someone may be working on it). Files added to the parent
+   after `split_commit` are listed (still in git history).
 
 Changing the plan later: edit the child delta, add the split note to that child's proposal, rerun
 `split.mjs loss <parent>`, then the one order: edit the delta -> `openspec validate <id> --strict` -> `/spec-check <id>` (its "Spec changes since the last check" section lists what changed since the last accepted PASS and the tickets / tasks citing it; the list stays on every run until a PASS is accepted) -> re-plan ONLY the open units it names (done units are never touched; a change affecting done work becomes a new ticket / task; the planning output notes `superseded by delta edit: <reason>`, the design session file stays as-is) -> `/spec-check` until PASS, which it accepts (`--accept`); commit `execution/.spec-check.json` with the planning files. (`git diff HEAD` shows a done ticket that was overwritten.)

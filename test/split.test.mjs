@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, run, initCli, makeFixture } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CLI, run, initCli, makeFixture, OPENSPEC_SKIP } from './helpers.mjs';
 
 const W = (dir, rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
 const R = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
@@ -286,7 +286,7 @@ test('next + start: ready when all depends_on are archived; in-progress is the e
   assert.match(R(dir, `${C}/tickets/add-reports-02-filters.md`), /add-reports-02-filters is committed in the slice's own PR with its code, merged to main/);
 });
 
-test('final loss check uses main specs + archived children; OpenSpec archives the parent with --skip-specs', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('final loss check uses main specs + archived children; OpenSpec archives the parent with --skip-specs', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = splitProject();
   run('split.mjs', ['apply', 'add-reports'], dir);
   addFlag(dir);
@@ -362,4 +362,148 @@ test('parallel slice branches: sdd-pp init union merge for slices.md keeps both 
   W(dir, s, text.replace('- ticket: tickets/add-reports-01-totals.md', '- ticket: tickets/add-reports-01-totals.md\n- ticket: none'));
   const r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.match(r.out, /slice "add-reports-01-totals" has "ticket:" twice \(a union merge of two branches\?\)/);
+});
+
+test('next-steps CLI for a slice (ends with /split-next <parent>) and for a split parent (no handoff, points at /split-next)', () => {
+  const { dir } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  W(dir, 'openspec/changes/add-reports-01-totals/handoff.md', '---\ntool: ai-hero\napply_mode: implement\n---\n\n# Handoff\n');
+  let r = run('next-steps.mjs', ['add-reports-01-totals'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^Next steps for add-reports-01-totals \(ai-hero, apply_mode: implement\)/);
+  assert.match(r.out, /On main: \/split-next add-reports /);
+  r = run('next-steps.mjs', ['add-reports'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.out.trim(), 'add-reports is a split parent: no handoff or implementation. Run: /split-next add-reports');
+});
+
+test('split start off main: marks it but notes that readiness is read from this checkout and the mark belongs on main; CRLF slices.md stays CRLF', () => {
+  const { dir, git } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  git('add', '-A'); git('commit', '-qm', 'plan');
+  git('switch', '-qc', 'feature');
+  const f = `${C}/slices.md`;
+  W(dir, f, R(dir, f).replace(/\r?\n/g, '\r\n'));
+  const r = run('split.mjs', ['start', 'add-reports-01-totals'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /note: you are on feature; readiness is read from this checkout and the mark belongs on main\./);
+  const t = R(dir, f);
+  assert.match(t, /### Slice: add-reports-01-totals\r\n[\s\S]*?- status: in-progress\r\n/);
+  assert.doesNotMatch(t, /[^\r]\n/, 'no bare LF lines in a CRLF file');
+});
+
+
+// ---------------------------------------------------------------- /split-undo, driven through the sdd-pp CLI
+/** A split project with the toolkit installed and the split committed (the planning PR). */
+function undoProject() {
+  const p = splitProject();
+  assert.equal(initCli(p.dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default').status, 0);
+  const split = sddPp(p.dir, 'split', 'apply', 'add-reports');
+  assert.equal(split.code, 0, split.out);
+  p.git('add', '-A'); p.git('commit', '-qm', 'planning PR');
+  p.splitCommit = /^split_commit: (\w+)$/m.exec(R(p.dir, `${C}/slices.md`))[1];
+  return p;
+}
+const sddPp = (cwd, ...a) => { const r = spawnSync(process.execPath, [CLI, ...a], { cwd, encoding: 'utf8' }); return { code: r.status, out: r.stdout + r.stderr }; };
+const SLICES = ['add-reports-01-totals', 'add-reports-02-filters', 'add-reports-03-csv-export', 'add-reports-99-remove-csv-flag'];
+/** The parent folder equals the original change at split_commit, byte for byte (same file list, same bytes). */
+function assertOriginal(dir, git, commit) {
+  const want = git('ls-tree', '-r', '--name-only', commit, '--', C).trim().split('\n').sort();
+  const have = [];
+  const walk = (d) => { for (const e of fs.readdirSync(path.join(dir, d), { withFileTypes: true })) (e.isDirectory() ? walk : (x) => have.push(x))(`${d}/${e.name}`); };
+  walk(C);
+  assert.deepEqual(have.sort(), want);
+  for (const f of want) assert.equal(R(dir, f), git('show', `${commit}:${f}`), `${f} byte-identical`);
+}
+const status = (git) => git('status', '--porcelain', '--', 'openspec/changes').trim();
+
+test('sdd-pp split undo: no slice started -> the original change back byte-identical from split_commit, slices removed, nothing committed', () => {
+  const { dir, git, splitCommit } = undoProject();
+  const head = git('rev-parse', 'HEAD').trim();
+  const r = sddPp(dir, 'split', 'undo', 'add-reports');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, new RegExp(`^split undo add-reports: restored openspec/changes/add-reports/ from split_commit ${splitCommit.slice(0, 7)} \\(the original change\\); removed slices\\.md, tickets/ and 4 slice folder\\(s\\): ${SLICES.join(', ')}$`, 'm'));
+  assert.match(r.out, /Next \(nothing is committed\):\n  1\. Review: git status[^\n]*\n  2\. Commit on main: git add -A openspec\/changes && git commit -m "split: undo add-reports"\n  3\. Then re-run \/split-check add-reports for a new split, or continue unsplit/);
+  assertOriginal(dir, git, splitCommit);
+  for (const s of SLICES) assert.equal(fs.existsSync(path.join(dir, 'openspec/changes', s)), false, `${s} removed`);
+  assert.equal(git('rev-parse', 'HEAD').trim(), head, 'nothing committed');
+  assert.notEqual(status(git), '', 'the undo is left as working-tree changes');
+  assert.match(sddPp(dir, 'split-check', 'add-reports').out, /split-check add-reports: fits \(3 requirements, 2 capabilities\)/, 'the original change is a normal change again');
+});
+
+test('sdd-pp split undo refuses (exit 1, nothing touched): archived slice, dirty openspec/changes, unknown split_commit, not a split parent', () => {
+  const { dir, git } = undoProject();
+  const snapshot = () => git('ls-files', '-s', '-o', '--', 'openspec/changes') + status(git);
+  // dirty tree
+  W(dir, CHILD('add-reports-01-totals', 'reports'), R(dir, CHILD('add-reports-01-totals', 'reports')) + '\n<!-- edit -->\n');
+  let before = snapshot();
+  let r = sddPp(dir, 'split', 'undo', 'add-reports');
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /split undo add-reports: REFUSED - uncommitted changes in openspec\/changes - commit or stash them first:\n  M openspec\/changes\/add-reports-01-totals\/specs\/reports\/spec\.md/);
+  assert.equal(snapshot(), before);
+  git('checkout', '--', 'openspec/changes');
+  // archived slice
+  archive(dir, 'add-reports-01-totals'); git('add', '-A'); git('commit', '-qm', 'archive 01');
+  before = snapshot();
+  r = sddPp(dir, 'split', 'undo', 'add-reports');
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSED - slice\(s\) already archived on this checkout: add-reports-01-totals - .*cannot be undone/);
+  assert.equal(snapshot(), before);
+  // also with --force
+  assert.equal(sddPp(dir, 'split', 'undo', 'add-reports', '--force').code, 1);
+  // unknown split_commit
+  W(dir, `${C}/slices.md`, R(dir, `${C}/slices.md`).replace(/^split_commit: \w+$/m, 'split_commit: 0123456789abcdef0123456789abcdef01234567'));
+  git('commit', '-qam', 'bad commit');
+  r = sddPp(dir, 'split', 'undo', 'add-reports');
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSED - split_commit 0123456789abcdef0123456789abcdef01234567 is not a commit in this repository/);
+  // a slice is not a parent: points at its parent
+  r = sddPp(dir, 'split', 'undo', 'add-reports-02-filters');
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /add-reports-02-filters is not a split parent \(no slices\.md\)\. It is a slice; undo its parent: \/split-undo add-reports/);
+});
+
+test('sdd-pp split undo with a slice in progress: refused without --force (names it), works with --force and warns; split start/--undo through sdd-pp', () => {
+  const { dir, git, splitCommit } = undoProject();
+  let r = sddPp(dir, 'split', 'start', 'add-reports-01-totals');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /split start add-reports-01-totals: in-progress in openspec\/changes\/add-reports\/slices\.md \(parent add-reports\)/);
+  r = sddPp(dir, 'split', 'start', 'add-reports-02-filters');
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSED - "add-reports-02-filters" is not READY: it waits for add-reports-01-totals/);
+  git('commit', '-qam', 'take 01');
+  r = sddPp(dir, 'split', 'undo', 'add-reports');
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSED - slice\(s\) in progress: add-reports-01-totals - someone may be working on them\. Check with them; to undo anyway: \/split-undo add-reports --force/);
+  assert.ok(fs.existsSync(path.join(dir, `${C}/slices.md`)), 'nothing touched');
+  assert.equal(status(git), '');
+  r = sddPp(dir, 'split', 'undo', 'add-reports', '--force');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^WARNING: undoing with slice\(s\) in progress: add-reports-01-totals - someone may be working on them/m);
+  assertOriginal(dir, git, splitCommit);
+  // start --undo through the CLI on a fresh project
+  const p2 = undoProject();
+  sddPp(p2.dir, 'split', 'start', 'add-reports-03-csv-export');
+  r = sddPp(p2.dir, 'split', 'start', 'add-reports-03-csv-export', '--undo');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /split start add-reports-03-csv-export --undo: back to planned/);
+  assert.match(R(p2.dir, `${C}/slices.md`), /### Slice: add-reports-03-csv-export\n[\s\S]*?- status: planned/);
+});
+
+test('sdd-pp split undo after a re-split restores the ORIGINAL change (first split_commit) and removes the new slices too', () => {
+  const { dir, git, splitCommit } = undoProject();
+  addFlag(dir);
+  W(dir, 'openspec/changes/add-reports-03-csv-export/execution/split-proposal.md', `---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: csv-export-core\n- goal: File export\n- capabilities: export\n- requirements: CSV export\n- depends_on: none\n- flag: none\n\n### Slice: csv-export-flag\n- goal: Flag for the export\n- capabilities: export-ui\n- requirements: Export flag gate\n- depends_on: csv-export-core\n- flag: csv-export\n`);
+  let r = sddPp(dir, 'split', 'apply', 'add-reports-03-csv-export');
+  assert.match(r.out, /re-split into parent add-reports/);
+  git('add', '-A'); git('commit', '-qm', 're-split');
+  // a file added to the parent after the split is listed, not silently kept or lost
+  W(dir, `${C}/execution/notes.md`, 'later notes\n'); git('add', '-A'); git('commit', '-qm', 'notes');
+  r = sddPp(dir, 'split', 'undo', 'add-reports');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /removed slices\.md, tickets\/ and 5 slice folder\(s\): add-reports-01-totals, add-reports-02-filters, add-reports-04-csv-export-core, add-reports-05-csv-export-flag, add-reports-99-remove-csv-flag/);
+  assert.match(r.out, /not restored \(added to the parent after split_commit; still in git history at HEAD\): execution\/notes\.md/);
+  assertOriginal(dir, git, splitCommit);
+  const left = fs.readdirSync(path.join(dir, 'openspec/changes')).filter((d) => d.startsWith('add-reports-'));
+  assert.deepEqual(left, [], 'no slice folder left (old or re-split)');
 });

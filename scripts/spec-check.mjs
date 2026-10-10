@@ -26,6 +26,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, loadChange, loadConfig, UsageError, deltaRequirements, designUnits, citations, findPlan } from './lib/change.mjs';
+import { isMain } from './lib/main.mjs';
 
 export const SNAPSHOT = 'execution/.spec-check.json';
 const norm = (t) => t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).join('\n');
@@ -226,7 +227,7 @@ function accept(change, r, reportFile, snapFile) {
   const fail = (m) => { console.error(`spec-check --accept: ${m}`); return 1; };
   if (r.gaps) return fail(`${r.gaps} mechanical finding(s) - fix them and run /spec-check again; baseline unchanged.`);
   let saved = '';
-  try { saved = fs.readFileSync(reportFile, 'utf8'); } catch { return fail(`no saved report (${path.relative(change.dir, reportFile)}) - run /spec-check first.`); }
+  try { saved = fs.readFileSync(reportFile, 'utf8'); } catch { return fail(`no saved report (${path.relative(change.dir, reportFile).split(path.sep).join('/')}) - run /spec-check first.`); }
   const result = (/^### Result\s*\n+([^\n]*)/m.exec(saved) || [])[1]?.trim();
   if (result !== 'PASS') return fail(`the saved report's Result is "${result || '(none)'}", not exactly PASS - baseline unchanged.`);
   const digest = (DIGEST_RE.exec(saved) || [])[1];
@@ -237,7 +238,7 @@ function accept(change, r, reportFile, snapFile) {
   return 0;
 }
 
-if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(new URL(import.meta.url).pathname)) {
+if (isMain(import.meta.url)) {
   main().then((c) => process.exit(c)).catch((e) => {
     console.error(`spec-check: ${e.message}`);
     process.exit(e instanceof UsageError ? 2 : 1);

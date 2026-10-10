@@ -34,3 +34,21 @@ test('next-steps: branch before implementation, what to commit, spec changes aft
   assert.match(sp, /<workspace>\/progress\.md\) to openspec\/changes\/x\/execution\/progress\.md/);
   assert.match(sp, /Archive comes first because finishing merges or opens the PR/);
 });
+
+test('next-steps CLI: all four tool / apply_mode pairs from handoff.md; missing or invalid tool is refused', () => {
+  const cases = [['ai-hero', 'implement', /\/implement\b/], ['ai-hero', 'implement-spec', /\/implement-spec\b/], ['superpowers', 'executing-plans', /executing-plans/], ['superpowers', 'subagent-driven-development', /subagent-driven-development/]];
+  for (const [tool, mode, step] of cases) {
+    const { dir } = makeFixture({ handoff: { tool, apply_mode: mode } });
+    const r = run('next-steps.mjs', [CHANGE], dir);
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.stdout, new RegExp(`^Next steps for ${CHANGE} \\(${tool}, apply_mode: ${mode}\\)`), `${tool}/${mode}`);
+    assert.match(r.stdout, step, `${tool}/${mode}`);
+    assert.match(r.stdout, new RegExp(`/opsx:verify ${CHANGE}`));
+  }
+  for (const tool of ['bogus', null]) {
+    const { dir } = makeFixture({ handoff: { tool } });
+    const r = run('next-steps.mjs', [CHANGE], dir);
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /next-steps: add-greeting-name: handoff\.md has no valid tool - write handoff\.md first/);
+  }
+});

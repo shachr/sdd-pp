@@ -3,29 +3,28 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { makeFixture, OPENSPEC, CHANGE } from './helpers.mjs';
+import { makeFixture, OPENSPEC, CHANGE, OPENSPEC_SKIP } from './helpers.mjs';
 
-const haveCli = fs.existsSync(OPENSPEC);
 const os = (args, cwd) => {
   const r = spawnSync(OPENSPEC, args, { cwd, encoding: 'utf8', env: { ...process.env, NO_COLOR: '1', OPENSPEC_TELEMETRY: '0' } });
   return { code: r.status, out: r.stdout + r.stderr };
 };
 
-test('openspec schema validate handoff-driven', { skip: !haveCli && 'run npm install first' }, () => {
+test('openspec schema validate handoff-driven', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = makeFixture();
   const r = os(['schema', 'validate', 'handoff-driven'], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /Schema 'handoff-driven' is valid/);
 });
 
-test('openspec validate --strict passes for the example change', { skip: !haveCli }, () => {
+test('openspec validate --strict passes for the example change', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = makeFixture();
   const r = os(['validate', CHANGE, '--strict'], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /is valid/);
 });
 
-test('openspec status walks proposal → specs → handoff (no design, no tasks artifact)', { skip: !haveCli }, () => {
+test('openspec status walks proposal → specs → handoff (no design, no tasks artifact)', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = makeFixture();
   const r = os(['status', '--change', CHANGE, '--json'], dir);
   assert.equal(r.code, 0, r.out);
@@ -36,7 +35,7 @@ test('openspec status walks proposal → specs → handoff (no design, no tasks 
   assert.deepEqual(json.applyRequires, ['handoff']);
 });
 
-test('handoff is ready right after specs and is the last stage', { skip: !haveCli }, () => {
+test('handoff is ready right after specs and is the last stage', { skip: OPENSPEC_SKIP }, () => {
   const { dir, changeDir } = makeFixture({ keepExecution: false });
   fs.rmSync(`${changeDir}/handoff.md`);
   const json = JSON.parse(os(['status', '--change', CHANGE, '--json'], dir).out);
@@ -45,7 +44,7 @@ test('handoff is ready right after specs and is the last stage', { skip: !haveCl
   assert.equal(json.isComplete, false);
 });
 
-test('openspec instructions apply: no task tracking, points at the tool via next-steps', { skip: !haveCli }, () => {
+test('openspec instructions apply: no task tracking, points at the tool via next-steps', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = makeFixture();
   const json = JSON.parse(os(['instructions', 'apply', '--change', CHANGE, '--json'], dir).out);
   assert.equal(json.taskTrackingConfigured, false);
@@ -57,7 +56,7 @@ test('openspec instructions apply: no task tracking, points at the tool via next
   assert.equal(list.changes.find((c) => c.name === CHANGE).status, 'no-tasks');
 });
 
-test('openspec instructions handoff carries the reference-not-duplicate rules', { skip: !haveCli }, () => {
+test('openspec instructions handoff carries the reference-not-duplicate rules', { skip: OPENSPEC_SKIP }, () => {
   const { dir } = makeFixture();
   const r = os(['instructions', 'handoff', '--change', CHANGE], dir);
   assert.equal(r.code, 0, r.out);

@@ -7,12 +7,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, CLI } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CLI, OPENSPEC_SKIP } from './helpers.mjs';
 
 const ID = 'add-greeting-name';
 const EX = path.join(TOOLKIT, 'example', 'openspec', 'changes', ID);
 
-test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: !fs.existsSync(OPENSPEC) && 'npm install first' }, () => {
+test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: OPENSPEC_SKIP }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handoff-e2e-'));
   const sh = (cmd, args, opts = {}) => {
     const r = spawnSync(cmd, args, { cwd: dir, encoding: 'utf8', ...opts });
