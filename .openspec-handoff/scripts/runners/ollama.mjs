@@ -55,8 +55,12 @@ for await (const chunk of res.body) {
 }
 if (buf.trim()) { const msg = JSON.parse(buf); response += msg.response || ''; if (msg.done) body = msg; }
 const promptTokens = body.prompt_eval_count ?? 0;
-if (promptTokens >= Number(process.env.OLLAMA_NUM_CTX || 8192)) {
-  console.error(`ollama runner: prompt filled the whole context (${promptTokens} tokens); raise OLLAMA_NUM_CTX`);
+const numCtx = Number(process.env.OLLAMA_NUM_CTX || 8192);
+// Ollama silently truncates an over-long prompt (it keeps roughly half the context), so the
+// review instructions at the top are lost. ~4 chars per token is a safe lower bound for English + code.
+if (promptTokens >= numCtx || prompt.length / 4 > promptTokens * 1.5) {
+  console.error(`ollama runner: prompt was truncated (${prompt.length} chars, only ${promptTokens} tokens evaluated, num_ctx ${numCtx}); raise OLLAMA_NUM_CTX or shrink the diff`);
+  process.exitCode = 3;
 }
 process.stdout.write(response.trim() + '\n');
 process.stdout.write(`\n<!-- ollama: ${model}, prompt ${promptTokens} tokens, output ${body.eval_count ?? '?'} tokens, ${((Date.now() - started) / 1000).toFixed(1)}s wall -->\n`);

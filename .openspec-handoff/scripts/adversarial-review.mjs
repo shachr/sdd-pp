@@ -23,6 +23,9 @@ import { checkChange } from './check-handoff.mjs';
 
 export class ModelConflictError extends Error {}
 
+export const TOOLING_EXCLUDES = ['.openspec-handoff', '.opencode', '.claude', '.cursor', '.agents', 'docs/agents']
+  .map((p) => `:(exclude,glob)${p}/**`);
+
 /** Choose the reviewer model; throw ModelConflictError if it is not different enough. */
 export function selectReviewer({ handoff, config, override, allowSameFamily = false }) {
   const impl = handoff.implementation_model;
@@ -82,10 +85,13 @@ export function buildPlan(change, config, opts = {}) {
   const lint = checkChange(change, config);
   let head = 'HEAD'; let stat = '(git unavailable)'; let commits = '';
   const diffPaths = Array.isArray(h.diff_paths) ? h.diff_paths : [];
+  // Installed tooling (this toolkit, agent skills/commands) is not the change's implementation:
+  // a toolkit update committed mid-change must not flood the reviewer's diff.
+  const scopeArgs = [...(diffPaths.length ? diffPaths : ['.']), ...TOOLING_EXCLUDES];
   try {
     head = git(change.root, ['rev-parse', 'HEAD']).trim();
-    stat = git(change.root, ['diff', '--stat', h.base_ref, '--', ...(diffPaths.length ? diffPaths : ['.'])]).trimEnd() || '(no changes since base_ref)';
-    commits = git(change.root, ['log', '--oneline', `${h.base_ref}..HEAD`, '--', ...(diffPaths.length ? diffPaths : ['.'])]).trim();
+    stat = git(change.root, ['diff', '--stat', h.base_ref, '--', ...scopeArgs]).trimEnd() || '(no changes since base_ref)';
+    commits = git(change.root, ['log', '--oneline', `${h.base_ref}..HEAD`, '--', ...scopeArgs]).trim();
   } catch { /* reported in prompt */ }
   let prompt = buildPrompt({ change, changeRel, h, skill, reviewer, head, stat, commits, diffPaths, lint, reviewRel });
   if (runner.inlineContext) prompt += inlineContext(change, changeRel, h, diffPaths);
@@ -111,7 +117,7 @@ function inlineContext(change, changeRel, h, diffPaths) {
   const files = ['proposal.md', ...change.deltas, ...design, 'tasks.md'].filter((f) => change.read(f) !== null);
   let diff;
   try {
-    diff = git(change.root, ['diff', h.base_ref, '--', ...(diffPaths.length ? diffPaths : ['.']), ':(exclude)openspec/**']).trim();
+    diff = git(change.root, ['diff', h.base_ref, '--', ...(diffPaths.length ? diffPaths : ['.']), ...TOOLING_EXCLUDES, ':(exclude)openspec/**']).trim();
   } catch (e) { diff = `(git diff failed: ${e.message})`; }
   const block = (title, lang, text) => `### ${title}\n\n\`\`\`\`${lang}\n${text.trim()}\n\`\`\`\`\n`;
   return `
