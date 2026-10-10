@@ -2,7 +2,7 @@
 
 # 01 - Stats command and JSON output
 
-Status: ready-for-agent
+Status: done
 Estimate: ~50 lines
 
 ## What to build
@@ -13,6 +13,6 @@ Makes [delta](../../specs/stats-cli/spec.md) - "Requirement: Stats command" and 
 
 Scenarios of the [delta](../../specs/stats-cli/spec.md), by name:
 
-- [ ] Scenario "Stats summary" passes
-- [ ] Scenario "Stats from a file" passes
-- [ ] Scenario "JSON flag" passes
+- [x] Scenario "Stats summary" passes
+- [x] Scenario "Stats from a file" passes
+- [x] Scenario "JSON flag" passes
