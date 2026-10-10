@@ -1,3 +1,5 @@
+> Source of truth: [proposal](../../proposal.md) · [spec delta](../../specs/truncation/spec.md) · [handoff](../../handoff.md)
+
 # code-review: add-truncate
 
 - Skill: AI Hero `code-review` (Standards + Spec reviewer briefs), run in a FRESH context: local Ollama `qwen3:4b-instruct` via `.openspec-handoff/scripts/runners/ollama.mjs`, one prompt per reviewer containing only the brief, the diff (`git diff 043b06c439d165758c503d3c847ee094d2bd40c2...HEAD -- . ':!openspec'` at 5f34e7e), the delta (Spec) or the repo standards + smell baseline (Standards). No access to the implementing session.
