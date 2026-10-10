@@ -2,7 +2,7 @@
 
 ## 1. Execution
 
-- [ ] 1.1 Plan Task 1 initials module - parts and letters - execution/plan-add-initials.md#task-1-initials-module---parts-and-letters - verify: `npm test`
+- [x] 1.1 Plan Task 1 initials module - parts and letters - execution/plan-add-initials.md#task-1-initials-module---parts-and-letters - verify: `npm test`
 - [ ] 1.2 Plan Task 2 initials module - letter rules and blank names - execution/plan-add-initials.md#task-2-initials-module---letter-rules-and-blank-names - verify: `npm test`
 
 ## 2. Review and verification
