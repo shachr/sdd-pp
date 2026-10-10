@@ -22,7 +22,7 @@ Headings and report titles built from user input come out inconsistently cased (
 ## Impact
 
 - New module and tests in textkit; `slugify` and `wrapText` are unchanged; no new dependencies.
-- Out of scope: locale-specific casing rules, preserving acronyms, hyphenated compounds.
+- Out of scope: locale-specific casing rules, preserving acronyms, hyphenated compounds, and words that start with punctuation (e.g. `(draft)`).
 
 ## Size Budget
 
