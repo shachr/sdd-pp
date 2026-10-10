@@ -53,9 +53,27 @@ export function listFiles(dir, base = dir) {
 }
 
 /** Load everything the scripts need about one change. */
-export function loadChange(root, id) {
-  const dir = path.join(root, 'openspec', 'changes', id);
-  if (!fs.existsSync(dir)) throw new UsageError(`change not found: ${path.relative(process.cwd(), dir) || dir}`);
+/**
+ * Resolve a change folder: an active change (openspec/changes/<id>) or an archived one
+ * (openspec/changes/archive/<id> or archive/YYYY-MM-DD-<id>). For an archived change the
+ * returned id is the original change name (date prefix stripped), so it still matches
+ * handoff.md's `change:`.
+ */
+export function resolveChangeDir(root, id) {
+  const changes = path.join(root, 'openspec', 'changes');
+  const active = path.join(changes, id);
+  if (id !== 'archive' && fs.existsSync(active)) return { dir: active, id, archived: false };
+  const archiveDir = path.join(changes, 'archive');
+  if (fs.existsSync(archiveDir)) {
+    const name = id.replace(/^\d{4}-\d{2}-\d{2}-/, '');
+    const hits = fs.readdirSync(archiveDir).filter((d) => d === id || d.replace(/^\d{4}-\d{2}-\d{2}-/, '') === name).sort();
+    if (hits.length) return { dir: path.join(archiveDir, hits.at(-1)), id: name, archived: true };
+  }
+  throw new UsageError(`change not found: ${path.relative(process.cwd(), active) || active} (also looked in openspec/changes/archive/)`);
+}
+
+export function loadChange(root, requested) {
+  const { dir, id, archived } = resolveChangeDir(root, requested);
   const read = (rel) => (fs.existsSync(path.join(dir, rel)) ? fs.readFileSync(path.join(dir, rel), 'utf8') : null);
   const handoffText = read('handoff.md');
   const fm = handoffText ? parseFrontMatter(handoffText) : { data: null, body: '' };
@@ -63,7 +81,7 @@ export function loadChange(root, id) {
   const deltas = files.filter((f) => /^specs\/.+\.md$/.test(f));
   const execution = files.filter((f) => f.startsWith('execution/'));
   return {
-    id, root, dir, files, deltas, execution,
+    id, root, dir, archived, files, deltas, execution,
     handoffText, handoff: fm.data, handoffBody: fm.body,
     read,
   };

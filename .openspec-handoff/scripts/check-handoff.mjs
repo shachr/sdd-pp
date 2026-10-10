@@ -89,7 +89,9 @@ export function checkChange(change, config, { useGit = true } = {}) {
   const t = config.sizeThresholds;
   metrics.requirements = change.deltas.reduce((n, d) => n + countRequirements(change.read(d)), 0);
   Object.assign(metrics, countWorkUnits(change));
-  if (useGit && h.base_ref && !/^<.*>$/.test(h.base_ref)) {
+  // An archived change's diff can't be measured against HEAD (later work lands on top), so skip it.
+  if (change.archived) warnings.push('archived change: diff size not measured (base_ref..HEAD includes later work)');
+  if (useGit && !change.archived && h.base_ref && !/^<.*>$/.test(h.base_ref)) {
     try {
       git(change.root, ['rev-parse', '--verify', '--quiet', `${h.base_ref}^{commit}`]);
       Object.assign(metrics, diffSize(change.root, h.base_ref, Array.isArray(h.diff_paths) ? h.diff_paths : []));
