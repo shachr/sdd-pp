@@ -2,7 +2,7 @@
 
 ## 1. Execution
 
-- [ ] 1.1 Ticket 01 text-wrapping module - line filling - execution/tickets/01-line-filling.md - verify: `node --test test/text-wrapping.test.mjs`
+- [x] 1.1 Ticket 01 text-wrapping module - line filling - execution/tickets/01-line-filling.md - verify: `node --test test/text-wrapping.test.mjs`
 - [ ] 1.2 Ticket 02 text-wrapping module - overlong Words - execution/tickets/02-overlong-words.md - verify: `node --test test/text-wrapping.test.mjs`
 - [ ] 1.3 Ticket 03 text-wrapping module - Width validation - execution/tickets/03-width-validation.md - verify: `npm test`
 

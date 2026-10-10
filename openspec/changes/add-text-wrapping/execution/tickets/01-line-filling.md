@@ -6,10 +6,10 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Scenario "Two lines" passes
-- [ ] Scenario "Already fits" passes
-- [ ] Scenario "Space runs collapse" passes
-- [ ] Scenario "Blank line between paragraphs" passes
-- [ ] Scenario "Empty text" passes
+- [x] Scenario "Two lines" passes
+- [x] Scenario "Already fits" passes
+- [x] Scenario "Space runs collapse" passes
+- [x] Scenario "Blank line between paragraphs" passes
+- [x] Scenario "Empty text" passes
