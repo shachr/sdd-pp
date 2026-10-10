@@ -20,3 +20,6 @@ test('Nothing to convert', () => {
 test('Review fix: combining marks alone are not a word', () => {
   assert.equal(camelCase(' \u0301 - \u0308 '), '');
 });
+test('Verify fix: first letter outside the BMP is upper-cased', () => {
+  assert.equal(camelCase('a \u{10428}b'), 'a\u{10400}b');
+});
