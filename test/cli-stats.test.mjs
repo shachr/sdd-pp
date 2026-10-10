@@ -17,3 +17,4 @@ test('stats rejects unknown options', () => {
   assert.equal(r.code, 2);
   assert.match(r.err, /stats: unknown option: --xml/);
 });
+test('JSON flag', () => assert.deepEqual(cli(['stats', '--json'], { stdin: 'Hi. How are you?', env: ON }), { code: 0, out: '{"words":4,"sentences":2,"readingMinutes":1}\n', err: '' }));
