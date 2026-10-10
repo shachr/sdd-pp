@@ -160,3 +160,12 @@ Found and fixed while running handoff-flows-v6 (2026-10-10):
 | V3 | The split-notes template comment in child proposals tripped the proposal implementation-detail lint. | The lint skips HTML comments and the `## Split notes` section. |
 | V4 | The `/spec-check` report (`execution/spec-check.md`) tripped the paraphrase lint. | `spec-check.md` and `split-check.md` are exempt, like reviews and verify. |
 | V5 | A slice whose capability is created by an earlier slice (depends_on) listed it as a new capability. | `split.mjs apply` lists it under Modified Capabilities. |
+
+## 12. Parent session vs. slice (v7, 2026-10-10, 12:47 PT) - user-approved
+
+The clean test in handoff-flows-v7 showed the parent's shared design session naming the original requirements is harmless: no check reads it, archiving the parent leaves the main specs untouched, and a slice that renames / drops behaviour does not bring the old names back.
+
+| # | Decision | Where |
+|---|---|---|
+| S1 | **The delta wins.** Where the parent's design session and a slice's delta or split notes differ, the delta wins; the slice's narrowed session lists which parent decisions it overrides (an `## Overrides` section). `check-handoff` warns (never fails) when a change with split notes has a session file without `## Overrides`. | wrappers' *Slice of a split change*, getting-started, `check-handoff.mjs` |
+| S2 | **Loss-check session line is info, not a warning** (supersedes V1's warning): `i <parent>/execution/grill.md: shared design session, frozen at split commit <short>; it uses the original names (N) - the child deltas and their split notes win where they differ.` A real warning only when the session file differs from its version at `split_commit` (or was added after it) - a content comparison equivalent to `git diff --quiet <split_commit> -- <file>`, which still works after the parent is archived and moved. Exit 0 in both cases; `--json` has `info` and `warnings` separately. | `split.mjs` `sessionMentions`, `formatLoss` |

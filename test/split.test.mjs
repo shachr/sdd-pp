@@ -122,10 +122,35 @@ test('parent name leak: an original requirement name in the parent proposal fail
   W(dir, `${c}/proposal.md`, R(dir, `${c}/proposal.md`).replace('CSV export', 'a file export'));
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
+  // a session added after the split commit is a warning (exit 0)
   W(dir, `${c}/execution/grill.md`, '---\ntool: ai-hero\n---\n- Q1 -> delta Requirement "CSV export"\n');
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, 'the shared design session is reported, not failed');
-  assert.match(r.out, /! add-reports\/execution\/grill.md \(shared design session, written before the split\) names 1 original/);
+  assert.match(r.out, /! add-reports\/execution\/grill.md: shared design session was added after split commit [0-9a-f]{7} - it is frozen at the split/);
+});
+
+test('shared design session: unchanged since split_commit -> info line; edited -> warning; exit 0 both; --json separates info and warnings', () => {
+  const { dir, c, git } = splitProject();
+  W(dir, `${c}/execution/grill.md`, '---\ntool: ai-hero\n---\n- Q1 -> delta Requirement "CSV export", Scenario "Export week"\n');
+  git('add', '-A'); git('commit', '-qm', 'deltas + session');
+  const head = git('rev-parse', 'HEAD').trim().slice(0, 7);
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  addFlag(dir);
+  let r = run('split.mjs', ['loss', 'add-reports'], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, new RegExp(`  i add-reports/execution/grill.md: shared design session, frozen at split commit ${head}; it uses the original names \\(2\\) - the child deltas and their split notes win where they differ\\.`));
+  assert.doesNotMatch(r.out, /! add-reports\/execution\/grill.md/);
+  let j = JSON.parse(run('split.mjs', ['loss', 'add-reports', '--json'], dir).out);
+  assert.equal(j.info.length, 1);
+  assert.equal(j.warnings.filter((w) => w.includes('grill.md')).length, 0);
+  W(dir, `${c}/execution/grill.md`, R(dir, `${c}/execution/grill.md`) + '- Q2 -> later edit\n');
+  r = run('split.mjs', ['loss', 'add-reports'], dir);
+  assert.equal(r.code, 0, 'an edited session is a warning, not a failure');
+  assert.match(r.out, new RegExp(`! add-reports/execution/grill.md: shared design session changed since split commit ${head} - it is frozen at the split`));
+  assert.doesNotMatch(r.out, /  i add-reports\/execution\/grill.md/);
+  j = JSON.parse(run('split.mjs', ['loss', 'add-reports', '--json'], dir).out);
+  assert.equal(j.info.length, 0);
+  assert.equal(j.warnings.filter((w) => w.includes('grill.md')).length, 1);
 });
 
 test('loss check: dropped scenario fails until a "dropped" split note in the child; duplicate, unsourced and unknown notes fail', () => {

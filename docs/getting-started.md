@@ -89,6 +89,13 @@ See [small-changes.md](small-changes.md).
    committed in the slice's PR with its code → merge → `split.mjs next <id> --write-tickets` on main.
 6. All slices archived → `split.mjs loss <id> --final` → `openspec archive <id> --skip-specs --yes`.
 
+**Parent session vs. slice: the delta wins.** The parent's design session (`execution/grill.md` /
+`brainstorm.md`) is frozen at the split commit and uses the original names. Where it and a slice's delta or split
+notes differ, the delta wins; the slice's narrowed session lists which parent decisions it overrides in an
+`## Overrides` section (check-handoff warns when a slice with split notes has none). `split.mjs loss` prints an
+info line (`i ...`) for an unchanged parent session and a warning only if the session changed since the split
+commit; neither fails the check.
+
 Changing the plan later: edit the child delta, add the split note to the child's proposal, rerun
 `split.mjs loss`, then regenerate the tool's **open** tickets / tasks only (never a done one) and rerun
 `check-handoff` and `/spec-check`.

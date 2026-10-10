@@ -148,7 +148,7 @@ export function lossCheck(root, parentId, { final = false } = {}) {
       if (cleaned && inMain(n.name)) errors.push(`final: Requirement ${q(n.name)} (added in ${n.slice}) was removed by a cleanup slice but is still in the main specs`);
     }
   }
-  return { parent: parentId, commit, final, slices: plan.slices.length, requirements: base.length, scenarios: origScen.size, notes: notes.length, rows, errors, warnings, confirm, candidates, finalChecked };
+  return { parent: parentId, commit, final, slices: plan.slices.length, requirements: base.length, scenarios: origScen.size, notes: notes.length, rows, errors, warnings, info: [], confirm, candidates, finalChecked };
 }
 
 export function formatLoss(r) {
@@ -161,6 +161,7 @@ export function formatLoss(r) {
   }
   for (const e of r.errors) out.push(`  ✗ ${e}`);
   for (const w of r.warnings) out.push(`  ! ${w}`);
+  for (const i of r.info || []) out.push(`  i ${i}`);
   if (r.final && !r.errors.length) out.push(`  main specs: all ${r.finalChecked} delivered requirements present; cleanup-removed requirements absent`);
   for (const c of r.candidates) {
     out.push(`  Possible renames (${c.kind}) - judge semantic equivalence:`, `    unmatched originals: ${c.originals.map(q).join(', ')}`, `    child names with no original: ${c.childNames.join(', ')}`,
@@ -188,20 +189,35 @@ export function parentLeaks(root, parentId) {
   return out;
 }
 
-/** The shared design session stays in the parent (slices read it); it predates the split and names behaviour. Reported, not failed. */
+/**
+ * The shared design session stays in the parent (slices read it); it is frozen at the split commit and uses the
+ * original names. Unchanged since split_commit -> an info line; changed (or added after the split) -> a warning.
+ * Never fails the loss check. Compares content with `git show <split_commit>:<path>` (same answer as
+ * `git diff --quiet <split_commit> -- <file>`, and still works after the parent is archived and moved).
+ */
 export function sessionMentions(root, parentId) {
   const { dir } = parentDir(root, parentId);
   const plan = parseSlices(fs.readFileSync(path.join(dir, 'slices.md'), 'utf8'));
-  if (!plan.front.split_commit) return [];
-  const names = baselineDeltas(root, plan.front.split_commit, plan.front.original || parentId).flatMap((r) => [r.name, ...r.scenarios]);
-  const out = [];
+  const res = { info: [], warnings: [] };
+  const commit = plan.front.split_commit;
+  if (!commit) return res;
+  const orig = plan.front.original || parentId;
+  const names = baselineDeltas(root, commit, orig).flatMap((r) => [r.name, ...r.scenarios]);
+  const short = commit.slice(0, 7);
   for (const f of ['execution/grill.md', 'execution/brainstorm.md']) {
     const p = path.join(dir, f);
     if (!fs.existsSync(p)) continue;
-    const n = new Set(nameLeaks(fs.readFileSync(p, 'utf8'), names).map((l) => l.name)).size;
-    if (n) out.push(`${parentId}/${f} (shared design session, written before the split) names ${n} original requirements/scenarios - it is the slices' design record, not a control-plane file; never update it after the split`);
+    const now = fs.readFileSync(p, 'utf8');
+    let then = null;
+    try { then = git(root, ['show', `${commit}:openspec/changes/${orig}/${f}`]); } catch { /* not in the split commit */ }
+    if (then !== now) {
+      res.warnings.push(`${parentId}/${f}: shared design session ${then === null ? 'was added after' : 'changed since'} split commit ${short} - it is frozen at the split; put slice decisions in the slice's own session ("Overrides") and its delta / split notes, and restore this file to its split-commit version`);
+      continue;
+    }
+    const n = new Set(nameLeaks(now, names).map((l) => l.name)).size;
+    if (n) res.info.push(`${parentId}/${f}: shared design session, frozen at split commit ${short}; it uses the original names (${n}) - the child deltas and their split notes win where they differ.`);
   }
-  return out;
+  return res;
 }
 
 // ------------------------------------------------------------------ next / tickets / mark
@@ -481,7 +497,9 @@ async function main() {
     const r = lossCheck(root, id, { final: values.final });
     const leaks = parentLeaks(root, id);
     r.errors.push(...leaks);
-    r.warnings.push(...sessionMentions(root, id));
+    const sm = sessionMentions(root, id);
+    r.info.push(...sm.info);
+    r.warnings.push(...sm.warnings);
     console.log(values.json ? JSON.stringify(r, null, 2) : formatLoss(r));
     return r.errors.length ? 1 : 0;
   }
