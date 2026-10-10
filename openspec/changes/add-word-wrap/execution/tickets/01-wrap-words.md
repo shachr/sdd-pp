@@ -4,13 +4,13 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 Estimate: ~90 lines
 
-- [ ] Scenario "Short text unchanged" passes
-- [ ] Scenario "Wraps at the width" passes
-- [ ] Scenario "Default width" passes
-- [ ] Scenario "Spaces collapsed" passes
-- [ ] Scenario "Paragraphs wrapped separately" passes
-- [ ] Scenario "Empty text" passes
+- [x] Scenario "Short text unchanged" passes
+- [x] Scenario "Wraps at the width" passes
+- [x] Scenario "Default width" passes
+- [x] Scenario "Spaces collapsed" passes
+- [x] Scenario "Paragraphs wrapped separately" passes
+- [x] Scenario "Empty text" passes
