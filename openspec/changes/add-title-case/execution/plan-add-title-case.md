@@ -61,7 +61,7 @@ Expected: FAIL with `ERR_MODULE_NOT_FOUND` for `src/title-case.mjs`
 
 - [ ] **Step 3: Implement `toTitleCase(text)` in `src/title-case.mjs`**
 
-Split with `/( +)/`, case every non-space item (first character upper, rest lower), join with `''`.
+Split with `/( +)/`, case every word - a non-empty, non-space item (first character upper, rest lower); leave separators and `""` as they are; join with `''`.
 
 - [ ] **Step 4: Run to verify they pass**
 
@@ -104,7 +104,7 @@ Expected: FAIL - "Minor words inside the title" and "A shouted minor word in the
 
 - [ ] **Step 3: Add `MINOR_WORDS` and position-aware casing in `src/title-case.mjs`**
 
-`MINOR_WORDS = new Set(['a', 'an', 'and', 'at', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to'])`. Index words among non-space items; a word that is in the set and is neither the first nor the last word is lowercased whole.
+`MINOR_WORDS = new Set(['a', 'an', 'and', 'at', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to'])`. Index words among the non-empty, non-space items (the empty strings `split` leaves at the ends are not words); a word that is in the set and is neither the first nor the last word is lowercased whole.
 
 - [ ] **Step 4: Run to verify they pass**
 

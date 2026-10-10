@@ -26,8 +26,8 @@
 
 ### Contradictions (agent review)
 
-- execution/plan-add-title-case.md Task 2 (via [design](design.md) "Position of a word") vs "Requirement: Minor words stay lowercase": `text.split(/( +)/)` yields empty strings at the ends of `"  the end"`; counting "non-space items" makes `""` the first word, so the plan as written lowercases a minor word that opens the title after leading spaces. Words must be the non-empty, non-space items.
+- none (agent review: Tasks 1-3 read against the requirements and scenarios they name, and the plan/design decisions against proposal.md out of scope. Run 1 found that Task 2 counted the empty strings left by `split` as words; [design](design.md) "Position of a word" and Tasks 1-2 now define words as non-empty, non-space items.)
 
 ### Result
 
-GAPS: 0 mechanical finding(s), 1 contradiction (agent review). Fix the design output before implementation.
+PASS (mechanical checks). Contradictions: see agent review above.

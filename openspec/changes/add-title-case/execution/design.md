@@ -31,7 +31,7 @@ See [proposal - Why](../proposal.md#why). Success = every delta scenario of [spe
 
 - **Module:** `src/title-case.mjs` exports `toTitleCase(text)`; tests in `test/title-case.test.mjs`. **(my call)**
 - **Keeping the spacing:** split with a capturing regex on runs of spaces (`text.split(/( +)/)`), so separators come back as their own items and joining with `''` restores the input's spacing exactly. No trimming, no re-joining with a single space. **(my call)**
-- **Position of a word:** first / last are counted among the non-space items only, so leading or trailing spaces do not make the first real word "middle". **(my call)**
+- **Position of a word:** words are the non-empty, non-space items of the split (the split yields `""` at the ends when the text starts or ends with spaces); first / last are counted among those only, so leading or trailing spaces do not make the first real word "middle". **(my call; corrected after /spec-check run 1)**
 - **Minor-word list:** a module-level `Set` holding exactly the delta's list, matched against the lowercased word. **(my call)**
 - **Casing a word:** uppercase the first character, lowercase the rest (`toUpperCase` / `toLowerCase`, default locale-independent behaviour of JS). **(my call)**
 - **Type check first**, before any splitting: `typeof text !== 'string'` -> `TypeError` whose message names the received type. **(my call)**
