@@ -2,7 +2,7 @@
 
 # 02 - Stats errors
 
-Status: ready-for-agent
+Status: done
 Estimate: ~30 lines
 
 ## What to build
@@ -13,5 +13,5 @@ Makes [delta](../../specs/stats-cli/spec.md) - "Requirement: Stats errors" work 
 
 Scenarios of the [delta](../../specs/stats-cli/spec.md), by name:
 
-- [ ] Scenario "Unknown option" passes
-- [ ] Scenario "Unreadable file" passes
+- [x] Scenario "Unknown option" passes
+- [x] Scenario "Unreadable file" passes
