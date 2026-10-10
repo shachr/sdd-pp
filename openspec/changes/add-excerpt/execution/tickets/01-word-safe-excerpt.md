@@ -6,14 +6,14 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 Estimate: ~90 lines
 
-- [ ] Scenario "Text that fits" passes
-- [ ] Scenario "Cut at a word boundary" passes
-- [ ] Scenario "First word too long" passes
-- [ ] Scenario "Trailing punctuation dropped" passes
-- [ ] Scenario "Default ellipsis" passes
-- [ ] Scenario "Whitespace collapsed" passes
-- [ ] Scenario "Emoji count as one character" passes
+- [x] Scenario "Text that fits" passes
+- [x] Scenario "Cut at a word boundary" passes
+- [x] Scenario "First word too long" passes
+- [x] Scenario "Trailing punctuation dropped" passes
+- [x] Scenario "Default ellipsis" passes
+- [x] Scenario "Whitespace collapsed" passes
+- [x] Scenario "Emoji count as one character" passes
