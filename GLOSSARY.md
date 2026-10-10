@@ -9,7 +9,7 @@ The maximum number of characters on one output line, not counting the line break
 _Avoid_: column, line length
 
 **Word**:
-A run of non-space characters between spaces or tabs.
+A run of characters other than spaces, tabs and line breaks.
 _Avoid_: token
 
 **Paragraph**:
