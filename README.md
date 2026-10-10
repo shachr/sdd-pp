@@ -69,10 +69,19 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 
 ```bash
 npm i -g @fission-ai/openspec@1.14.1          # tested version
-cd your-project && openspec init --tools claude,cursor
+cd your-project && openspec init --tools <agent>                        # <agent>: claude, cursor, opencode, ...
+npx -y skills@latest add mattpocock/skills --skill '*' -a <agent> -y    # AI Hero skills (skills agent ids: claude-code, cursor, opencode, ...)
+npx -y skills@latest add obra/superpowers --skill '*' -a <agent> -y     # Superpowers skills
 npx github:shachr/sdd-pp init . --tool ai-hero   # setup phase: default tool; sets schema: handoff-driven
 openspec schema validate handoff-driven
 ```
+
+Example with Claude: `openspec init --tools claude`, then `npx -y skills@latest add mattpocock/skills --skill '*' -a claude-code -y`
+(and/or `obra/superpowers`), then `npx github:shachr/sdd-pp init . --tool ai-hero`.
+
+`sdd-pp init` installs its skills and slash commands for Claude (`.claude/`) and Cursor (`.cursor/`) by default
+(`--no-claude` / `--no-cursor` skip one), and for opencode (`.opencode/`) only when that folder already exists (e.g. after
+`openspec init --tools opencode`) or with `--opencode`.
 
 With `--tool ai-hero` it also installs `docs/agents/issue-tracker.md` (OpenSpec change folders as AI Hero's issue tracker)
 when the project has none.
@@ -88,7 +97,7 @@ sdd-pp init [dir] [--tool ai-hero|superpowers] [--claude|--no-claude] [--cursor|
 
 A re-install without `--tool` keeps the project default in `.openspec-handoff/project.json`; `config.json` is kept unless `--force`.
 `sdd-pp init` writes `openspec/schemas/handoff-driven/`, `.openspec-handoff/{scripts,config.json,project.json,small-changes.md}`,
-`.claude/{skills,commands}/…`, `.cursor/{skills,commands}/…` (`.opencode/` when present or `--opencode`), adds `.superpowers/` to
+`.claude/{skills,commands}/…` and `.cursor/{skills,commands}/…` by default (`.opencode/…` only when `.opencode/` exists or with `--opencode`), adds `.superpowers/` to
 `.gitignore` and `slices.md merge=union` to `.gitattributes`.
 Install the execution toolkits themselves from [mattpocock/skills](https://github.com/mattpocock/skills) and
 [obra/superpowers](https://github.com/obra/superpowers).

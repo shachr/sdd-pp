@@ -12,16 +12,22 @@ Everything for a change stays in `openspec/changes/<id>/`. **Pilot status:** see
 | AI Hero skills | `npx -y skills@latest add mattpocock/skills --skill '*' -a <agent> -y` |
 | Superpowers skills | `npx -y skills@latest add obra/superpowers --skill '*' -a <agent> -y` |
 
-`<agent>` is your harness, for example `opencode`, `claude-code` or `cursor`. You only need the skills for the tool(s) you use.
+`<agent>` is your coding agent as the skills CLI names it, for example `claude-code`, `cursor` or `opencode`. You only need the skills for the tool(s) you use.
 
 ## Install (setup phase: pick the tool once)
 
 ```bash
 cd your-project && git init            # a git repo is required (base_ref, review diffs)
-openspec init --tools opencode         # or claude,cursor
-npx github:shachr/sdd-pp init . --tool ai-hero   # or a local checkout: npx /path/to/sdd-pp init . ...; --tool superpowers; --opencode / --no-claude / --no-cursor
+openspec init --tools <agent>          # <agent>: claude, cursor, opencode, ... (e.g. claude)
+npx github:shachr/sdd-pp init . --tool ai-hero   # or --tool superpowers; or from a local checkout: npx /path/to/sdd-pp init . ...
 openspec schema validate handoff-driven
 ```
+
+Example with Claude: `openspec init --tools claude`, the skills with `-a claude-code`, then `npx github:shachr/sdd-pp init . --tool ai-hero`.
+
+`sdd-pp init` installs its skills and slash commands for Claude (`.claude/`) and Cursor (`.cursor/`) by default
+(`--no-claude` / `--no-cursor` skip one), and for opencode (`.opencode/`) only when that folder already exists (e.g. after
+`openspec init --tools opencode`) or with `--opencode`.
 
 `sdd-pp init` is a plain Node CLI (no bash, no symlinks; works on Windows, macOS and Linux). `--tool` writes the project default to
 `.openspec-handoff/project.json`. Re-running `init` without `--tool` (to upgrade) keeps it. `npx sdd-pp init` will work once the
