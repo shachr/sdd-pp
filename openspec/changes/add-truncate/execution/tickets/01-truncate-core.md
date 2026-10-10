@@ -2,7 +2,7 @@
 
 # 01 - truncate: fit, cut and mark
 
-Status: ready-for-agent
+Status: done
 
 ## What to build
 
@@ -17,8 +17,8 @@ None - can start immediately.
 Scenarios of the [delta](../../specs/truncation/spec.md), by name:
 
 
-- [ ] Scenario "Fits already" passes
-- [ ] Scenario "Exact length" passes
-- [ ] Scenario "Cut at word boundary" passes
-- [ ] Scenario "Long single word" passes
-- [ ] Scenario "Custom ellipsis" passes
+- [x] Scenario "Fits already" passes
+- [x] Scenario "Exact length" passes
+- [x] Scenario "Cut at word boundary" passes
+- [x] Scenario "Long single word" passes
+- [x] Scenario "Custom ellipsis" passes
