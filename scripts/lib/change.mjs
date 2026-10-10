@@ -147,7 +147,7 @@ export function git(root, args) {
 export function diffSize(root, baseRef, diffPaths = []) {
   const gitRoot = git(root, ['rev-parse', '--show-toplevel']).trim();
   const pathspec = diffPaths.length ? diffPaths.map((p) => path.relative(gitRoot, path.resolve(root, p)) || '.') : ['.'];
-  const out = git(gitRoot, ['diff', '--numstat', baseRef, '--', ...pathspec, ':(exclude)**/openspec/**', ':(exclude)openspec/**']);
+  const out = git(gitRoot, ['diff', '--numstat', baseRef, '--', ...pathspec, ':(exclude)**/openspec/**', ':(exclude)openspec/**', ...TOOLING_EXCLUDES]);
   let lines = 0; let files = 0;
   for (const row of out.split('\n').filter(Boolean)) {
     const [a, d] = row.split('\t');
@@ -296,3 +296,7 @@ export function restatingSections(md) {
   }
   return out;
 }
+
+/** Installed tooling (this toolkit, agent skills/commands) is not a change's implementation. */
+export const TOOLING_EXCLUDES = ['.openspec-handoff', '.opencode', '.claude', '.cursor', '.agents', 'docs/agents']
+  .map((p) => `:(exclude,glob)${p}/**`);

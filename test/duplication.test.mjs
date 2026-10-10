@@ -93,3 +93,10 @@ test('check-handoff: review outputs and verify.md may discuss requirements', () 
   const r = run('check-handoff.mjs', [CHANGE], dir);
   assert.equal(r.code, 0, r.out);
 });
+
+test('check-handoff: execution/verify.md is saved verbatim (no Source of truth line needed)', () => {
+  const { dir, changeDir } = makeFixture();
+  fs.writeFileSync(path.join(changeDir, 'execution/verify.md'), '## Verification Report: add-greeting-name\n\nAll checks passed. Ready for archive.\n');
+  const r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.doesNotMatch(r.out, /verify\.md: must start/);
+});

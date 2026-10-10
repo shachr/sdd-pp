@@ -19,12 +19,12 @@ import { spawnSync } from 'node:child_process';
 import {
   findProjectRoot, loadChange, loadConfig, normalizeModel, modelFamily, git, UsageError,
 } from './lib/change.mjs';
+import { TOOLING_EXCLUDES } from './lib/change.mjs';
 import { checkChange } from './check-handoff.mjs';
 
 export class ModelConflictError extends Error {}
 
-export const TOOLING_EXCLUDES = ['.openspec-handoff', '.opencode', '.claude', '.cursor', '.agents', 'docs/agents']
-  .map((p) => `:(exclude,glob)${p}/**`);
+export { TOOLING_EXCLUDES };
 
 /** Choose the reviewer model; throw ModelConflictError if it is not different enough. */
 export function selectReviewer({ handoff, config, override, allowSameFamily = false }) {
