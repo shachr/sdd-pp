@@ -60,10 +60,10 @@ test('superpowers progress: plan step checkboxes per task', () => {
 
 test('next-steps prints the tool sequence without running anything', () => {
   const ai = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement-spec' });
-  const order = ['/to-spec', 'grill.md', '/to-tickets', '/spec-check x', '/implement-spec', '/code-review', 'FRESH session of your own coding agent', 'weak fallback reviewer', '--expect-complete', '/opsx:verify x', 'execution/verify.md', '/opsx:archive x', 'together with its code', 'Merge the PR'];
+  const order = ['/to-spec', 'grill.md', '/to-tickets', '/spec-check x', '/implement-spec', '/code-review', 'FRESH session of your own coding agent', 'self-review', '--expect-complete', '/opsx:verify x', 'execution/verify.md', '/opsx:archive x', 'together with its code', 'Merge the PR'];
   let at = -1; for (const s of order) { const i = ai.indexOf(s, at + 1); assert.ok(i > at, `ai-hero: ${s} out of order`); at = i; }
   const sp = nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'subagent-driven-development' });
-  const order2 = ['writing-plans', 'brainstorm.md', 'plan-x.md', '/spec-check x', 'subagent-driven-development', 'requesting-code-review', 'weak fallback reviewer', '/opsx:verify x', '/opsx:archive x', 'together with its code', 'finishing-a-development-branch'];
+  const order2 = ['writing-plans', 'brainstorm.md', 'plan-x.md', '/spec-check x', 'subagent-driven-development', 'requesting-code-review', 'self-review', '/opsx:verify x', '/opsx:archive x', 'together with its code', 'finishing-a-development-branch'];
   at = -1; for (const s of order2) { const i = sp.indexOf(s, at + 1); assert.ok(i > at, `superpowers: ${s} out of order`); at = i; }
   const { dir } = makeFixture();
   const r = run('next-steps.mjs', [CHANGE], dir);
@@ -89,12 +89,14 @@ test('superpowers: a finished plan task reset after a planning re-run is an erro
   assert.match(JSON.parse(r.stdout).errors.join('\n'), /done work reset: .*"Task 1: greet\(name\)" was finished at HEAD and has unticked steps now/);
 });
 
-test('code review by a local model without the "weak fallback" label is a warning', () => {
+test('code review that says neither "fresh session" nor "self-review" is a warning', () => {
   const { dir } = makeFixture();
   fs.mkdirSync(path.join(ex(dir), 'reviews'), { recursive: true });
   const f = path.join(ex(dir), 'reviews', 'code-review.md');
-  fs.writeFileSync(f, '# Code review\n\nReviewer: qwen3:4b-instruct via ollama (fresh context)\n');
-  assert.match(JSON.parse(check(dir).stdout).warnings.join('\n'), /label it "weak fallback reviewer"/);
-  fs.writeFileSync(f, '# Code review\n\nweak fallback reviewer: qwen3:4b-instruct via ollama (fresh context)\n');
-  assert.doesNotMatch(JSON.parse(check(dir).stdout).warnings.join('\n'), /weak fallback/);
+  fs.writeFileSync(f, '# Code review\n\nNo findings.\n');
+  assert.match(JSON.parse(check(dir).stdout).warnings.join('\n'), /say at the top how it ran - "fresh session".* or "self-review"/);
+  for (const label of ['Reviewer: fresh session (sub-agent)', 'self-review (same session)']) {
+    fs.writeFileSync(f, `# Code review\n\n${label}\n`);
+    assert.doesNotMatch(JSON.parse(check(dir).stdout).warnings.join('\n'), /say at the top how it ran/);
+  }
 });

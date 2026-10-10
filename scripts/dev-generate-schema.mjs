@@ -82,14 +82,14 @@ planning, in /spec-check, from the tool's tickets / plan; budget ~300 lines).
 const handoff = {
   id: 'handoff',
   generates: 'handoff.md',
-  description: 'Records which execution tool and implementation model take over, and where they write',
+  description: 'Records which execution tool takes over, and where it writes',
   template: 'handoff.md',
   instruction: `LAST STAGE of this schema. Create it with the \`openspec-handoff\` skill
-(\`/handoff <change> <implementation-model>\`). The execution tool was chosen in
+(\`/handoff <change>\`). The execution tool was chosen in
 the setup phase (or overridden per change) and its design session already ran in
 the proposal phase (execution/grill.md for ai-hero, execution/brainstorm.md for
 superpowers); \`node .openspec-handoff/scripts/execution-tool.mjs <change>\` resolves
-it. Ask once for the implementation model if unknown.
+it (per-change override, else the project default).
 
 The handoff stage writes handoff.md, runs check-handoff, and ENDS by printing the
 next steps for the tool - \`node .openspec-handoff/scripts/next-steps.mjs <change>\` -
@@ -106,18 +106,13 @@ Front matter (YAML, all keys required unless marked optional):
 - \`change\`: this change id (folder name).
 - \`tool\`: \`ai-hero\` or \`superpowers\` - must match the design session file
   (check-handoff fails on a mismatch or a missing session file).
-- \`implementation_model\`: exact model id that will write the code
-  (e.g. \`claude-sonnet-4-5\`, \`gpt-5-codex\`). Ask the user if unknown;
-  never leave a placeholder.
-- \`harness\` (optional): agent harness running the model (claude-code, cursor, codex).
+- \`harness\` (optional): the coding agent harness (claude-code, cursor, codex, opencode).
 - \`base_ref\`: git commit SHA the implementation starts from
   (\`git rev-parse HEAD\` at handoff). Used for size checks and review diffs.
 - \`execution_dir\`: always \`execution/\`.
 - \`apply_mode\`: the tool's own implement command the engineer runs instead of
   /opsx:apply - ai-hero: \`implement\` | \`implement-spec\`; superpowers:
   \`executing-plans\` | \`subagent-driven-development\`.
-- \`reviewer_model\` (optional, only if you run the optional /adversarial-review):
-  pin its reviewer. Omit it otherwise.
 
 Body rules - REFERENCE, DON'T DUPLICATE:
 - Link to \`proposal.md\` and every \`specs/<capability>/spec.md\` delta. Do NOT
@@ -149,8 +144,7 @@ const schema = {
 /spec-check and implementation run with the execution tool's own commands
 (handoff.md tool + apply_mode: ai-hero implement | implement-spec; superpowers
 executing-plans | subagent-driven-development) through its wrapper skill
-(openspec-handoff-ai-hero or openspec-handoff-superpowers), by the
-implementation_model handoff.md records. Progress is tracked by the tool
+(openspec-handoff-ai-hero or openspec-handoff-superpowers). Progress is tracked by the tool
 (ticket Status/checkboxes, plan step checkboxes), not by OpenSpec.
 Requirements come only from the spec deltas; if the code needs behavior the
 deltas don't describe, stop and update the proposal/specs first.`,

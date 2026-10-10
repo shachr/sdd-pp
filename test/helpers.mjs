@@ -59,3 +59,9 @@ export function run(script, args, cwd) {
   const r = spawnSync(process.execPath, [path.join(TOOLKIT, 'scripts', script), ...args], { cwd, encoding: 'utf8' });
   return { code: r.status, out: r.stdout + r.stderr, stdout: r.stdout };
 }
+
+/** Run the Node installer CLI: `sdd-pp init <dir> ...args`. */
+export const CLI = path.join(TOOLKIT, 'bin', 'sdd-pp.mjs');
+export function initCli(dir, ...args) {
+  return spawnSync(process.execPath, [CLI, 'init', dir, ...args], { encoding: 'utf8' });
+}

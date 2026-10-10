@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run } from './helpers.mjs';
+import { TOOLKIT, OPENSPEC, CHANGE, makeFixture, setHandoff, run, initCli } from './helpers.mjs';
 import { proposalLeaks } from '../scripts/lib/change.mjs';
 
 const ex = (dir) => path.join(dir, 'openspec', 'changes', CHANGE, 'execution');
@@ -54,9 +54,9 @@ test('check-handoff: both session files, wrong front matter, missing session fil
   assert.match(j.errors.join('\n'), /execution\/grill\.md is missing: the ai-hero design session runs in the proposal phase/);
 });
 
-test('check-handoff: example passes with tool metrics; no reviewer_model needed', () => {
+test('check-handoff: example passes with tool metrics; no model fields needed', () => {
   const { dir } = makeFixture();
-  setHandoff(dir, { reviewer_model: null });
+  setHandoff(dir, { implementation_model: null, reviewer_model: null });
   const j = errs(dir);
   assert.deepEqual(j.errors, []);
   assert.equal(j.metrics.tool, 'ai-hero');
@@ -86,17 +86,17 @@ test('new capability delta without ## Purpose warns (archive would write TBD)', 
   assert.doesNotMatch(errs(dir).warnings.join('\n'), /specs\/greeting\/spec\.md: new capability/);
 });
 
-test('install.sh --tool writes the project default; a later install keeps it', { skip: !fs.existsSync(OPENSPEC) }, () => {
+test('sdd-pp init --tool writes the project default; a later install keeps it', { skip: !fs.existsSync(OPENSPEC) }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handoff-tool-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
   spawnSync(OPENSPEC, ['init', '--tools', 'none', '--no-animation', '.'], { cwd: dir });
-  let r = spawnSync('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--no-claude', '--no-cursor'], { encoding: 'utf8' });
+  let r = initCli(dir, '--no-claude', '--no-cursor');
   assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /WARNING: no default execution tool/);
-  r = spawnSync('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--tool', 'superpowers', '--no-claude', '--no-cursor'], { encoding: 'utf8' });
+  r = initCli(dir, '--tool', 'superpowers', '--no-claude', '--no-cursor');
   assert.equal(r.status, 0, r.stderr);
   const pj = path.join(dir, '.openspec-handoff', 'project.json');
   assert.equal(JSON.parse(fs.readFileSync(pj, 'utf8')).defaultTool, 'superpowers');
-  r = spawnSync('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--force', '--no-claude', '--no-cursor'], { encoding: 'utf8' });
+  r = initCli(dir, '--force', '--no-claude', '--no-cursor');
   assert.match(r.stdout, /project\.json \(kept: "defaultTool": "superpowers"\)/);
-  assert.equal(spawnSync('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--tool=bogus'], { encoding: 'utf8' }).status, 2);
+  assert.equal(initCli(dir, '--tool=bogus').status, 2);
 });

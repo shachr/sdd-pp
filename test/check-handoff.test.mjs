@@ -11,12 +11,15 @@ test('example change passes check-handoff', () => {
   assert.match(r.out, /0 error\(s\)/);
 });
 
-test('missing implementation_model fails', () => {
+test('missing base_ref fails; model fields are not required', () => {
   const { dir } = makeFixture();
-  setHandoff(dir, { implementation_model: null });
-  const r = run('check-handoff.mjs', [CHANGE], dir);
+  setHandoff(dir, { implementation_model: null, reviewer_model: null });
+  let r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.equal(r.code, 0, r.out);
+  setHandoff(dir, { base_ref: null });
+  r = run('check-handoff.mjs', [CHANGE], dir);
   assert.equal(r.code, 1);
-  assert.match(r.out, /implementation_model" is missing/);
+  assert.match(r.out, /base_ref" is missing/);
 });
 
 test('unknown tool fails', () => {
