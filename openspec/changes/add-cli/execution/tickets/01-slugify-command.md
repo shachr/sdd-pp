@@ -2,7 +2,7 @@
 
 # 01 - textkit CLI: slugify command
 
-Status: ready-for-agent
+Status: done
 Estimate: ~110 lines
 
 ## What to build
@@ -17,5 +17,5 @@ None - can start immediately.
 
 Scenarios of the [delta](../../specs/cli/spec.md), by name:
 
-- [ ] Scenario "Slugify argument" passes
-- [ ] The bin file runs it from a real process (spawn test)
+- [x] Scenario "Slugify argument" passes
+- [x] The bin file runs it from a real process (spawn test)
