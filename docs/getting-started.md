@@ -37,11 +37,12 @@ Optional per-change override, **before** the design session:
 |---|---|---|---|
 | 1 | `/opsx:propose <id>` runs the tool's **design session** first | `grill-with-docs` → `execution/grill.md` | `brainstorming` → `execution/brainstorm.md`, **stopped** after the approved design (no writing-plans yet) |
 | 2 | Proposal + **specs** | `proposal.md` = what/why only; behaviours from the session become delta scenarios; new capability → `## Purpose` first | same |
-| 3 | `/handoff <id> <model>` writes `handoff.md` (tool, model, `apply_mode`, `base_ref`) and plans | `to-spec` (reads grill.md) → `execution/spec.md`, `to-tickets` → `execution/tickets/` | `writing-plans` (reads brainstorm.md) → `execution/plan-<id>.md` |
-| 4 | `/spec-check <id>` (automatic at the end of /handoff) → `execution/spec-check.md` | stops on GAPS: fix, re-run | same |
-| 5 | Implement with the tool's own command (`apply_mode`), **not** `/opsx:apply`; tick `tasks.md` | `/implement` or `/implement-spec`, with `tdd` | `executing-plans` or `subagent-driven-development` (branch `change/<id>`; copy the ledger to `execution/progress.md`) |
+| 3 | `/handoff <id> <model>`: OpenSpec's **last stage**. Writes `handoff.md` (tool, model, `apply_mode`, `base_ref`), then **prints the next steps and stops** (`next-steps.mjs <id>` reprints them) | | |
+| 3a | Planning (you run it) | `/to-spec` (reads grill.md) → `execution/spec.md`, `/to-tickets` → `execution/tickets/` | `writing-plans` (reads brainstorm.md) → `execution/plan-<id>.md` |
+| 4 | `/spec-check <id>` → `execution/spec-check.md` | stops on GAPS: fix, re-run | same |
+| 5 | Implement with the tool's own command (`apply_mode`), **not** `/opsx:apply`. Progress lives in the tool's tracking, not a `tasks.md` | `/implement` or `/implement-spec`, with `tdd`; ticket `Status: done` + ticked checkboxes | `executing-plans` or `subagent-driven-development` (branch `change/<id>`); tick plan step checkboxes; copy the ledger to `execution/progress.md` |
 | 6 | Tool's code review in a **fresh context** → `execution/reviews/code-review.md` | `code-review` (Standards + Spec sub-agents) | `requesting-code-review` (`code-reviewer.md`) |
-| 7 | `openspec validate <id> --strict` and `node .openspec-handoff/scripts/check-handoff.mjs <id>` | | |
+| 7 | `openspec validate <id> --strict` and `node .openspec-handoff/scripts/check-handoff.mjs <id> --expect-complete` (fails while a ticket / plan step is open) | | |
 | 8 | `/opsx:verify <id>`; save the report verbatim to `execution/verify.md` | | then `finishing-a-development-branch` |
 | 9 | `/opsx:archive <id>`: syncs the delta into `openspec/specs/`, then moves the change to `archive/` | | |
 
@@ -72,5 +73,5 @@ If you are over budget, split into several changes before handoff. See [small-ch
 - **Weak local reviewer:** qwen3:4b-instruct gives shallow reviews and can be confidently wrong (it raised one false Critical). Triage every finding; use a stronger model if you can.
 - **Heuristic lints:** the paraphrase lint and the proposal implementation-detail lint are token/keyword heuristics, warnings only. Expect false positives and misses. Session records written before the delta naturally trigger paraphrase warnings.
 - **`/spec-check` contradictions are agent judgement:** the script checks coverage mechanically and exits 0 if it cannot see a contradiction. Whether it stops depends on the agent's review.
-- **`openspec status` / task progress may be inaccurate:** it only counts `tasks.md` checkboxes, which the wrappers tick by hand. It does not know about tickets, plan steps or the execution tool's own state.
+- **`openspec status` / `openspec list` don't show implementation progress:** with no tasks stage, `status` says "All planning artifacts complete!" right after `/handoff`, and `list` shows "No tasks". Real progress is `check-handoff` → `progress=` (tickets / plan checkboxes, ticked by hand). `/opsx:verify` reports Task Completion as not applicable.
 - **Undocumented OpenSpec key:** the project default lives in a toolkit-owned file (`.openspec-handoff/project.json`), so OpenSpec itself does not know about the tool.

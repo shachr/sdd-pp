@@ -18,10 +18,11 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 |---|---|---|
 | Proposal | `grill-with-docs` (= `grilling` + `domain-modeling`) | `execution/grill.md`; `GLOSSARY.md`, `docs/adr/` (linked) |
 | Proposal | (OpenSpec) proposal.md + delta, informed by the session | `proposal.md`, `specs/**/spec.md` |
-| Handoff | `to-spec`, reading `execution/grill.md` | `execution/spec.md` |
-| Handoff | `to-tickets` | `execution/tickets/NN-<slug>.md` |
-| Handoff | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
-| Implementation | `implement` or `implement-spec` (`apply_mode`) + `tdd` - not `/opsx:apply` | code + tests; ticks `tasks.md` |
+| Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
+| Planning (engineer) | `to-spec`, reading `execution/grill.md` | `execution/spec.md` |
+| Planning (engineer) | `to-tickets` | `execution/tickets/NN-<slug>.md` |
+| Planning (engineer) | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
+| Implementation | `implement` or `implement-spec` (`apply_mode`) + `tdd` - not `/opsx:apply` | code + tests; ticket `Status: done` + checkboxes |
 | Implementation | `code-review` (implement calls it) | `execution/reviews/code-review.md` |
 | Verify / archive | `/opsx:verify`, then `/opsx:archive` | `execution/verify.md` |
 | Optional | `/adversarial-review` (different model) | `execution/reviews/<ts>-<model>.md` |
@@ -41,9 +42,9 @@ Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches 
 4. Hand back to OpenSpec: write `proposal.md` (what/why only - no decisions, file layouts or algorithms; those stay in grill.md) and the delta (every scenario from step 3, `## Purpose` first for a new capability). `openspec validate <id> --strict`. `check-handoff` warns on implementation detail in proposal.md.
 5. Once the delta exists, point the behavioural answers in the grilling record at it by name (`-> delta Scenario "<name>"`) instead of keeping the rule's wording twice; `check-handoff` flags likely paraphrases as warnings.
 
-## Planning (handoff)
+## Planning (after handoff - the engineer's first next steps)
 
-After `/handoff` wrote `handoff.md` (`tool: ai-hero`, the session file must exist):
+After `/handoff` wrote `handoff.md` (`tool: ai-hero`, the session file must exist) and printed the next steps:
 
 ### to-spec (`execution/spec.md`) - reads `execution/grill.md`
 
@@ -64,12 +65,11 @@ After `/handoff` wrote `handoff.md` (`tool: ai-hero`, the session file must exis
 
 ### Then
 
-1. `openspec instructions tasks --change "<id>"` -> `tasks.md`: one checkbox per ticket, plus the review group.
-2. `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors, read warnings.
-3. `/spec-check <id>`; stop on GAPS. Planning ends here.
+1. `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors, read warnings.
+2. `/spec-check <id>`; stop on GAPS. Planning ends here. There is no `tasks.md`: the tickets are the tracker.
 
 ## Implementation (the engineer runs `implement` / `implement-spec`)
 
-1. Implement with the `apply_mode` command. Ticket done: `Status: done` + tick its `tasks.md` box in the same commit.
-2. `code-review` -> `execution/reviews/code-review.md`. Run its Standards and Spec reviewers as **fresh sub-agents** (no access to this conversation). Without a sub-agent tool, run the same briefs in another fresh context (a new session or a local model); if neither is possible, write "self-review" at the top. Fix Critical/Important findings; tick 2.1. `openspec validate <id> --strict` (2.2); `check-handoff` (2.3).
+1. Implement with the `apply_mode` command. Ticket done: `Status: done` + tick its scenario checkboxes in the same commit (that is the progress `check-handoff` reads).
+2. `code-review` -> `execution/reviews/code-review.md`. Run its Standards and Spec reviewers as **fresh sub-agents** (no access to this conversation). Without a sub-agent tool, run the same briefs in another fresh context (a new session or a local model); if neither is possible, write "self-review" at the top. Fix Critical/Important findings. Then `openspec validate <id> --strict` and `check-handoff <id> --expect-complete` (fails while a ticket is open).
 3. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written.

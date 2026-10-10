@@ -1,11 +1,11 @@
 ---
 name: openspec-handoff
-description: Hand an OpenSpec change (handoff-driven schema) to its execution tool. The tool was chosen in the setup phase (project default) or per change at proposal time, and its design session already ran (execution/grill.md or execution/brainstorm.md). Writes handoff.md, then runs that tool's planning (AI Hero to-spec + to-tickets, or Superpowers writing-plans) and ends with /spec-check. Use when the user says "hand off", "/handoff", or wants AI Hero or Superpowers to implement an OpenSpec change.
+description: Hand an OpenSpec change (handoff-driven schema) to its execution tool - the last OpenSpec stage. The tool was chosen in the setup phase (project default) or per change at proposal time, and its design session already ran (execution/grill.md or execution/brainstorm.md). Writes handoff.md, lints it, and ends by printing the exact next steps for the tool (planning, /spec-check, implement, code review, verify, archive) without running them. Use when the user says "hand off", "/handoff", or wants AI Hero or Superpowers to implement an OpenSpec change.
 ---
 
 # OpenSpec handoff
 
-The change has been through the proposal phase: proposal + spec deltas (OpenSpec, *what*) and the execution tool's design session (`execution/grill.md` for AI Hero, `execution/brainstorm.md` for Superpowers - *how*). Handoff records who implements it and runs the tool's planning. Stay thin: do not re-plan or restate requirements.
+The change has been through the proposal phase: proposal + spec deltas (OpenSpec, *what*) and the execution tool's design session (`execution/grill.md` for AI Hero, `execution/brainstorm.md` for Superpowers - *how*). Handoff is OpenSpec's last stage: it records who implements the change and how, then hands control to the engineer. Stay thin: do not plan, implement or restate requirements.
 
 **Input**: `<change-id> [implementation-model]`. The tool is not an input any more: it is resolved.
 
@@ -23,8 +23,7 @@ The change has been through the proposal phase: proposal + spec deltas (OpenSpec
    - links to `proposal.md`, every `specs/**/spec.md` delta and the session file - links only
 5. **Lint.** `node .openspec-handoff/scripts/check-handoff.mjs <id>`. Fix every error (tool set and consistent, session file present, ...).
 6. **Commit** (`handoff(<id>): <tool> / <model>`). `base_ref` stays the commit before any implementation.
-7. **Plan.** Run the *Planning* part of the wrapper: `openspec-handoff-ai-hero` (to-spec reading `execution/grill.md`, then to-tickets) or `openspec-handoff-superpowers` (writing-plans reading `execution/brainstorm.md`). It writes `execution/` and `tasks.md`.
-8. **Spec check.** `/spec-check <id>` (`node .openspec-handoff/scripts/spec-check.mjs <id> --write`, then your contradiction review in `execution/spec-check.md`). On GAPS: stop and fix the planning output (or the delta), then re-run. On PASS: commit (`plan(<id>): ...`) and stop. The engineer starts implementation with the `apply_mode` command. `/opsx:apply` is not used.
+7. **Print the next steps and stop.** Run `node .openspec-handoff/scripts/next-steps.mjs <id>` and show its output to the user verbatim. Do **not** run any of them: planning (to-spec + to-tickets, or writing-plans), `/spec-check`, implementation, code review, `/opsx:verify` and `/opsx:archive` are the engineer's, run through the wrapper skill (`openspec-handoff-ai-hero` / `openspec-handoff-superpowers`). There is no OpenSpec tasks stage and `/opsx:apply` is not used.
 
 ## Guardrails
 

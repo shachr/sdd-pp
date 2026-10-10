@@ -12,19 +12,18 @@ openspec/changes/<id>/
   execution/           owned by the execution tool; cites requirements/scenarios by name + link only
     grill.md                     (AI Hero grill-with-docs - proposal phase; front matter tool: ai-hero)
     brainstorm.md                (Superpowers brainstorming - proposal phase, stopped before writing-plans)
-    spec.md, tickets/            (AI Hero to-spec reading grill.md, to-tickets - handoff)
-    plan-<id>.md, progress.md    (Superpowers writing-plans reading brainstorm.md - handoff; SDD ledger summary)
-    spec-check.md                (/spec-check: planning output vs proposal + delta, end of handoff)
+    spec.md, tickets/            (AI Hero to-spec reading grill.md, to-tickets - after handoff; tickets track progress)
+    plan-<id>.md, progress.md    (Superpowers writing-plans reading brainstorm.md - after handoff; plan checkboxes track progress)
+    spec-check.md                (/spec-check: planning output vs proposal + delta, end of planning)
     reviews/code-review.md       (the tool's own code review; reviews/<ts>-<model>.md if /adversarial-review is used)
     verify.md                    (/opsx:verify report, saved before archive)
-  tasks.md             link-only checklist (one box per ticket / plan task) for apply + verify
 ```
 
 Phases: **setup** (pick the execution tool: `install.sh --tool`, project default in `.openspec-handoff/project.json`)
 → **proposal** (the tool's design session writes `execution/grill.md` or `execution/brainstorm.md`; then OpenSpec writes
-proposal.md (what/why) + the delta) → **handoff** (to-spec + to-tickets, or writing-plans; `/spec-check`) → implementation
-with the tool's own command → the tool's code review → `/opsx:verify` → `/opsx:archive`.
-Schema order: **proposal → specs → handoff → tasks**. There is no OpenSpec design artifact, so
+proposal.md (what/why) + the delta) → **handoff** (OpenSpec's last stage: handoff.md + printed next steps) → the engineer follows them: planning (to-spec +
+to-tickets, or writing-plans) → `/spec-check` → the tool's own implement command → the tool's code review → `/opsx:verify` → `/opsx:archive`.
+Schema stages: **proposal → specs → handoff** (no tasks stage: progress is tracked by the tool's tickets / plan checkboxes). There is no OpenSpec design artifact, so
 `/opsx:verify` checks proposal + specs and reports Design Adherence as *Not applicable* (see `docs/decisions.md` C1).
 
 **New here? Start with [docs/getting-started.md](docs/getting-started.md).**
@@ -70,16 +69,16 @@ node .openspec-handoff/scripts/execution-tool.mjs add-greeting-name --set superp
       superpowers: brainstorming -> execution/brainstorm.md, STOPPED after the written design (no writing-plans)
    -> proposal.md (what/why only; lint warns on implementation detail) + delta (scenarios found in the session)
 /handoff add-greeting-name claude-sonnet-4-5
-   -> handoff.md (tool = session's tool, model, apply_mode, base_ref, links), check-handoff, then planning:
-      openspec-handoff-ai-hero:     to-spec (reads grill.md) -> execution/spec.md, to-tickets -> execution/tickets/
-      openspec-handoff-superpowers: writing-plans (reads brainstorm.md) -> execution/plan-<id>.md
-   -> tasks.md (one link per ticket / plan task)
-   -> /spec-check add-greeting-name (automatic; stops on GAPS) -> execution/spec-check.md
+   -> handoff.md (tool = session's tool, model, apply_mode, base_ref, links), check-handoff,
+   -> prints the next steps (next-steps.mjs) and STOPS. The engineer then runs them:
+      ai-hero:     /to-spec (reads grill.md) -> execution/spec.md, /to-tickets -> execution/tickets/
+      superpowers: writing-plans (reads brainstorm.md) -> execution/plan-<id>.md
+/spec-check add-greeting-name             # stops on GAPS -> execution/spec-check.md
 # implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply)
 /implement  |  /implement-spec  |  executing-plans  |  subagent-driven-development
-   -> ticks tasks.md; tool's code review (code-review / requesting-code-review) -> execution/reviews/code-review.md
+   -> ticket Status/checkboxes or plan step checkboxes; tool's code review (fresh context) -> execution/reviews/code-review.md
 /adversarial-review add-greeting-name     # optional: different model, headless, -> execution/reviews/
-openspec validate add-greeting-name --strict && node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name
+openspec validate add-greeting-name --strict && node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name --expect-complete
 /opsx:verify add-greeting-name            # save the report to execution/verify.md
 /opsx:archive add-greeting-name           # agent-driven sync, then move; handoff + execution archive with the change
 ```
@@ -87,7 +86,8 @@ openspec validate add-greeting-name --strict && node .openspec-handoff/scripts/c
 Scripts directly:
 
 ```bash
-node .openspec-handoff/scripts/check-handoff.mjs <id> [--json] [--no-git]
+node .openspec-handoff/scripts/check-handoff.mjs <id> [--json] [--no-git] [--expect-complete]
+node .openspec-handoff/scripts/next-steps.mjs <id>
 node .openspec-handoff/scripts/adversarial-review.mjs <id> [--dry-run] [--emit-prompt] [--json]
      [--reviewer-model <id>] [--runner claude|codex|cursor-agent] [--allow-same-family]
 ```
@@ -125,7 +125,7 @@ before acting on them (the example's `execution/reviews/triage.md` shows a 3B mo
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 63 tests: lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
+npm test               # 68 tests: lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```

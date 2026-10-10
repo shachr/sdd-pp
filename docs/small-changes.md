@@ -69,8 +69,7 @@ Run order: `check-handoff` → `/adversarial-review` → fix → `openspec valid
   `.openspec.yaml`; the deltas are empty and `check-handoff` only warns.
 - **Design**: OpenSpec has no design step. For a trivial change the execution tool's design can be a short
   a short `execution/grill.md` grilling record + a short `execution/spec.md` (AI Hero) or a short `execution/brainstorm.md` + the plan's Architecture line (Superpowers).
-- **One-ticket changes**: `to-tickets` / `writing-plans` with a single ticket/task is fine; `tasks.md`
-  then has one execution checkbox plus the review group.
+- **One-ticket changes**: `to-tickets` / `writing-plans` with a single ticket/task is fine.
 
 ## Project-level reinforcement (optional)
 
@@ -80,6 +79,6 @@ Add rules to `openspec/config.yaml` so every artifact instruction repeats the bu
 rules:
   proposal:
     - Include a Size Budget section; split if over 5 requirements / 8 tickets / 400 changed lines
-  tasks:
-    - One checkbox per execution ticket or plan task; at most 8
+  handoff:
+    - Record the Size Budget; at most 8 tickets / plan tasks
 ```

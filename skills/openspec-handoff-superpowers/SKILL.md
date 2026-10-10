@@ -17,8 +17,9 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 |---|---|---|
 | Proposal | `brainstorming` - **stopped after the written design** | `execution/brainstorm.md` |
 | Proposal | (OpenSpec) proposal.md + delta, informed by the session | `proposal.md`, `specs/**/spec.md` |
-| Handoff | `writing-plans`, reading `execution/brainstorm.md` | `execution/plan-<id>.md` |
-| Handoff | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
+| Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
+| Planning (engineer) | `writing-plans`, reading `execution/brainstorm.md` | `execution/plan-<id>.md` |
+| Planning (engineer) | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
 | Implementation | `using-git-worktrees` as Superpowers recommends | branch `change/<id>` |
 | Implementation | `executing-plans` or `subagent-driven-development` (`apply_mode`) - not `/opsx:apply` | code + tests; `.superpowers/sdd/plan-<id>/` (git-ignored); `execution/progress.md` |
 | Implementation | `requesting-code-review` (final whole-branch review) | `execution/reviews/code-review.md` |
@@ -39,9 +40,9 @@ Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches 
 5. Hand back to OpenSpec: write `proposal.md` (what/why only - decisions stay in `brainstorm.md`) and the delta (every scenario from step 3, `## Purpose` first for a new capability). `openspec validate <id> --strict`. `check-handoff` warns on implementation detail in proposal.md.
 6. Once the delta exists, cite it by name from the written design's goals; the conversation record and playbacks may keep the partner's words (paraphrase warnings on them are expected and advisory).
 
-## Planning (handoff)
+## Planning (after handoff - the engineer's first next steps)
 
-After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must exist): run `writing-plans`, reading `execution/brainstorm.md` as the approved design.
+After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must exist) and printed the next steps: run `writing-plans`, reading `execution/brainstorm.md` as the approved design.
 
 ### writing-plans overrides (`execution/plan-<id>.md`)
 
@@ -55,13 +56,12 @@ After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must 
 
 ### Then
 
-1. `openspec instructions tasks --change "<id>"` -> `tasks.md`: one checkbox per plan task linking `execution/plan-<id>.md#task-n-<slug>`, plus the review group.
-2. `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors, read warnings.
-3. `/spec-check <id>`; stop on GAPS. Planning ends here.
+1. `node .openspec-handoff/scripts/check-handoff.mjs <id>`; fix errors, read warnings.
+2. `/spec-check <id>`; stop on GAPS. Planning ends here. There is no `tasks.md`: the plan's step checkboxes are the tracker.
 
 ## Implementation (the engineer runs `executing-plans` / `subagent-driven-development`)
 
-1. Execute with the `apply_mode` skill. Task done: tick its `tasks.md` box in the same commit.
-2. Final whole-branch review with `requesting-code-review` -> `execution/reviews/code-review.md`. Dispatch the reviewer as a **fresh subagent** from `code-reviewer.md`. Without a subagent tool, run the filled `code-reviewer.md` in another fresh context (a new session or a local model); if neither is possible, write "self-review" at the top. Fix Critical/Important; tick 2.1.
-3. Before deleting the SDD workspace, write `execution/progress.md` (source-of-truth line, ledger lines). `openspec validate <id> --strict` (2.2); `check-handoff` (2.3).
+1. Execute with the `apply_mode` skill. Tick each plan step checkbox (`- [x]`) as it is done, committed with the task (that is the progress `check-handoff` reads).
+2. Final whole-branch review with `requesting-code-review` -> `execution/reviews/code-review.md`. Dispatch the reviewer as a **fresh subagent** from `code-reviewer.md`. Without a subagent tool, run the filled `code-reviewer.md` in another fresh context (a new session or a local model); if neither is possible, write "self-review" at the top. Fix Critical/Important.
+3. Before deleting the SDD workspace, write `execution/progress.md` (source-of-truth line, ledger lines). `openspec validate <id> --strict`; `check-handoff <id> --expect-complete` (fails while a plan step is unticked).
 4. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `finishing-a-development-branch`, then `/opsx:archive <id>` as written.

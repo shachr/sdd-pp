@@ -22,7 +22,7 @@ Made autonomously while the user was unavailable. Each is cheap to change; the f
 
 ## Workflow
 
-- `tasks.md` comes *after* the execution tool's breakdown and only links to it (decisions G2/G3).
+- There is no `tasks.md` (v4, decisions §9): progress is the execution tool's own tracking (AI Hero ticket `Status:` + checkboxes, Superpowers plan step checkboxes), read by `check-handoff --expect-complete`.
 - There is no OpenSpec `design.md` (v2, decisions C1, D1): design is the execution tool's (v3: the design session file `execution/grill.md` / `execution/brainstorm.md`, then `execution/spec.md` + tickets or the plan).
 - Whether an agent following to-spec / brainstorming keeps their user-facing sections reference-only depends on it honouring `docs/agents/issue-tracker.md` and the wrapper; the lint only warns.
 - `planningHome.defaultSchema` / the `openspec new change` spinner always says `spec-driven` (hard-coded in OpenSpec 1.14.1); the change itself gets `handoff-driven` from `openspec/config.yaml`.
@@ -54,9 +54,7 @@ Made autonomously while the user was unavailable. Each is cheap to change; the f
   checks; standalone projects usually omit it.
 - Symlinks in `example/` (schema, scripts, config) point into the toolkit so there's one copy; tests copy the
   example with symlinks dereferenced.
-- In the example change, `tasks.md` items 2.1 (adversarial review) and 2.2 (`/opsx:verify`) are deliberately
-  left unticked: only the review *prompt* was emitted (no reviewer CLI here), and `/opsx:verify` is an agent
-  workflow that wasn't run. `openspec validate --strict` and `check-handoff` do pass.
+- The example change's `execution/reviews/code-review.md` is illustrative (no review was run for the example); `openspec validate --strict` and `check-handoff --expect-complete` pass.
 
 ## Free local reviewer (Ollama)
 

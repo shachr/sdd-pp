@@ -114,7 +114,7 @@ export function buildPlan(change, config, opts = {}) {
 function inlineContext(change, changeRel, h, diffPaths) {
   // design is the execution tool's: session file + to-spec output (ai-hero) or session file + plan (superpowers)
   const design = change.execution.filter((f) => ['execution/grill.md', 'execution/brainstorm.md', 'execution/spec.md'].includes(f) || /^execution\/plan(-[^/]+)?\.md$/.test(f));
-  const files = ['proposal.md', ...change.deltas, ...design, 'tasks.md'].filter((f) => change.read(f) !== null);
+  const files = ['proposal.md', ...change.deltas, ...design].filter((f) => change.read(f) !== null);
   let diff;
   try {
     diff = git(change.root, ['diff', h.base_ref, '--', ...(diffPaths.length ? diffPaths : ['.']), ...TOOLING_EXCLUDES, ':(exclude)openspec/**']).trim();

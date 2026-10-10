@@ -20,10 +20,11 @@ import {
   findProjectRoot, loadChange, loadConfig, normativeLines, normalize, countRequirements,
   countWorkUnits, diffSize, git, TOOLS, REQUIRED_KEYS, UsageError,
   paraphraseFindings, PARAPHRASE, restatingSections, findPlan, requirementLinkFindings, APPLY_MODES,
-  resolveTool, SESSION_FILES, proposalLeaks, newCapabilityDeltas,
+  resolveTool, SESSION_FILES, proposalLeaks, newCapabilityDeltas, executionProgress,
 } from './lib/change.mjs';
 
-export function checkChange(change, config, { useGit = true } = {}) {
+export function checkChange(change, config, opts = {}) {
+  const { useGit = true } = opts;
   const errors = [];
   const warnings = [];
   const metrics = {};
@@ -140,13 +141,18 @@ export function checkChange(change, config, { useGit = true } = {}) {
     }),
   ].filter((p) => fs.existsSync(p));
   for (const s of strays) errors.push(`execution output outside the change folder: ${path.relative(change.root, s)} - move it under openspec/changes/${change.id}/execution/`);
-  if (h.tool === 'ai-hero' && !change.execution.some((f) => f.startsWith('execution/tickets/')) && change.execution.length) {
-    warnings.push('tool is ai-hero but execution/tickets/ is empty (to-tickets output expected there)');
-  }
-  if (h.tool === 'superpowers' && change.execution.length) {
+  if (h.tool === 'superpowers') {
     const plan = findPlan(change);
-    if (!plan) warnings.push(`tool is superpowers but execution/plan-${change.id}.md is missing (writing-plans output expected there)`);
-    else if (plan !== `execution/plan-${change.id}.md`) warnings.push(`${plan}: name the plan execution/plan-${change.id}.md so its SDD workspace (.superpowers/sdd/<plan-basename>/) is unique to this change`);
+    if (plan && plan !== `execution/plan-${change.id}.md`) warnings.push(`${plan}: name the plan execution/plan-${change.id}.md so its SDD workspace (.superpowers/sdd/<plan-basename>/) is unique to this change`);
+  }
+
+  // 5b. progress: the execution tool's own tracking (no OpenSpec tasks.md). Planning
+  // happens after /handoff, so "not planned yet" is normal - unless --expect-complete.
+  const prog = executionProgress(change, h.tool);
+  metrics.progress = prog ? `${prog.done}/${prog.total} ${prog.kind} done (${prog.boxes.done}/${prog.boxes.total} checkboxes)` : 'not planned yet';
+  if (opts.expectComplete) {
+    if (!prog) errors.push(`--expect-complete: no ${h.tool === 'ai-hero' ? 'tickets in execution/tickets/' : `plan in execution/plan-${change.id}.md`} - planning has not run`);
+    else if (prog.open.length) errors.push(`--expect-complete: ${prog.open.length} ${prog.kind} not done: ${prog.open.join('; ')}${h.tool === 'ai-hero' ? ' (set "Status: done" and tick every checkbox)' : ' (tick every step checkbox)'}`);
   }
 
   // 6. PR-sized
@@ -179,17 +185,17 @@ export function checkChange(change, config, { useGit = true } = {}) {
 async function main() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { root: { type: 'string' }, config: { type: 'string' }, json: { type: 'boolean' }, 'no-git': { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
+    options: { root: { type: 'string' }, config: { type: 'string' }, json: { type: 'boolean' }, 'no-git': { type: 'boolean' }, 'expect-complete': { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
   });
   if (values.help || positionals.length !== 1) {
-    console.log('usage: check-handoff <change-id> [--root <dir>] [--config <file>] [--json] [--no-git]');
+    console.log('usage: check-handoff <change-id> [--root <dir>] [--config <file>] [--json] [--no-git] [--expect-complete]');
     return values.help ? 0 : 2;
   }
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
   if (!root) throw new UsageError('no openspec/changes directory found above the current directory (use --root)');
   const config = loadConfig(root, values.config);
   const change = loadChange(root, positionals[0]);
-  const result = checkChange(change, config, { useGit: !values['no-git'] });
+  const result = checkChange(change, config, { useGit: !values['no-git'], expectComplete: values['expect-complete'] });
   if (values.json) console.log(JSON.stringify({ change: change.id, ...result }, null, 2));
   else {
     console.log(`check-handoff ${change.id}: ${result.errors.length} error(s), ${result.warnings.length} warning(s)`);

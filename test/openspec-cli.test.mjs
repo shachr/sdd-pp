@@ -25,24 +25,36 @@ test('openspec validate --strict passes for the example change', { skip: !haveCl
   assert.match(r.out, /is valid/);
 });
 
-test('openspec status walks proposal → specs → handoff → tasks (no design artifact)', { skip: !haveCli }, () => {
+test('openspec status walks proposal → specs → handoff (no design, no tasks artifact)', { skip: !haveCli }, () => {
   const { dir } = makeFixture();
   const r = os(['status', '--change', CHANGE, '--json'], dir);
   assert.equal(r.code, 0, r.out);
   const json = JSON.parse(r.out);
   assert.equal(json.schemaName, 'handoff-driven');
-  assert.deepEqual(json.artifacts.map((a) => a.id), ['proposal', 'specs', 'handoff', 'tasks']);
+  assert.deepEqual(json.artifacts.map((a) => a.id), ['proposal', 'specs', 'handoff']);
+  assert.equal(json.isComplete, true);
+  assert.deepEqual(json.applyRequires, ['handoff']);
 });
 
-test('handoff is ready right after specs, and tasks is blocked until handoff exists', { skip: !haveCli }, () => {
+test('handoff is ready right after specs and is the last stage', { skip: !haveCli }, () => {
   const { dir, changeDir } = makeFixture({ keepExecution: false });
   fs.rmSync(`${changeDir}/handoff.md`);
-  fs.rmSync(`${changeDir}/tasks.md`);
   const json = JSON.parse(os(['status', '--change', CHANGE, '--json'], dir).out);
   const byId = Object.fromEntries(json.artifacts.map((a) => [a.id, a]));
   assert.equal(byId.handoff.status, 'ready');
-  assert.equal(byId.tasks.status, 'blocked');
-  assert.deepEqual(byId.tasks.missingDeps, ['handoff']);
+  assert.equal(json.isComplete, false);
+});
+
+test('openspec instructions apply: no task tracking, points at the tool via next-steps', { skip: !haveCli }, () => {
+  const { dir } = makeFixture();
+  const json = JSON.parse(os(['instructions', 'apply', '--change', CHANGE, '--json'], dir).out);
+  assert.equal(json.taskTrackingConfigured, false);
+  assert.deepEqual(json.progress, { total: 0, complete: 0, remaining: 0 });
+  assert.equal(json.state, 'ready');
+  assert.match(json.instruction, /does not implement through \/opsx:apply/);
+  assert.match(json.instruction, /next-steps\.mjs/);
+  const list = JSON.parse(os(['list', '--json'], dir).out);
+  assert.equal(list.changes.find((c) => c.name === CHANGE).status, 'no-tasks');
 });
 
 test('openspec instructions handoff carries the reference-not-duplicate rules', { skip: !haveCli }, () => {

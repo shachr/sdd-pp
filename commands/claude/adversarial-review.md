@@ -15,4 +15,4 @@ Arguments: $ARGUMENTS
 3. If the user passed `--dry-run`, stop here.
 4. Run for real (same command without `--dry-run`). The script launches the reviewer CLI headlessly with the reviewer model and writes `openspec/changes/<id>/execution/reviews/<timestamp>-<model>.md`, then links it under `## Reviews` in `handoff.md`.
    - If the runner binary is missing, re-run with `--emit-prompt`, and tell the user to paste the prompt file into a session running the reviewer model (for Cursor: switch the model picker, then paste) and save the answer at the printed path.
-5. Read the review file and summarise: verdict, then Critical and Important findings with file:line. Do not fix anything in this command; the implementer (original model) addresses findings, then ticks the review task in `tasks.md`.
+5. Read the review file and summarise: verdict, then Critical and Important findings with file:line. Do not fix anything in this command; the implementer (original model) addresses findings.

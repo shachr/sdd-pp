@@ -32,4 +32,4 @@ Read the file at the referenced path under `openspec/changes/<change-id>/executi
 
 ## Closing work
 
-A ticket is resolved by setting `Status: done` and ticking its line in `openspec/changes/<change-id>/tasks.md` in the same commit.
+A ticket is resolved by setting `Status: done` and ticking its checkboxes in the same commit (there is no OpenSpec tasks.md; `check-handoff --expect-complete` reads the tickets).

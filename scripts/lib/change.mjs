@@ -456,3 +456,40 @@ export function proposalLeaks(md) {
   });
   return out;
 }
+
+/**
+ * Implementation progress from the execution tool's own tracking (there is no OpenSpec tasks.md):
+ * ai-hero tickets: `Status: done` (AI Hero's local ticket template) + ticket checkboxes;
+ * superpowers plan: `- [x]` step checkboxes under each `### Task N:` (a task is done when all its steps are ticked).
+ * Returns { kind, done, total, boxes: {done, total}, open: [names] } or null when nothing is planned yet.
+ */
+export function executionProgress(change, tool) {
+  const boxes = (text) => ({ done: (text.match(/^\s*- \[[xX]\]/gm) || []).length, total: (text.match(/^\s*- \[[ xX]\]/gm) || []).length });
+  if (tool === 'ai-hero') {
+    const files = change.execution.filter((f) => /^execution\/tickets\/[^/]+\.md$/.test(f)).sort();
+    if (!files.length) return null;
+    const open = []; const b = { done: 0, total: 0 };
+    for (const f of files) {
+      const t = change.read(f);
+      const bx = boxes(t); b.done += bx.done; b.total += bx.total;
+      const status = (t.match(/^\**Status:?\**:?\s*(.+)$/mi) || [])[1]?.trim().toLowerCase() || '';
+      if (!/^done\b/.test(status) || bx.done < bx.total) open.push(path.basename(f));
+    }
+    return { kind: 'tickets', done: files.length - open.length, total: files.length, boxes: b, open };
+  }
+  if (tool === 'superpowers') {
+    const pf = findPlan(change);
+    if (!pf) return null;
+    const plan = change.read(pf);
+    const parts = plan.split(/^(?=###\s+Task\s+\d+)/m).filter((p) => /^###\s+Task\s+\d+/.test(p));
+    if (!parts.length) return null;
+    const open = []; const b = { done: 0, total: 0 };
+    for (const p of parts) {
+      const body = p.split(/^##\s/m)[0];
+      const bx = boxes(body); b.done += bx.done; b.total += bx.total;
+      if (bx.total === 0 || bx.done < bx.total) open.push(p.split('\n')[0].replace(/^###\s+/, '').trim());
+    }
+    return { kind: 'plan tasks', done: parts.length - open.length, total: parts.length, boxes: b, open };
+  }
+  return null;
+}

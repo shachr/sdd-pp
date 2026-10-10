@@ -93,7 +93,8 @@ Done. Next:
                                                         #   ai-hero -> grill-with-docs -> execution/grill.md
                                                         #   superpowers -> brainstorming -> execution/brainstorm.md (stops before writing-plans)
   node .openspec-handoff/scripts/execution-tool.mjs <id> --set superpowers   # per-change override, before the session
-  /handoff <id> <model>                                 # to-spec + to-tickets, or writing-plans; ends with /spec-check
+  /handoff <id> <model>                                 # last OpenSpec stage: handoff.md + prints the next steps
+  node .openspec-handoff/scripts/next-steps.mjs <id>    # reprint them: planning, /spec-check, implement, review, verify, archive
   /adversarial-review <id> --dry-run                    # optional; the default review is the tool's own code review
 Also install the execution toolkits themselves (not bundled):
   AI Hero:     https://github.com/mattpocock/skills  (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)

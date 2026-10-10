@@ -47,7 +47,6 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
   copy('execution/grill.md');
   copy('proposal.md'); copy('specs');
   assert.equal(status().handoff, 'ready');
-  assert.equal(status().tasks, 'blocked');
   assert.equal(status().design, undefined, 'no OpenSpec design artifact');
 
   // handoff
@@ -57,18 +56,17 @@ test('full handoff flow in a fresh project with the real OpenSpec CLI', { skip: 
     .replace(/\n## Reviews[\s\S]*$/, '\n');
   fs.writeFileSync(path.join(changeDir, 'handoff.md'), handoff);
   sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID]);
-  assert.equal(status().tasks, 'ready');
+  assert.match(sh(process.execPath, ['.openspec-handoff/scripts/next-steps.mjs', ID]), /1\. \/to-spec[\s\S]*\/spec-check[\s\S]*\/opsx:archive/);
 
   // execution planning (AI Hero grill-with-docs + to-tickets, redirected into the change folder) + implementation
   copy('execution/spec.md'); copy('execution/tickets');
-  copy('tasks.md');
   for (const p of ['src/greet.mjs', 'src/cli.mjs', 'test/greet.test.mjs', 'test/cli.test.mjs']) {
     fs.copyFileSync(path.join(TOOLKIT, 'example', p), path.join(dir, p));
   }
   sh(process.execPath, ['--test', 'test/']);
   g('add', '-A'); g('commit', '-qm', 'implement add-greeting-name');
   assert.ok(Object.values(status()).every((s) => s === 'done'));
-  const lint = JSON.parse(sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID, '--json']));
+  const lint = JSON.parse(sh(process.execPath, ['.openspec-handoff/scripts/check-handoff.mjs', ID, '--json', '--expect-complete']));
   assert.deepEqual(lint.errors, []);
   assert.equal(lint.metrics.tickets, 2);
   assert.ok(lint.metrics.lines > 0 && lint.metrics.lines < 400);
