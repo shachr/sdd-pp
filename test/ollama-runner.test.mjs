@@ -33,15 +33,16 @@ test('parseVerdict only accepts a committed verdict', () => {
   assert.equal(parseVerdict('## Verdict\n\nREQUEST_CHANGES - broken'), 'REQUEST_CHANGES');
 });
 
-test('runners/ollama.mjs posts the stdin prompt to the Ollama API and prints the response', async () => {
+test('runners/ollama.mjs posts the stdin prompt to the Ollama API and prints the streamed response', async () => {
   let seen;
   const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', (d) => { body += d; });
     req.on('end', () => {
       seen = { url: req.url, ...JSON.parse(body) };
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ response: '## Verdict\nAPPROVE - ok', prompt_eval_count: 12, eval_count: 5, done: true }));
+      res.setHeader('content-type', 'application/x-ndjson');
+      res.write(JSON.stringify({ response: '## Verdict\n', done: false }) + '\n');
+      res.end(JSON.stringify({ response: 'APPROVE - ok', prompt_eval_count: 12, eval_count: 5, done: true }) + '\n');
     });
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -58,7 +59,7 @@ test('runners/ollama.mjs posts the stdin prompt to the Ollama API and prints the
   assert.equal(seen.url, '/api/generate');
   assert.equal(seen.model, 'qwen2.5-coder:3b');
   assert.equal(seen.prompt, 'review this');
-  assert.equal(seen.stream, false);
+  assert.equal(seen.stream, true); // streaming avoids undici's 300 s headersTimeout on slow CPU reviews
   assert.match(out, /^## Verdict\nAPPROVE - ok/);
 });
 
