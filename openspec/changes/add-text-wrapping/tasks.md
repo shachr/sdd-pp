@@ -8,9 +8,9 @@
 
 ## 2. Review and verification
 
-- [ ] 2.1 Run /adversarial-review add-text-wrapping and resolve Critical/Important findings - verify: review file exists in execution/reviews/
-- [ ] 2.2 Run `openspec validate add-text-wrapping --strict` - verify: exit 0
-- [ ] 2.3 Run `node .openspec-handoff/scripts/check-handoff.mjs add-text-wrapping` - verify: exit 0
+- [x] 2.1 Run /adversarial-review add-text-wrapping and resolve Critical/Important findings - verify: review file exists in execution/reviews/
+- [x] 2.2 Run `openspec validate add-text-wrapping --strict` - verify: exit 0
+- [x] 2.3 Run `node .openspec-handoff/scripts/check-handoff.mjs add-text-wrapping` - verify: exit 0
 
 ## Workflow follow-up
 

@@ -39,3 +39,8 @@ Implementation diff: `git diff 7f9392d...HEAD -- . ':!openspec'`
 ## Notes for the implementer
 
 - reviewer_model is the local Ollama model (qwen family, different from grok-bot) so the review stays free and local.
+
+## Reviews
+
+- qwen3:4b-instruct via code-review: [execution/reviews/20261009-235446-qwen3-4b-instruct.md](execution/reviews/20261009-235446-qwen3-4b-instruct.md)
+- qwen3:4b-instruct via code-review: [execution/reviews/20261010-000236-qwen3-4b-instruct.md](execution/reviews/20261010-000236-qwen3-4b-instruct.md)
