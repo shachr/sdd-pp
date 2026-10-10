@@ -36,3 +36,7 @@ reviewer_model: qwen3:4b-instruct
 
 - Execution method: executing-plans (native, in this session). No sub-agent tool is available to this agent, so subagent-driven-development cannot run as written.
 - reviewer_model is pinned to the local Ollama model (qwen family) so the review stays free and local; it differs from grok-bot.
+
+## Reviews
+
+- qwen3:4b-instruct via requesting-code-review: [execution/reviews/20261009-231952-qwen3-4b-instruct.md](execution/reviews/20261009-231952-qwen3-4b-instruct.md)
