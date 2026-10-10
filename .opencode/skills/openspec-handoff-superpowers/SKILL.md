@@ -37,6 +37,7 @@ Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches 
    - Approval (HARD-GATE): the user's, or yours on their behalf if delegated (say so).
 4. **STOP brainstorming here.** Its terminal step says "invoke writing-plans". In this workflow that step is deferred to `/handoff`: do **not** invoke writing-plans, do not write a plan, and do not start implementation. Write at the end of `brainstorm.md`: `Next: OpenSpec proposal + specs; writing-plans runs at /handoff.`
 5. Hand back to OpenSpec: write `proposal.md` (what/why only - decisions stay in `brainstorm.md`) and the delta (every scenario from step 3, `## Purpose` first for a new capability). `openspec validate <id> --strict`. `check-handoff` warns on implementation detail in proposal.md.
+6. Once the delta exists, cite it by name from the written design's goals; the conversation record and playbacks may keep the partner's words (paraphrase warnings on them are expected and advisory).
 
 ## Planning (handoff)
 
