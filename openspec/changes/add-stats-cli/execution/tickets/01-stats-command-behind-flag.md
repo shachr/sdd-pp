@@ -2,7 +2,7 @@
 
 # 01 - stats command behind the flag
 
-Status: ready-for-agent
+Status: done
 Estimate: ~80 lines
 
 ## What to build
@@ -17,6 +17,6 @@ None - can start immediately.
 
 Scenarios of the [delta](../../specs/stats-cli/spec.md), by name:
 
-- [ ] Scenario "Stats summary" passes
-- [ ] Scenario "Flag off" passes
-- [ ] Scenario "Flag on" passes
+- [x] Scenario "Stats summary" passes
+- [x] Scenario "Flag off" passes
+- [x] Scenario "Flag on" passes

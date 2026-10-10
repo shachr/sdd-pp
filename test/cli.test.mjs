@@ -1,19 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { run } from '../src/cli.mjs';
-
-/** Run the CLI core with fake streams; returns { code, out, err }. */
-export function cli(argv, { stdin = '', env = {} } = {}) {
-  let out = ''; let err = '';
-  const code = run(argv, {
-    stdout: { write: (s) => { out += s; } },
-    stderr: { write: (s) => { err += s; } },
-    readStdin: () => stdin,
-    env,
-  });
-  return { code, out, err };
-}
+import { cli } from './cli-io.mjs';
 
 test('Slugify argument', () => assert.deepEqual(cli(['slugify', 'Hello World!']), { code: 0, out: 'hello-world\n', err: '' }));
 test('Slugify from stdin', () => assert.deepEqual(cli(['slugify'], { stdin: 'Café au lait\n' }), { code: 0, out: 'cafe-au-lait\n', err: '' }));
