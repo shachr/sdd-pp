@@ -83,9 +83,9 @@ export function checkChange(change, config, opts = {}) {
   if (change.deltas.length === 0) warnings.push('change has no spec deltas (fine only with skip_specs: true)');
 
   // 3. reference, don't duplicate: copied, restated or paraphrased requirement text.
-  //    Review outputs (execution/reviews/**, execution/verify.md, *.prompt.md) discuss the
+  //    Review outputs (execution/reviews/**, execution/verify.md, the /spec-check and /split-check reports, *.prompt.md) discuss the
   //    requirements by design and are exempt.
-  const exempt = (f) => f.startsWith('execution/reviews/') || f === 'execution/verify.md' || f.endsWith('.prompt.md');
+  const exempt = (f) => f.startsWith('execution/reviews/') || ['execution/verify.md', 'execution/spec-check.md', 'execution/split-check.md'].includes(f) || f.endsWith('.prompt.md');
   const protectedLines = new Map();
   for (const d of change.deltas) for (const l of normativeLines(change.read(d))) protectedLines.set(l, d);
   const targets = [['handoff.md', change.handoffText], ...change.execution.filter((f) => f.endsWith('.md') && !exempt(f)).map((f) => [f, change.read(f)])];
