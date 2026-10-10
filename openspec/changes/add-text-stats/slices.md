@@ -27,5 +27,5 @@ Archive this parent last: `split.mjs loss add-text-stats --final`, then `openspe
 - capabilities: stats-cli
 - depends_on: add-text-stats-core
 - flag: none
-- ticket: none
+- ticket: tickets/add-stats-cli.md
 - status: planned
