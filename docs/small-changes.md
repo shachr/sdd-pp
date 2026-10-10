@@ -82,8 +82,8 @@ approves or edits them. Nothing is split automatically.
    names) for READY slices.
 7. **Slices** - a slice is READY when all its `depends_on` are done; **done = the child's archived folder is
    on main**. Two slices are **parallel-safe** only when neither depends on the other (transitively) and
-   they share no capability. To take a slice: `/split-mark <parent> <slice> in-progress`, committed on
-   main - **in progress is a manual mark**; the next report trusts it and does not scan branches. Then a
+   they share no capability. To take a slice: `/split-start <slice>` (finds the parent, refuses unless READY;
+   `--undo` releases it), committed on main - **in progress is a manual mark**; the next report trusts it and does not scan branches. Then a
    branch from main, a short design session narrowed to the slice (reading the parent's
    `execution/grill.md` / `brainstorm.md`), `/handoff <slice>`, and the usual flow. `/opsx:archive <slice>`
    runs on the slice branch and the archive is **committed in the slice's own PR with its code**; after the
@@ -96,7 +96,7 @@ approves or edits them. Nothing is split automatically.
 Changing the plan later: edit the child delta, add the split note to that child's proposal, rerun
 `split.mjs loss <parent>`, then the one order: edit the delta -> `openspec validate <id> --strict` -> `/spec-check <id>` (its "Spec changes since the last check" section lists what changed since the last accepted PASS and the tickets / tasks citing it; the list stays on every run until a PASS is accepted) -> re-plan ONLY the open units it names (done units are never touched; a change affecting done work becomes a new ticket / task; the planning output notes `superseded by delta edit: <reason>`, the design session file stays as-is) -> `/spec-check` until PASS, which it accepts (`--accept`); commit `execution/.spec-check.json` with the planning files. (`git diff HEAD` shows a done ticket that was overwritten.)
 
-`sdd-pp init` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `mark`
+`sdd-pp init` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `/split-start`
 commits); `split.mjs loss` warns if a union merge left a slice field twice.
 
 **Re-split**: run `/split-check <slice>` on a slice that turns out too big (more requirements, or over the

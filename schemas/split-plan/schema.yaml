@@ -35,7 +35,7 @@ artifacts:
       - Each slice: id (= child change name), goal, capabilities, depends_on, flag (only when the
         slice gates user-visible behaviour), removes_flag (cleanup slice, always planned when a
         flag exists), ticket, status (planned | in-progress - the engineer's mark,
-        `/split-mark <parent> <slice> in-progress`). Done = the child's archived folder is on main.
+        `/split-start <slice>`). Done = the child's archived folder is on main.
       - Deliberate differences from the original (dropped, added, renamed_from, split_from) are
         "## Split notes" lines in the CHILD's proposal.md, never here.
       - Re-split a slice with the same gate (/split-check <slice>): new slices join this parent
@@ -52,7 +52,7 @@ apply:
     /opsx:verify on it). Work happens in the child changes:
     `/split-next <parent>` lists READY slices (all depends_on
     done) and parallel-safe pairs (no dependency, no shared capability). Each engineer marks the
-    slice in-progress (`/split-mark <parent> <slice> in-progress`), branches from main, runs the slice's short design session (reading the
+    slice in-progress (`/split-start <slice>`, committed on main), branches from main, runs the slice's short design session (reading the
     parent's execution/ session file), /handoff <slice>, and follows the printed next steps; the
     slice's archive is committed in its own PR with its code. When every slice is done:
     `/split-archive <parent>` (final loss check, then `openspec archive <parent> --skip-specs -y`).

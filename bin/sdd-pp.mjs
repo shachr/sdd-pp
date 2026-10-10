@@ -57,7 +57,7 @@ export const USAGE = `Usage: sdd-pp init [dir] [options]      install into <dir>
          tool <id> [--set <tool>]        show / set the change's execution tool (tool --default <tool>: project default)
          split apply <id>                apply the approved split proposal (slice ids <parent>-<nn>-<slice>)
          split next <parent>             ready / parallel-safe slices + tickets for READY slices
-         split mark <parent> <slice> <in-progress|planned>
+         split start <slice> [--undo]    take a READY slice (marks it in-progress, prints the next lines)
          split loss <parent> [--final]   loss check
          split archive <parent>          final loss check + openspec archive <parent> --skip-specs -y
        sdd-pp --help | --version
@@ -125,7 +125,7 @@ export function init(dir, opts = {}, log = console.log) {
     for (const s of fs.readdirSync(S('skills'))) put(S('skills', s), T(`.${h}`, 'skills', s), root, log);
     for (const c of fs.readdirSync(S('commands', h)).filter((f) => f.endsWith('.md'))) put(S('commands', h, c), T(`.${h}`, 'commands', c), root, log);
     // retired commands (decisions section 16): remove the copy an earlier install left
-    for (const c of ['check-handoff.md']) {
+    for (const c of ['check-handoff.md', 'split-mark.md']) {
       const f = T(`.${h}`, 'commands', c);
       if (fs.existsSync(f)) { fs.rmSync(f); log(`  ${rel(root, f)} (removed: retired)`); }
     }
@@ -184,7 +184,7 @@ Done. Next (agent slash commands; the same checks run from a shell as \`npx <too
   /handoff <id>                      last OpenSpec stage: handoff.md + prints the next steps (/next-steps <id> reprints them)
   ... planning, /spec-check <id>, implement (the tool's own completion), code review (as the next steps say)
   /opsx:verify <id> (save to execution/verify.md), /opsx:archive <id>
-  Split changes: /split-apply <id>, /split-next <parent>, /split-mark <parent> <slice> in-progress, /split-archive <parent>
+  Split changes: /split-apply <id>, /split-next <parent>, /split-start <slice>, /split-archive <parent>
 Also install the execution toolkits themselves (not bundled; <agent> = your coding agent, e.g. claude-code, cursor, opencode):
   AI Hero:     npx skills add mattpocock/skills -a <agent>   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
   Superpowers: npx skills add obra/superpowers -a <agent>    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)`);

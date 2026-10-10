@@ -54,7 +54,7 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 | `schemas/split-plan/` | Parent of a split change: proposal → slices (no specs; OpenSpec sets `skip_specs: true`; archived last with `--skip-specs`) |
 | `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/split-check.md` | `/split-check <id>`: split gate at the end of the specs stage (counts requirements and capabilities, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children named `<parent>-<nn>-<slice>`, cleanup slice `99`, re-split into the same parent continues the numbering; records `split_commit`), `loss` (exactly-once vs the original deltas at `split_commit` via git show, split notes, rename candidates, `--final` against main specs), `next` (ready / in progress / parallel-safe slices, tickets), `mark` (in-progress status) |
 | `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + agent review for missing / invented / contradicted behaviour and restated text (advisory); the agent sets PASS / GAPS. Also reports spec changes since the last accepted PASS (hash per requirement / scenario in `execution/.spec-check.json`, moved only by `--accept` after PASS) with the units citing each - report-only. The only plan-vs-spec check; writes `execution/spec-check.md` |
-| `scripts/sdd.mjs` + `commands/*/{next-steps,tool,split-apply,split-next,split-mark,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|mark\|loss\|archive` (archive = final loss check + `openspec archive --skip-specs -y`). The agent slash commands and the `sdd-pp` CLI subcommands both call it |
+| `scripts/sdd.mjs` + `commands/*/{next-steps,tool,split-apply,split-next,split-start,split-archive}.md` + `sdd-pp <command>` | One entry point that only runs the scripts: `next`, `tool`, `spec-check`, `split-check`, `split apply\|next\|start\|loss\|archive` (start = take a READY slice: finds the parent, marks it in-progress, prints the next lines; archive = final loss check + `openspec archive --skip-specs -y`). The agent slash commands and the `sdd-pp` CLI subcommands both call it |
 | `scripts/execution-tool.mjs` | Setup phase: `--default <tool>` (project), `<id> --set <tool>` (per-change override; starts the session file), `<id>` (resolve: handoff.md > session front matter > project default). Refuses a switch once a session exists (`docs/switching-tools.md`) |
 | `skills/openspec-handoff*/SKILL.md` | `openspec-handoff` (writes handoff.md, routes), `-ai-hero`, `-superpowers` wrappers - story 2 |
 | `commands/{claude,cursor}/handoff.md` | `/handoff` - story 2 |
@@ -112,7 +112,7 @@ Install the execution toolkits themselves from [mattpocock/skills](https://githu
    -> proposal.md (what/why only) + delta (scenarios found in the session)
 /split-check add-greeting-name           # split gate, end of the specs stage (automatic): "fits", or > 5 requirements / > 2 capabilities
    -> slices proposed (execution/split-proposal.md) -> engineer approves -> commit deltas -> /split-apply -> parent + children <parent>-<nn>-<slice>
-   -> loss check PASS -> one planning PR -> /split-next <parent> -> per slice: /split-mark, branch, design session, /handoff <slice>
+   -> loss check PASS -> one planning PR -> /split-next <parent> -> per slice: /split-start <slice> (commit the mark), branch, design session, /handoff <slice>
    -> all slices archived -> /split-archive <parent>
 /handoff add-greeting-name
    -> handoff.md (tool = per-change override or project default, apply_mode, base_ref, links),
@@ -136,13 +136,14 @@ npx github:shachr/sdd-pp next <id>                   # = /next-steps <id>
 npx github:shachr/sdd-pp tool <id> [--set <tool>]    # = /tool <id>
 npx github:shachr/sdd-pp spec-check <id>             # mechanical part of /spec-check
 npx github:shachr/sdd-pp split-check <id>            # counts part of /split-check
-npx github:shachr/sdd-pp split apply|next|mark|loss|archive ...   # = /split-apply, /split-next, /split-mark, /split-archive
+npx github:shachr/sdd-pp split apply|next|loss|archive ...   # = /split-apply, /split-next, /split-archive
+npx github:shachr/sdd-pp split start <slice> [--undo]     # = /split-start <slice>
 ```
 
 Under the hood (agent commands and CLI both run `.openspec-handoff/scripts/sdd.mjs`):
 `next` = `next-steps.mjs`;
 `tool` = `execution-tool.mjs`; `spec-check` / `split-check` = `spec-check.mjs` / `split-check.mjs` with `--write`;
-`split apply|mark|loss` = `split.mjs apply|mark|loss`; `split next` = `split.mjs next --write-tickets`;
+`split apply|start|loss` = `split.mjs apply|start|loss`; `split next` = `split.mjs next --write-tickets`;
 `split archive` = `split.mjs loss <parent> --final` + `openspec archive <parent> --skip-specs -y`.
 The scripts still take `--root` / `--json` when run directly. See `docs/getting-started.md` (Commands).
 

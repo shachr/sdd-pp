@@ -10,13 +10,14 @@
 //                                --final: also vs the main specs, before the parent is archived
 //   next  <parent>               ready / parallel-safe report; --write-tickets writes tickets/<slice>.md
 //                                (Jira-pasteable) for READY slices into the parent
-//   mark  <parent> <slice> <in-progress|planned>   the engineer's status mark in slices.md
+//   start <slice> [--undo]       take a READY slice: finds its parent, marks it in-progress in slices.md and
+//                                prints the next lines; --undo sets it back to planned
 // Options: --root <dir> --json
 // Exit: 0 ok, 1 findings (loss) / refused (apply), 2 usage error.
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { findProjectRoot, git, UsageError } from './lib/change.mjs';
+import { findProjectRoot, git, loadChange, resolveTool, SESSION_FILES, SESSION_SKILLS, UsageError } from './lib/change.mjs';
 import {
   baselineDeltas, changeDeltas, dependencyClosure, changeLocation, findParentOf, lintSlices, mainSpecRequirements,
   nameLeaks, nameSlices, parentDir, parseSlices, parseSplitNotes, readiness, SLICE_STATUSES,
@@ -233,7 +234,7 @@ export function sessionMentions(root, parentId) {
   return res;
 }
 
-// ------------------------------------------------------------------ next / tickets / mark
+// ------------------------------------------------------------------ next / tickets / start
 export function nextReport(root, parentId) {
   const { dir } = parentDir(root, parentId);
   const plan = parseSlices(fs.readFileSync(path.join(dir, 'slices.md'), 'utf8'));
@@ -285,7 +286,7 @@ export function writeTickets(root, r) {
       s.flag ? `Feature flag: ${s.flag} (user-visible behaviour stays off until the cleanup slice removes the flag)` : null,
       s.removes_flag ? `Removes feature flag: ${s.removes_flag}` : null,
       '',
-      `Start: /split-mark ${r.parent} ${s.id} in-progress (commit it on main), then git switch -c change/${s.id} main, the slice's design session and /handoff ${s.id}.`,
+      `Start: /split-start ${s.id} (marks it in-progress and prints the next lines: commit the mark on main, git switch -c change/${s.id} main, the slice's design session, /handoff ${s.id}).`,
       `Size: line estimate after planning (/spec-check ${s.id}), budget ~300 lines of code + tests.`,
       `Done when: /opsx:verify ${s.id} passes and /opsx:archive ${s.id} is committed in the slice's own PR with its code, merged to main.`,
       '',
@@ -307,9 +308,47 @@ function setSliceField(dir, id, key, value) {
   fs.writeFileSync(f, lines.join('\n'));
 }
 
-export function markSlice(root, parentId, sliceId, status) {
+function markSlice(root, parentId, sliceId, status) {
   if (!SLICE_STATUSES.includes(status)) throw new UsageError(`status must be one of ${SLICE_STATUSES.join(', ')} (done = the archived folder on main)`);
   setSliceField(parentDir(root, parentId).dir, sliceId, 'status', status);
+}
+
+export class Refused extends Error {}
+
+/** Take a READY slice (or release it with undo): the parent is found from the slice id. Returns the printed lines. */
+export function startSlice(root, sliceId, { undo = false } = {}) {
+  const parent = findParentOf(root, sliceId);
+  if (!parent) throw new Refused(`"${sliceId}" is not a slice of any split parent (no openspec/changes/*/slices.md lists it). /split-next <parent> lists the slices.`);
+  if (parent.dir.includes(`${path.sep}archive${path.sep}`)) throw new Refused(`the parent of "${sliceId}" (${parent.id}) is archived - nothing to start.`);
+  const r = nextReport(root, parent.id);
+  const row = r.rows.find((x) => x.id === sliceId);
+  const rel = path.relative(root, path.join(r.dir, 'slices.md')).split(path.sep).join('/');
+  const onMain = !r.branch || ['main', 'master'].includes(r.branch);
+  const branchNote = onMain ? [] : [`  note: you are on ${r.branch}; readiness is read from this checkout and the mark belongs on main.`];
+  if (undo) {
+    if (row.status !== 'in progress') throw new Refused(`"${sliceId}" is ${row.status}, not in progress - nothing to undo.`);
+    markSlice(root, parent.id, sliceId, 'planned');
+    return [`split start ${sliceId} --undo: back to planned in ${rel} (parent ${parent.id})`, ...branchNote,
+      `Next: commit the mark on main: git add ${rel} && git commit -m "split: release ${sliceId}"`];
+  }
+  if (row.status === 'done') throw new Refused(`"${sliceId}" is already done (its archived folder is present).`);
+  if (row.status === 'missing') throw new Refused(`"${sliceId}" has no change folder (openspec/changes/${sliceId}).`);
+  if (row.status === 'in progress') throw new Refused(`"${sliceId}" is already in progress (taken). To release it: /split-start ${sliceId} --undo`);
+  if (!row.ready) throw new Refused(`"${sliceId}" is not READY: it waits for ${row.waiting.join(', ')} (not archived on this checkout${onMain ? '' : ` - you are on ${r.branch}, run on main`}). /split-next ${parent.id} shows what is ready.`);
+  markSlice(root, parent.id, sliceId, 'in-progress');
+  let tool = null;
+  try { tool = resolveTool(loadChange(root, sliceId)).tool; } catch { /* no tool resolved */ }
+  const session = tool
+    ? `the slice's short design session: ${SESSION_SKILLS[tool]} narrowed to this slice - read openspec/changes/${parent.id}/${SESSION_FILES[tool]} first, write openspec/changes/${sliceId}/${SESSION_FILES[tool]} (with ## Overrides)`
+    : `the slice's short design session with your execution tool (no tool set: /tool ${sliceId} --set <ai-hero|superpowers>), reading the parent's execution/ session file first`;
+  return [
+    `split start ${sliceId}: in-progress in ${rel} (parent ${parent.id})`, ...branchNote,
+    'Next:',
+    `  1. Commit the mark on main so others see it: git add ${rel} && git commit -m "split: start ${sliceId}"`,
+    `  2. git switch -c change/${sliceId} main`,
+    `  3. ${session}`,
+    `  4. /handoff ${sliceId}, then follow the next steps it prints`,
+  ];
 }
 
 // ------------------------------------------------------------------ apply
@@ -456,7 +495,7 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
       `# Slices: ${id}`, '',
       'Control plane of a split change (schema split-plan): why/scope is in proposal.md, the slices are below. No requirement or scenario names and no behaviour here - they live in the child deltas; deliberate differences are "## Split notes" in the child proposals.',
       `Loss-check baseline: the original deltas at split_commit (\`git show ${splitCommit.slice(0, 7)}:openspec/changes/${id}/specs/...\`).`,
-      `Status: mark a slice "in-progress" when you take it (\`/split-mark ${id} <slice> in-progress\`); it is done when its archived folder is on main.`,
+      `Status: take a READY slice with \`/split-start <slice>\` (marks it in-progress; \`--undo\` sets it back to planned); it is done when its archived folder is on main.`,
       `Archive this parent last: \`/split-archive ${id}\` (final loss check, then \`openspec archive ${id} --skip-specs -y\`). Never run /opsx:verify on it.`, '',
       '## Slices', '', prop.slices.map(sliceBlock).join('\n\n'), '',
     ].join('\n'));
@@ -484,11 +523,11 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
 async function main() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { root: { type: 'string' }, json: { type: 'boolean' }, final: { type: 'boolean' }, 'write-tickets': { type: 'boolean' }, proposal: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
+    options: { root: { type: 'string' }, json: { type: 'boolean' }, undo: { type: 'boolean' }, final: { type: 'boolean' }, 'write-tickets': { type: 'boolean' }, proposal: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
   });
-  const [cmd, id, a3, a4] = positionals;
-  if (values.help || !['apply', 'loss', 'next', 'mark'].includes(cmd) || !id || (cmd === 'mark' && !a4)) {
-    console.log('usage: split apply <change> [--proposal <file>] | split loss <parent> [--final] | split next <parent> [--write-tickets] | split mark <parent> <slice> <in-progress|planned>  [--root <dir>] [--json]');
+  const [cmd, id] = positionals;
+  if (values.help || !['apply', 'loss', 'next', 'start'].includes(cmd) || !id) {
+    console.log('usage: split apply <change> [--proposal <file>] | split loss <parent> [--final] | split next <parent> [--write-tickets] | split start <slice> [--undo]  [--root <dir>] [--json]');
     return values.help ? 0 : 2;
   }
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
@@ -506,10 +545,15 @@ async function main() {
     console.log(`  tickets written for READY slices: ${t.join(', ') || 'none'}`);
     return loss.errors.length || leaks.length ? 1 : 0;
   }
-  if (cmd === 'mark') {
-    markSlice(root, id, a3, a4);
-    console.log(`split mark ${id}: ${a3} -> ${a4} (commit slices.md on main so others see it)`);
-    return 0;
+  if (cmd === 'start') {
+    try {
+      console.log(startSlice(root, id, { undo: values.undo }).join('\n'));
+      return 0;
+    } catch (e) {
+      if (!(e instanceof Refused)) throw e;
+      console.log(`split start ${id}: REFUSED - ${e.message}`);
+      return 1;
+    }
   }
   if (cmd === 'loss') {
     const r = lossCheck(root, id, { final: values.final });
