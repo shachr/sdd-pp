@@ -4,7 +4,7 @@
 //   - reference-not-duplicate: handoff.md and execution/** link the proposal/deltas
 //     and do not copy requirement text
 //   - execution outputs live in the change folder, not the tools' default locations
-//   - the change is PR-sized (docs/small-changes.md)
+//   - the change is PR-sized (.openspec-handoff/small-changes.md)
 // Usage: node check-handoff.mjs <change-id> [--root <dir>] [--config <file>] [--json] [--no-git]
 // Exit: 0 ok (warnings allowed), 1 errors found, 2 usage error.
 import fs from 'node:fs';
@@ -100,7 +100,7 @@ export function checkChange(change, config, { useGit = true } = {}) {
   const sizeRule = (key, label) => {
     if (metrics[key] === undefined) return;
     const [soft, hard] = t[key];
-    if (metrics[key] > hard) errors.push(`size: ${label} ${metrics[key]} > hard limit ${hard} - split the change (docs/small-changes.md)`);
+    if (metrics[key] > hard) errors.push(`size: ${label} ${metrics[key]} > hard limit ${hard} - split the change (.openspec-handoff/small-changes.md)`);
     else if (metrics[key] > soft) warnings.push(`size: ${label} ${metrics[key]} > budget ${soft} - consider splitting`);
   };
   sizeRule('requirements', 'requirements in deltas');

@@ -9,7 +9,7 @@ proposal.instruction = by.proposal.instruction + `
 Handoff-driven addition - **Size Budget** section (required):
 State the expected size of this change so it stays PR-sized: number of
 requirements in the deltas, expected tickets/plan tasks, and a rough
-changed-lines estimate. Default budget (see docs/small-changes.md):
+changed-lines estimate. Default budget (see .openspec-handoff/small-changes.md):
 <= 5 requirements, <= 8 tickets/plan tasks, <= 400 changed lines.
 If the estimate exceeds the budget, split now: create one change per
 independently shippable capability slice (e.g. \`add-x-core\`, \`add-x-cli\`)
@@ -72,7 +72,7 @@ decisions, file paths, and step lists are fine - that is what execution
 artifacts are for.
 
 Keep the breakdown PR-sized: at most 8 tickets / plan tasks (hard cap 12).
-If it does not fit, stop and split the change (docs/small-changes.md).`,
+If it does not fit, stop and split the change (.openspec-handoff/small-changes.md).`,
   requires: ['handoff'],
 };
 const tasks = {

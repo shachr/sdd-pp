@@ -35,7 +35,7 @@
 
 ## Size Budget
 
-<!-- Keep the change PR-sized (docs/small-changes.md). Budget: <= 5 requirements,
+<!-- Keep the change PR-sized (.openspec-handoff/small-changes.md). Budget: <= 5 requirements,
      <= 8 tickets/plan tasks, <= 400 changed lines. Over budget -> split into
      several changes now and say which slice this is. -->
 - Requirements in deltas: <!-- n -->
