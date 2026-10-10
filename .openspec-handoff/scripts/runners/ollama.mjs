@@ -3,7 +3,8 @@
 // Ollama server (open source, no account or API key), prints the answer.
 // Usage: node ollama.mjs <model>
 // Env: OLLAMA_HOST (default http://127.0.0.1:11434), OLLAMA_NUM_CTX (default 8192),
-//      OLLAMA_TIMEOUT_MS (default 1800000)
+//      OLLAMA_TIMEOUT_MS (default 1800000), OLLAMA_NUM_PREDICT (output token cap, default 1500;
+//      small local models can loop until the timeout without it)
 const model = process.argv[2];
 if (!model) { console.error('usage: ollama.mjs <model>'); process.exit(2); }
 let host = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
@@ -22,7 +23,7 @@ try {
       // stream: true - with stream:false Ollama sends no headers until the whole answer is ready,
       // and Node's fetch (undici) aborts after its 300 s headersTimeout on slow CPU reviews.
       model, prompt, stream: true,
-      options: { num_ctx: Number(process.env.OLLAMA_NUM_CTX || 8192), temperature: 0.2 },
+      options: { num_ctx: Number(process.env.OLLAMA_NUM_CTX || 8192), temperature: 0.2, num_predict: Number(process.env.OLLAMA_NUM_PREDICT || 1500) },
     }),
     signal: AbortSignal.timeout(Number(process.env.OLLAMA_TIMEOUT_MS || 1800000)),
   });
@@ -40,6 +41,7 @@ let body = {};
 let response = '';
 let buf = '';
 const decoder = new TextDecoder();
+try {
 for await (const chunk of res.body) {
   buf += decoder.decode(chunk, { stream: true });
   let nl;
@@ -53,6 +55,12 @@ for await (const chunk of res.body) {
     if (msg.done) body = msg;
   }
 }
+} catch (e) {
+  // Timeout or dropped stream: keep what arrived so a long review is not lost.
+  console.error(`ollama runner: stream ended early (${e.name}: ${e.message}); printing the partial answer`);
+  process.stdout.write(response.trim() + `\n\n<!-- ollama: ${model}, PARTIAL (stream ended early), ${((Date.now() - started) / 1000).toFixed(1)}s wall -->\n`);
+  process.exit(4);
+}
 if (buf.trim()) { const msg = JSON.parse(buf); response += msg.response || ''; if (msg.done) body = msg; }
 const promptTokens = body.prompt_eval_count ?? 0;
 const numCtx = Number(process.env.OLLAMA_NUM_CTX || 8192);
@@ -63,4 +71,5 @@ if (promptTokens >= numCtx || prompt.length / 4 > promptTokens * 1.5) {
   process.exitCode = 3;
 }
 process.stdout.write(response.trim() + '\n');
-process.stdout.write(`\n<!-- ollama: ${model}, prompt ${promptTokens} tokens, output ${body.eval_count ?? '?'} tokens, ${((Date.now() - started) / 1000).toFixed(1)}s wall -->\n`);
+if (body.done_reason === 'length') console.error('ollama runner: answer hit OLLAMA_NUM_PREDICT and was cut off');
+process.stdout.write(`\n<!-- ollama: ${model}, prompt ${promptTokens} tokens, output ${body.eval_count ?? '?'} tokens${body.done_reason === 'length' ? ' (cut at num_predict)' : ''}, ${((Date.now() - started) / 1000).toFixed(1)}s wall -->\n`);
