@@ -4,10 +4,10 @@
 
 **Blocked by:** 01: Wrap text at word boundaries
 
-**Status:** ready-for-agent
+**Status:** done
 
 Estimate: ~60 lines
 
-- [ ] Scenario "Word longer than the width" passes
-- [ ] Scenario "Text is not a string" passes
-- [ ] Scenario "Width is not a positive integer" passes
+- [x] Scenario "Word longer than the width" passes
+- [x] Scenario "Text is not a string" passes
+- [x] Scenario "Width is not a positive integer" passes

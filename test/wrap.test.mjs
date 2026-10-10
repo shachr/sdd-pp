@@ -27,3 +27,16 @@ test('Paragraphs wrapped separately', () => {
 test('Empty text', () => {
   assert.equal(wordWrap('', 10), '');
 });
+
+test('Word longer than the width', () => {
+  assert.equal(wordWrap('abcdefghij xy', 4), 'abc-\ndef-\nghij\nxy');
+});
+
+test('Text is not a string', () => {
+  assert.throws(() => wordWrap(42, 10), TypeError);
+});
+
+test('Width is not a positive integer', () => {
+  assert.throws(() => wordWrap('a b', 0), RangeError);
+  assert.throws(() => wordWrap('a b', 2.5), RangeError);
+});
