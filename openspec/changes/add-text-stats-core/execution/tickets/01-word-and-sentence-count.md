@@ -2,7 +2,7 @@
 
 # 01 - Word and sentence count
 
-Status: ready-for-agent
+Status: done
 Estimate: ~45 lines
 
 ## What to build
@@ -17,7 +17,7 @@ None - can start immediately.
 
 Scenarios of the [delta](../../specs/text-stats/spec.md), by name:
 
-- [ ] Scenario "Words in a sentence" passes
-- [ ] Scenario "Whitespace only" passes
-- [ ] Scenario "Sentences ending in punctuation" passes
-- [ ] Scenario "No terminal punctuation" passes
+- [x] Scenario "Words in a sentence" passes
+- [x] Scenario "Whitespace only" passes
+- [x] Scenario "Sentences ending in punctuation" passes
+- [x] Scenario "No terminal punctuation" passes
