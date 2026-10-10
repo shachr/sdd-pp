@@ -45,7 +45,7 @@
 - Consumes: nothing.
 - Produces: `export function wordCount(text: unknown): number` from `src/stats.mjs`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```js
 import { test } from 'node:test';
@@ -61,19 +61,19 @@ test('Review focus: coercion, Unicode, newlines', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test` - Expected: FAIL (module `src/stats.mjs` not found).
 
-- [ ] **Step 3: Implement `wordCount`**
+- [x] **Step 3: Implement `wordCount`**
 
 `const hasWord = (s) => /[\p{L}\p{N}]/u.test(s);` then `String(text).split(/\s+/).filter(hasWord).length`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm test` - Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 `git add src/stats.mjs test/stats.test.mjs && git commit -m "feat(text-stats): word count (plan task 1)"`
 
