@@ -94,9 +94,7 @@ approves or edits them. Nothing is split automatically.
    Never run `/opsx:verify` on a parent.
 
 Changing the plan later: edit the child delta, add the split note to that child's proposal, rerun
-`split.mjs loss <parent>`, then update the tool files (regenerate open tickets / tasks only - never a done
-one; `git diff HEAD` shows a done ticket that was overwritten), then `/spec-check` - its "Spec changes since
-the last check" section names the requirements / scenarios that changed and the tickets / tasks citing them.
+`split.mjs loss <parent>`, then the one order: edit the delta -> `openspec validate <id> --strict` -> `/spec-check <id>` (its "Spec changes since the last check" section lists what changed since the last accepted PASS and the tickets / tasks citing it; the list stays on every run until a PASS is accepted) -> re-plan ONLY the open units it names (done units are never touched; a change affecting done work becomes a new ticket / task; the planning output notes `superseded by delta edit: <reason>`, the design session file stays as-is) -> `/spec-check` until PASS, which it accepts (`--accept`); commit `execution/.spec-check.json` with the planning files. (`git diff HEAD` shows a done ticket that was overwritten.)
 
 `sdd-pp init` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `mark`
 commits); `split.mjs loss` warns if a union merge left a slice field twice.

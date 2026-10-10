@@ -2,6 +2,7 @@
 // execution-tool: setup-phase tool selection.
 //   node execution-tool.mjs --default <ai-hero|superpowers>     set the project default (.openspec-handoff/project.json)
 //   node execution-tool.mjs <change>                            print the change's tool, where it came from, and its session file
+//                                                               (starts the session file when missing, before handoff; not with --json)
 //   node execution-tool.mjs <change> --set <ai-hero|superpowers> record a per-change override: starts the session file
 //                                                                (execution/grill.md or execution/brainstorm.md) with `tool:` front matter
 // Switching tools after the design session ran means redoing the session (.openspec-handoff/switching-tools.md); --set refuses then.
@@ -39,21 +40,32 @@ function main() {
       console.error(`refused: ${other.map((s) => s.file).join(', ')} already holds a ${other[0].fileTool} design session. Switching tools means redoing the session - see .openspec-handoff/switching-tools.md.`);
       return 1;
     }
-    const f = path.join(change.dir, SESSION_FILES[values.set]);
-    if (!fs.existsSync(f)) {
-      fs.mkdirSync(path.dirname(f), { recursive: true });
-      fs.writeFileSync(f, `---\ntool: ${values.set}\nsession: ${SESSION_SKILLS[values.set]}\n---\n\n> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md\n\n# ${SESSION_SKILLS[values.set]} session: ${change.id}\n`);
-    }
+    startSession(change, values.set);
     change = loadChange(root, positionals[0]);
   }
   const r = resolveTool(change);
+  // the project-default tool gets its session file the same way as --set (before the session, not at handoff;
+  // --json is the handoff's read-only check, which must still see a missing session file)
+  let created = null;
+  if (r.tool && !values.json && !change.handoff && !sessionFiles(change).length) {
+    created = startSession(change, r.tool); // r (where the tool came from) stays as resolved before
+  }
   const out = { change: change.id, tool: r.tool, source: r.source, projectDefault: r.projectDefault,
     override: Boolean(r.tool && r.projectDefault && r.tool !== r.projectDefault),
     sessionFile: r.tool ? SESSION_FILES[r.tool] : null, sessionSkill: r.tool ? SESSION_SKILLS[r.tool] : null };
   if (values.json) console.log(JSON.stringify(out, null, 2));
   else if (!r.tool) console.log(`${change.id}: no execution tool set - run with --default <tool> (project) or --set <tool> (this change)`);
-  else console.log(`${change.id}: ${r.tool} (from ${r.source}${out.override ? `; overrides project default ${r.projectDefault}` : ''}) -> design session: ${out.sessionSkill} -> ${out.sessionFile}`);
+  else console.log(`${change.id}: ${r.tool} (from ${r.source}${out.override ? `; overrides project default ${r.projectDefault}` : ''}) -> design session: ${out.sessionSkill} -> ${out.sessionFile}${created ? ' (created)' : ''}`);
   return r.tool ? 0 : 1;
+}
+
+/** Start the design session file for a tool (front matter + links line), if it does not exist yet. */
+function startSession(change, tool) {
+  const f = path.join(change.dir, SESSION_FILES[tool]);
+  if (fs.existsSync(f)) return null;
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, `---\ntool: ${tool}\nsession: ${SESSION_SKILLS[tool]}\n---\n\n> Links: [proposal](../proposal.md) · specs: ../specs/<capability>/spec.md\n\n# ${SESSION_SKILLS[tool]} session: ${change.id}\n`);
+  return SESSION_FILES[tool];
 }
 
 try { process.exit(main()); } catch (e) { console.error(`execution-tool: ${e.message}`); process.exit(e instanceof UsageError ? 2 : 1); }

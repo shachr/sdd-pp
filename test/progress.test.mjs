@@ -20,8 +20,14 @@ test('next-steps prints the tool sequence without running anything', () => {
 
 test('next-steps: branch before implementation, what to commit, spec changes after a delta edit; superpowers: sdd-workspace, branch or worktree, why archive first', () => {
   const ai = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement' });
-  assert.match(ai, /git switch -c change\/x, then commit openspec\/changes\/x\/execution\/ \(branch before implementation/);
-  assert.match(ai, /After any later delta edit, run \/spec-check again: it lists the requirements \/ scenarios added, changed, removed or renamed/);
+  assert.match(ai, /git switch -c change\/x, then commit openspec\/changes\/x\/execution\/ including \.spec-check\.json \(branch before implementation/);
+  assert.match(ai, /On PASS, \/spec-check accepts it \(--accept\)/);
+  assert.match(ai, /After any later delta edit, one order: openspec validate x --strict -> \/spec-check x \(lists .* since the last accepted PASS .*\) -> re-plan ONLY the open units it names \(done units are never touched; a change affecting done work becomes a new ticket; note "superseded by delta edit: <reason>" .*\) -> \/spec-check until PASS\./);
+  assert.match(ai, /Review the diff since base_ref in openspec\/changes\/x\/handoff\.md .*the spec is the change folder/);
+  const spec = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement-spec' });
+  assert.match(spec, /its integration branch is change\/x; each ticket gets its own branch \/ worktree, and its "Status: done" \+ ticked checkboxes go in that ticket-branch commit with its code, before the branch is merged into change\/x/);
+  assert.match(spec, /No sub-agent tool in the harness: use \/implement instead/);
+  assert.match(nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'subagent-driven-development' }), /no sub-agent tool in the harness: use executing-plans instead/);
   const sp = nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'executing-plans' });
   assert.match(sp, /a plain branch or a worktree \(using-git-worktrees; Superpowers recommends the worktree\), either works/);
   assert.match(sp, /subagent-driven-development\/scripts\/sdd-workspace openspec\/changes\/x\/execution\/plan-x\.md/);

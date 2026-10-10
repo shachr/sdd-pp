@@ -9,8 +9,10 @@ Thin wrapper: you run the real AI Hero skills unmodified, with **this change fol
 
 Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
+- **Ignore OpenSpec's apply prompts.** `/opsx:propose` ends with "run /opsx-apply" and `openspec status` prints "Next: openspec instructions apply": this workflow never uses apply. After the proposal and specs, run `/handoff <id>`; after it, follow `/next-steps <id>`.
+- **No sub-agents in the harness?** If it has no sub-agent (Task) tool, use the inline variant (`implement`; for `code-review`, run its Standards and Spec reviews one after the other) - or, when `apply_mode` requires the sub-agent variant, run each sub-agent role in-session and label it so in commits, reviews and the ledger (`[in-session, no sub-agent tool]`).
 - AI Hero skills set `disable-model-invocation: true`. If you cannot call them with the Skill tool, ask the user to type the slash command, or read the installed `SKILL.md` and follow its process yourself.
-- The issue tracker is the change folder: `docs/agents/issue-tracker.md` (installed by `sdd-pp init --tool ai-hero` when absent; otherwise copy `.openspec-handoff/issue-tracker-openspec.md` there, e.g. `/setup-matt-pocock-skills` -> "Other"). Nothing goes to `.scratch/` or GitHub/Linear.
+- The issue tracker is the change folder: `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` (installed by `sdd-pp init --tool ai-hero` when absent), pointed at by a marked agent-skills block in `AGENTS.md` - that is how AI Hero's skills find the tracker; `/setup-matt-pocock-skills` is not needed. Nothing goes to `.scratch/` or GitHub/Linear.
 
 ## Flow
 
@@ -31,7 +33,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches the proposal, before `proposal.md` is written. `openspec instructions proposal` says so.
 
-1. `/tool <id>` (runs `node .openspec-handoff/scripts/sdd.mjs tool <id>`) must say `ai-hero` (project default or `--set ai-hero`). `--set` creates `execution/grill.md` with front matter `tool: ai-hero` / `session: grill-with-docs`; create it the same way if it does not exist.
+1. `/tool <id>` (runs `node .openspec-handoff/scripts/sdd.mjs tool <id>`) must say `ai-hero` (project default or `--set ai-hero`). `/tool <id>` creates `execution/grill.md` (front matter `tool: ai-hero` / `session: grill-with-docs`) when it is missing, for the project default as for `--set`.
 2. Run `grill-with-docs` on the user's request (and the existing main specs it touches). If the user delegated decisions, answer each round yourself with the recommended answer (or a better one) and mark those answers as yours.
 3. Write `execution/grill.md`:
    - keep the front matter
@@ -64,7 +66,7 @@ After `/handoff` wrote `handoff.md` (`tool: ai-hero`, the session file must exis
 
 ### Then
 
-1. `/spec-check <id>` (the only plan-vs-spec check); stop on GAPS. Planning ends here. There is no `tasks.md`: the tickets are the tracker (`openspec list` / `openspec status` do not see their checkboxes - expected).
+1. `/spec-check <id>` (the only plan-vs-spec check); stop on GAPS. On PASS it accepts the result (`--accept`: the spec-change baseline `execution/.spec-check.json`). Commit `execution/` - planning files and `.spec-check.json` - on branch `change/<id>`. Planning ends here. There is no `tasks.md`: the tickets are the tracker (`openspec list` / `openspec status` do not see their checkboxes - expected).
 
 
 ## Slice of a split change
@@ -77,14 +79,19 @@ A change created by `/split-apply` (id `<parent>-<nn>-<slice>`) (its proposal li
 
 ## Updating tool files after a delta edit
 
-AI Hero's `to-spec` and `to-tickets` have no update mode: `to-spec` writes the whole spec again, and `to-tickets` drafts a new set and publishes it ("write one file per ticket ... numbered from 01"; on a real tracker it creates new issues and never modifies existing ones). So:
-1. `to-spec` again -> overwrite `execution/spec.md`.
-2. Tickets: **never overwrite a ticket marked `Status: done`** (refuse, even if asked to regenerate everything). Delete only the open ones, then run `to-tickets` for the remaining work only, numbering after the last kept ticket (it reads the existing files as context). On a real tracker, close the obsolete issues by hand.
-If a done ticket was reset anyway, restore it with `git checkout HEAD -- <ticket>` (`git diff HEAD -- execution/tickets/` shows it).
-After any delta edit (a /spec-check gap, a split note, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `/spec-check <id>` again: its "Spec changes since the last check" section lists each requirement / scenario added, changed, removed or renamed and the tickets / tasks citing it - re-plan the open ones, never overwrite done ones (report-only).
+**One order after any delta edit** (a /spec-check gap, a split note, a re-split, a changed scenario):
+1. Edit the delta, then `openspec validate <id> --strict`.
+2. `/spec-check <id>`: its "Spec changes since the last check" section lists each requirement / scenario added, changed, removed or renamed since the last accepted PASS, with the units citing it, and a hint naming the open units to re-plan. The list stays on every run until a PASS is accepted - it is never reset by re-running.
+3. Re-plan ONLY the open units the report names (below). Done units are never touched; a change that affects done work becomes a new ticket. Where a planned decision changed, write `superseded by delta edit: <reason>` next to it in the planning output; the design session file stays as-is (it is the record; the delta wins).
+4. `/spec-check <id>` until PASS; the command then accepts it (`spec-check.mjs <id> --accept`), and you commit `execution/.spec-check.json` with the planning files.
+
+AI Hero's `to-spec` and `to-tickets` have no update mode (`to-tickets` drafts a new set numbered from 01; on a real tracker it only creates issues). So, for step 3:
+- **User stories** the report names: run `to-spec` again with the existing `execution/spec.md` as input and change only those stories (and the decisions they need); keep every other story as it is.
+- **Open tickets** the report names: rewrite only those (same number), from `to-tickets` run for that work only, reading the existing tickets as context. Changes no open ticket covers: new tickets, numbered after the last one. On a real tracker, close obsolete issues by hand.
+- **Never overwrite a ticket marked `Status: done`** (refuse, even if asked to regenerate everything). If one was reset anyway, restore it with `git checkout HEAD -- <ticket>` (`git diff HEAD -- execution/tickets/` shows it).
 
 ## Implementation (the engineer runs `implement` / `implement-spec`)
 
-1. Implement with the `apply_mode` command. Ticket done: `Status: done` + tick its scenario checkboxes in the same commit (AI Hero's own completion: a ticket is done when its Status says so).
-2. `code-review` - AI Hero's own review step (`implement` calls it); fix what it finds. If it writes a file, keep it in `execution/reviews/`. CI also runs a code review on the PR, so no review file or label is required.
+1. Implement with the `apply_mode` command. Ticket done: `Status: done` + tick its scenario checkboxes in the same commit (AI Hero's own completion: a ticket is done when its Status says so). With `implement-spec`, its integration branch is `change/<id>`; each ticket's `Status: done` + checkboxes go in the ticket-branch commit with its code, before that branch is merged into `change/<id>`.
+2. `code-review` - AI Hero's own review step (`implement` calls it); fix what it finds. Fixed point: `base_ref` in `handoff.md` (`git diff <base_ref>...HEAD`); the spec is this change folder (`proposal.md`, the `specs/**/spec.md` deltas, `execution/spec.md`, the tickets). If it writes a file, keep it in `execution/reviews/`. CI also runs a code review on the PR, so no review file or label is required.
 3. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written, on the change branch, and commit the archive in the change's PR with its code; then merge the PR.

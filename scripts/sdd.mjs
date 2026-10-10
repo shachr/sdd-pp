@@ -3,7 +3,7 @@
 // The agent slash commands (/split-apply, /split-next, /split-archive, /split-mark,
 // /next-steps, /tool) and the `sdd-pp` CLI subcommands both run this file; it only runs the scripts
 // below and passes their output and exit code through.
-//   spec-check <id>                 spec-check.mjs <id> --write
+//   spec-check <id> [--accept]      spec-check.mjs <id> --write [--accept]
 //   split-check <id>                split-check.mjs <id> --write
 //   next <id>                       next-steps.mjs <id>
 //   tool <id> [--set <tool>]        execution-tool.mjs <id> [--set <tool>]   (also: tool --default <tool>)
@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 export const USAGE = `usage: sdd <command> ...
-  spec-check <id>                  coverage report -> execution/spec-check.md (the agent's /spec-check adds the contradiction review)
+  spec-check <id> [--accept]       coverage report -> execution/spec-check.md (the agent's /spec-check adds the review); --accept: record a saved PASS as the spec-change baseline
   split-check <id>                 split gate counts -> execution/split-check.md
   next <id>                        print the change's next steps again
   tool <id> [--set <tool>]         show / set the change's execution tool (tool --default <tool>: project default)
