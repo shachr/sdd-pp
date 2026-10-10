@@ -2,7 +2,7 @@
 
 # 01 - release textkit stats (remove the stats-cli flag)
 
-Status: ready-for-agent
+Status: done
 Estimate: ~25 lines
 
 ## What to build
@@ -15,5 +15,5 @@ None - can start immediately.
 
 ## Acceptance criteria
 
-- [ ] `textkit stats` works with an empty environment (test)
-- [ ] `rg TEXTKIT_STATS_CLI src bin test` finds nothing
+- [x] `textkit stats` works with an empty environment (test)
+- [x] `rg TEXTKIT_STATS_CLI src bin test` finds nothing

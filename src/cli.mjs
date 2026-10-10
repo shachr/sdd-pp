@@ -23,19 +23,14 @@ const COMMANDS = {
   },
 };
 
-// Feature flag stats-cli: the stats command is off unless TEXTKIT_STATS_CLI is "1" (removed by slice remove-stats-cli-flag).
-function availableCommands(env) {
-  return Object.keys(COMMANDS).filter((name) => name !== 'stats' || env?.TEXTKIT_STATS_CLI === '1');
-}
-
 function usageError(io, message) {
-  io.stderr.write(`${message ? `${message}\n` : ''}usage: textkit <command> [text]\ncommands: ${availableCommands(io.env).join(', ')}\n`);
+  io.stderr.write(`${message ? `${message}\n` : ''}usage: textkit <command> [text]\ncommands: ${Object.keys(COMMANDS).join(', ')}\n`);
   return USAGE_ERROR;
 }
 
 export function run(argv, io) {
   const [name, ...args] = argv;
   if (name === undefined) return usageError(io);
-  if (!availableCommands(io.env).includes(name)) return usageError(io, `unknown command: ${name}`);
+  if (!Object.hasOwn(COMMANDS, name)) return usageError(io, `unknown command: ${name}`);
   return COMMANDS[name](args, io);
 }
