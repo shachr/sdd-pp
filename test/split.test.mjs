@@ -34,7 +34,7 @@ function project({ extra = false } = {}) {
   return { dir, c: C, git };
 }
 
-const PROPOSAL = (approved = 'engineer (test)') => `---\napproved_by: ${approved}\n---\n\n## Slices\n\n### Slice: add-report-totals\n- goal: Weekly totals\n- capabilities: reports\n- requirements: Report totals\n- depends_on: none\n- flag: none\n\n### Slice: add-report-filters\n- goal: Filters for reports\n- capabilities: reports\n- requirements: Report filters\n- depends_on: add-report-totals\n- flag: none\n\n### Slice: add-csv-export\n- goal: File export behind a flag\n- capabilities: export\n- requirements: CSV export\n- depends_on: none\n- flag: csv-export\n\n### Slice: remove-csv-flag\n- goal: Remove the csv-export flag\n- capabilities: export-flags\n- depends_on: add-csv-export\n- removes_flag: csv-export\n`;
+const PROPOSAL = (approved = 'engineer (test)') => `---\napproved_by: ${approved}\n---\n\n## Slices\n\n### Slice: totals\n- order: 01\n- goal: Weekly totals\n- capabilities: reports\n- requirements: Report totals\n- depends_on: none\n- flag: none\n\n### Slice: filters\n- order: 02\n- goal: Filters for reports\n- capabilities: reports\n- requirements: Report filters\n- depends_on: totals\n- flag: none\n\n### Slice: csv-export\n- order: 03\n- goal: File export behind a flag\n- capabilities: export\n- requirements: CSV export\n- depends_on: none\n- flag: csv-export\n\n### Slice: remove-csv-flag\n- goal: Remove the csv-export flag\n- capabilities: export-flags\n- depends_on: csv-export\n- removes_flag: csv-export\n`;
 
 function splitProject() {
   const p = project();
@@ -43,9 +43,9 @@ function splitProject() {
 }
 const FLAG_REQ = '\n### Requirement: Export flag gate\nThe system SHALL hide the export action while the csv-export flag is off.\n\n#### Scenario: Flag off\n- **WHEN** the flag is off\n- **THEN** no export action is shown\n';
 const addFlag = (dir) => {
-  W(dir, CHILD('add-csv-export', 'export'), R(dir, CHILD('add-csv-export', 'export')) + FLAG_REQ);
-  notes(dir, 'add-csv-export', '- added: Requirement "Export flag gate" - gates the export until remove-csv-flag');
-  W(dir, CHILD('remove-csv-flag', 'export'), '## REMOVED Requirements\n\n### Requirement: Export flag gate\n**Reason**: the export is released\n**Migration**: none\n');
+  W(dir, CHILD('add-reports-03-csv-export', 'export'), R(dir, CHILD('add-reports-03-csv-export', 'export')) + FLAG_REQ);
+  notes(dir, 'add-reports-03-csv-export', '- added: Requirement "Export flag gate" - gates the export until add-reports-99-remove-csv-flag');
+  W(dir, CHILD('add-reports-99-remove-csv-flag', 'export'), '## REMOVED Requirements\n\n### Requirement: Export flag gate\n**Reason**: the export is released\n**Migration**: none\n');
 };
 
 test('split-check: counts only - one line when it fits, warns (exit 0) above 5 requirements or 2 capabilities, lints the proposal', () => {
@@ -66,7 +66,7 @@ test('split-check: counts only - one line when it fits, warns (exit 0) above 5 r
   r = run('split-check.mjs', ['add-reports'], big.dir);
   assert.match(r.out, /NOT approved yet/);
   assert.match(r.out, /✗ flag "csv-export": no cleanup slice/);
-  assert.match(r.out, /Parallel-safe pairs \(no dependency, no shared capability\): add-report-totals ∥ add-csv-export, add-report-filters ∥ add-csv-export/);
+  assert.match(r.out, /Parallel-safe pairs \(no dependency, no shared capability\): add-reports-01-totals ∥ add-reports-03-csv-export, add-reports-02-filters ∥ add-reports-03-csv-export/);
 });
 
 test('split apply: refuses without approval or with uncommitted deltas; the parent is a control plane with no names', () => {
@@ -83,25 +83,25 @@ test('split apply: refuses without approval or with uncommitted deltas; the pare
   git('commit', '-qam', 'deltas final');
   const head = git('rev-parse', 'HEAD').trim();
   r = run('split.mjs', ['apply', 'add-reports'], dir);
-  assert.match(r.out, new RegExp(`parent add-reports \\(schema split-plan, split_commit ${head.slice(0, 7)}\\); children: add-report-totals, add-report-filters, add-csv-export, remove-csv-flag`));
+  assert.match(r.out, new RegExp(`parent add-reports \\(schema split-plan, split_commit ${head.slice(0, 7)}\\); children: add-reports-01-totals, add-reports-02-filters, add-reports-03-csv-export, add-reports-99-remove-csv-flag`));
   assert.match(R(dir, `${c}/.openspec.yaml`), /schema: split-plan[\s\S]*skip_specs: true/);
   assert.equal(fs.existsSync(path.join(dir, c, 'specs')), false);
   assert.equal(fs.existsSync(path.join(dir, c, 'execution/split-proposal.md')), false);
   const slices = R(dir, `${c}/slices.md`);
   assert.match(slices, new RegExp(`^---\\nparent: add-reports\\napproved_by: engineer \\(test\\)\\nsplit_at: \\d{4}-\\d\\d-\\d\\d\\nsplit_commit: ${head}\\n---`));
-  assert.match(slices, /### Slice: add-csv-export\n- goal: File export behind a flag\n- capabilities: export\n- depends_on: none\n- flag: csv-export\n- ticket: tickets\/add-csv-export.md\n- status: planned/);
+  assert.match(slices, /### Slice: add-reports-03-csv-export\n- goal: File export behind a flag\n- capabilities: export\n- depends_on: none\n- flag: csv-export\n- ticket: tickets\/add-reports-03-csv-export.md\n- status: planned/);
   for (const n of ['Report totals', 'Report filters', 'CSV export', 'Filter by tag', 'Export week']) assert.ok(!slices.includes(n), `parent names ${n}`);
   assert.doesNotMatch(slices, /SHALL|\*\*WHEN\*\*|Amendments|- \[ \]/);
-  assert.match(R(dir, `${c}/tickets/add-csv-export.md`), /^Summary: \[add-reports\] add-csv-export - File export behind a flag\n[\s\S]*Labels: openspec, split-add-reports, flag-csv-export/);
-  assert.doesNotMatch(R(dir, `${c}/tickets/add-csv-export.md`), /CSV export"|Export week/);
-  assert.equal(fs.existsSync(path.join(dir, c, 'tickets', 'add-report-filters.md')), false);
-  const totals = R(dir, CHILD('add-report-totals', 'reports'));
+  assert.match(R(dir, `${c}/tickets/add-reports-03-csv-export.md`), /^Summary: \[add-reports\] add-reports-03-csv-export - File export behind a flag\n[\s\S]*Labels: openspec, split-add-reports, flag-csv-export/);
+  assert.doesNotMatch(R(dir, `${c}/tickets/add-reports-03-csv-export.md`), /CSV export"|Export week/);
+  assert.equal(fs.existsSync(path.join(dir, c, 'tickets', 'add-reports-02-filters.md')), false);
+  const totals = R(dir, CHILD('add-reports-01-totals', 'reports'));
   assert.match(totals, /^## Purpose\n\nWeekly activity reports/);
   assert.ok(totals.includes(req('Report totals', ['Totals per day', 'Empty week']).trim()));
-  assert.match(R(dir, 'openspec/changes/add-csv-export/proposal.md'), /Behind the feature flag `csv-export`[\s\S]*## Split notes[\s\S]*_None\._/);
-  assert.deepEqual(proposalLeaks(R(dir, 'openspec/changes/add-csv-export/proposal.md')), [], 'the split-notes template is not an implementation-detail leak');
-  assert.match(R(dir, 'openspec/changes/add-report-totals/proposal.md'), /### New Capabilities\n\n- `reports`/);
-  assert.match(R(dir, 'openspec/changes/add-report-filters/proposal.md'), /### New Capabilities\n\n_None\._\n\n### Modified Capabilities\n\n- `reports`/, 'an earlier slice in depends_on creates the capability');
+  assert.match(R(dir, 'openspec/changes/add-reports-03-csv-export/proposal.md'), /Behind the feature flag `csv-export`[\s\S]*## Split notes[\s\S]*_None\._/);
+  assert.deepEqual(proposalLeaks(R(dir, 'openspec/changes/add-reports-03-csv-export/proposal.md')), [], 'the split-notes template is not an implementation-detail leak');
+  assert.match(R(dir, 'openspec/changes/add-reports-01-totals/proposal.md'), /### New Capabilities\n\n- `reports`/);
+  assert.match(R(dir, 'openspec/changes/add-reports-02-filters/proposal.md'), /### New Capabilities\n\n_None\._\n\n### Modified Capabilities\n\n- `reports`/, 'an earlier slice in depends_on creates the capability');
   addFlag(dir);
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
@@ -157,29 +157,29 @@ test('loss check: dropped scenario fails until a "dropped" split note in the chi
   const { dir } = splitProject();
   run('split.mjs', ['apply', 'add-reports'], dir);
   addFlag(dir);
-  const f = CHILD('add-report-filters', 'reports');
+  const f = CHILD('add-reports-02-filters', 'reports');
   const orig = R(dir, f);
   W(dir, f, orig.replace(/\n#### Scenario: Filter by tag[\s\S]*$/, '\n'));
   let r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 1);
   assert.match(r.out, /✗ Scenario "Filter by tag" -> MISSING/);
-  notes(dir, 'add-report-filters', '- dropped: Scenario "Filter by tag" - tags ship in a later change');
+  notes(dir, 'add-reports-02-filters', '- dropped: Scenario "Filter by tag" - tags ship in a later change');
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /Scenario "Filter by tag" -> dropped \(split note in add-report-filters\)/);
+  assert.match(r.out, /Scenario "Filter by tag" -> dropped \(split note in add-reports-02-filters\)/);
   // dropped but present again + duplicate + unsourced
   W(dir, f, orig + '\n### Requirement: Report sharing\nThe system SHALL share reports.\n\n#### Scenario: Share it\n- **WHEN** shared\n- **THEN** a link\n');
-  const t = CHILD('add-report-totals', 'reports');
+  const t = CHILD('add-reports-01-totals', 'reports');
   W(dir, t, R(dir, t) + '\n' + req('Report filters', ['Filter by member']));
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 1);
   assert.match(r.out, /Requirement "Report filters".*DUPLICATE/);
-  assert.match(r.out, /add-report-filters: Requirement "Report sharing" is unsourced/);
+  assert.match(r.out, /add-reports-02-filters: Requirement "Report sharing" is unsourced/);
   assert.match(r.out, /Scenario "Filter by tag".*dropped.*still/);
   W(dir, f, orig); W(dir, t, R(dir, t).replace(/\n### Requirement: Report filters[\s\S]*$/, '\n'));
-  const pf = 'openspec/changes/add-report-filters/proposal.md';
+  const pf = 'openspec/changes/add-reports-02-filters/proposal.md';
   W(dir, pf, R(dir, pf).replace(/^- dropped: Scenario "Filter by tag".*$/m, '_None._'));
-  notes(dir, 'add-report-totals', '- dropped: Requirement "Nope" - typo');
+  notes(dir, 'add-reports-01-totals', '- dropped: Requirement "Nope" - typo');
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 1);
   assert.match(r.out, /split note names Requirement "Nope", which is not in the original deltas/);
@@ -189,38 +189,38 @@ test('rename (Q7): an unmatched original is listed with child names that have no
   const { dir } = splitProject();
   run('split.mjs', ['apply', 'add-reports'], dir);
   addFlag(dir);
-  const f = CHILD('add-report-totals', 'reports');
+  const f = CHILD('add-reports-01-totals', 'reports');
   W(dir, f, R(dir, f).replace('### Requirement: Report totals', '### Requirement: Weekly totals').replace('#### Scenario: Empty week', '#### Scenario: Week without activity'));
   let r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 1);
   assert.match(r.out, /Requirement "Report totals" -> MISSING/);
-  assert.match(r.out, /Possible renames \(Requirement\) - judge semantic equivalence:\n    unmatched originals: "Report totals"\n    child names with no original: "Weekly totals" \(add-report-totals\)/);
+  assert.match(r.out, /Possible renames \(Requirement\) - judge semantic equivalence:\n    unmatched originals: "Report totals"\n    child names with no original: "Weekly totals" \(add-reports-01-totals\)/);
   assert.match(r.out, /Possible renames \(Scenario\)[\s\S]*unmatched originals: "Empty week"/);
-  notes(dir, 'add-report-totals', '- renamed_from: Requirement "Report totals" -> "Weekly totals" - same behaviour, clearer name');
+  notes(dir, 'add-reports-01-totals', '- renamed_from: Requirement "Report totals" -> "Weekly totals" - same behaviour, clearer name');
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 1, 'the scenario rename is still open');
-  notes(dir, 'add-report-totals', '- renamed_from: Requirement "Report totals" -> "Weekly totals" - same behaviour, clearer name');
-  const p = 'openspec/changes/add-report-totals/proposal.md';
+  notes(dir, 'add-reports-01-totals', '- renamed_from: Requirement "Report totals" -> "Weekly totals" - same behaviour, clearer name');
+  const p = 'openspec/changes/add-reports-01-totals/proposal.md';
   W(dir, p, R(dir, p).trimEnd() + '\n- renamed_from: Scenario "Empty week" -> "Week without activity" - same case\n');
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /Requirement "Report totals" -> add-report-totals as "Weekly totals" \(renamed_from\)/);
+  assert.match(r.out, /Requirement "Report totals" -> add-reports-01-totals as "Weekly totals" \(renamed_from\)/);
   assert.doesNotMatch(r.out, /Possible renames/);
 });
 
 test('split requirement: split_from needs a confirmed split note in each receiving child', () => {
   const { dir, c } = project();
-  W(dir, `${c}/execution/split-proposal.md`, `---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: add-reports-core\n- goal: Totals and member filter\n- capabilities: reports\n- requirements: Report totals\n- split: Report filters -> Member filter [Filter by member]\n- depends_on: none\n- flag: none\n\n### Slice: add-reports-more\n- goal: Tag filter and export\n- capabilities: export\n- requirements: CSV export\n- split: Report filters -> Tag filter [Filter by tag]\n- depends_on: add-reports-core\n- flag: none\n`);
+  W(dir, `${c}/execution/split-proposal.md`, `---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: add-reports-01-core\n- goal: Totals and member filter\n- capabilities: reports\n- requirements: Report totals\n- split: Report filters -> Member filter [Filter by member]\n- depends_on: none\n- flag: none\n\n### Slice: add-reports-02-more\n- goal: Tag filter and export\n- capabilities: export\n- requirements: CSV export\n- split: Report filters -> Tag filter [Filter by tag]\n- depends_on: add-reports-01-core\n- flag: none\n`);
   let r = run('split.mjs', ['apply', 'add-reports'], dir);
   assert.equal(r.code, 1, r.out);
-  assert.match(R(dir, CHILD('add-reports-core', 'reports')), /### Requirement: Member filter\n<!-- split_from: Report filters -->\nThe system SHALL do report filters[\s\S]*#### Scenario: Filter by member/);
+  assert.match(R(dir, CHILD('add-reports-01-core', 'reports')), /### Requirement: Member filter\n<!-- split_from: Report filters -->\nThe system SHALL do report filters[\s\S]*#### Scenario: Filter by member/);
   assert.match(r.out, /needs confirmation/);
-  assert.match(r.out, /add-reports-core\/proposal.md "## Split notes": - split_from: Requirement "Report filters" - confirmed/);
-  notes(dir, 'add-reports-core', '- split_from: Requirement "Report filters" - confirmed');
-  notes(dir, 'add-reports-more', '- split_from: Requirement "Report filters" - confirmed');
+  assert.match(r.out, /add-reports-01-core\/proposal.md "## Split notes": - split_from: Requirement "Report filters" - confirmed/);
+  notes(dir, 'add-reports-01-core', '- split_from: Requirement "Report filters" - confirmed');
+  notes(dir, 'add-reports-02-more', '- split_from: Requirement "Report filters" - confirmed');
   r = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /Requirement "Report filters" -> split into "Member filter" \(add-reports-core\), "Tag filter" \(add-reports-more\)/);
+  assert.match(r.out, /Requirement "Report filters" -> split into "Member filter" \(add-reports-01-core\), "Tag filter" \(add-reports-02-more\)/);
 });
 
 const archive = (dir, id) => { fs.mkdirSync(path.join(dir, 'openspec/changes/archive'), { recursive: true }); fs.renameSync(path.join(dir, 'openspec/changes', id), path.join(dir, 'openspec/changes/archive', `2026-10-10-${id}`)); };
@@ -230,27 +230,27 @@ test('next + mark: ready when all depends_on are archived; in-progress is the en
   run('split.mjs', ['apply', 'add-reports'], dir);
   let r = run('split.mjs', ['next', 'add-reports'], dir);
   assert.match(r.out, /0\/4 slices done \(archived folder present on main\)/);
-  assert.match(r.out, /Ready now: add-report-totals, add-csv-export/);
-  assert.match(r.out, /Parallel-safe now[^\n]*add-report-totals ∥ add-csv-export/);
-  assert.match(r.out, /\| add-report-filters \| planned \| add-report-totals \| waits for add-report-totals \|/);
-  r = run('split.mjs', ['mark', 'add-reports', 'add-report-totals', 'in-progress'], dir);
+  assert.match(r.out, /Ready now: add-reports-01-totals, add-reports-03-csv-export/);
+  assert.match(r.out, /Parallel-safe now[^\n]*add-reports-01-totals ∥ add-reports-03-csv-export/);
+  assert.match(r.out, /\| add-reports-02-filters \| planned \| add-reports-01-totals \| waits for add-reports-01-totals \|/);
+  r = run('split.mjs', ['mark', 'add-reports', 'add-reports-01-totals', 'in-progress'], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(R(dir, `${C}/slices.md`), /### Slice: add-report-totals\n[\s\S]*?- status: in-progress/);
+  assert.match(R(dir, `${C}/slices.md`), /### Slice: add-reports-01-totals\n[\s\S]*?- status: in-progress/);
   r = run('split.mjs', ['next', 'add-reports'], dir);
-  assert.match(r.out, /\| add-report-totals \| in progress \|/);
-  assert.match(r.out, /Ready now: add-csv-export/);
-  assert.match(r.out, /In progress \(engineer's mark\): add-report-totals/);
-  assert.match(r.out, /Parallel-safe with work in progress \(taken or ready, no dependency, no shared capability\): add-report-totals ∥ add-csv-export/);
+  assert.match(r.out, /\| add-reports-01-totals \| in progress \|/);
+  assert.match(r.out, /Ready now: add-reports-03-csv-export/);
+  assert.match(r.out, /In progress \(engineer's mark\): add-reports-01-totals/);
+  assert.match(r.out, /Parallel-safe with work in progress \(taken or ready, no dependency, no shared capability\): add-reports-01-totals ∥ add-reports-03-csv-export/);
   r = run('split.mjs', ['mark', 'add-reports', 'nope', 'in-progress'], dir);
   assert.equal(r.code, 2);
-  archive(dir, 'add-report-totals');
+  archive(dir, 'add-reports-01-totals');
   r = run('split.mjs', ['next', 'add-reports', '--write-tickets'], dir);
   assert.match(r.out, /1\/4 slices done/);
-  assert.match(r.out, /\| add-report-totals \| done \|/);
-  assert.match(r.out, /Ready now: add-report-filters, add-csv-export/);
-  assert.match(r.out, /Tickets written: tickets\/add-report-filters.md/);
-  assert.match(R(dir, `${C}/slices.md`), /### Slice: add-report-filters\n[\s\S]*?- ticket: tickets\/add-report-filters.md/);
-  assert.match(R(dir, `${C}/tickets/add-report-filters.md`), /add-report-filters is committed in the slice's own PR with its code, merged to main/);
+  assert.match(r.out, /\| add-reports-01-totals \| done \|/);
+  assert.match(r.out, /Ready now: add-reports-02-filters, add-reports-03-csv-export/);
+  assert.match(r.out, /Tickets written: tickets\/add-reports-02-filters.md/);
+  assert.match(R(dir, `${C}/slices.md`), /### Slice: add-reports-02-filters\n[\s\S]*?- ticket: tickets\/add-reports-02-filters.md/);
+  assert.match(R(dir, `${C}/tickets/add-reports-02-filters.md`), /add-reports-02-filters is committed in the slice's own PR with its code, merged to main/);
 });
 
 test('final loss check uses main specs + archived children; OpenSpec archives the parent with --skip-specs', { skip: !fs.existsSync(OPENSPEC) }, () => {
@@ -266,8 +266,8 @@ test('final loss check uses main specs + archived children; OpenSpec archives th
   assert.equal(v.status, 0, v.stdout + v.stderr);
   let r = run('split.mjs', ['loss', 'add-reports', '--final'], dir);
   assert.equal(r.code, 1);
-  assert.match(r.out, /slice "add-report-totals" is not archived yet/);
-  for (const id of ['add-report-totals', 'add-report-filters', 'add-csv-export', 'remove-csv-flag']) {
+  assert.match(r.out, /slice "add-reports-01-totals" is not archived yet/);
+  for (const id of ['add-reports-01-totals', 'add-reports-02-filters', 'add-reports-03-csv-export', 'add-reports-99-remove-csv-flag']) {
     const a = os_('archive', id, '--yes');
     assert.equal(a.status, 0, a.stdout + a.stderr);
   }
@@ -285,14 +285,14 @@ test('re-split: a slice is split again into the SAME parent (no nested parents);
   const { dir } = splitProject();
   run('split.mjs', ['apply', 'add-reports'], dir);
   addFlag(dir);
-  W(dir, 'openspec/changes/add-csv-export/execution/split-proposal.md', `---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: add-csv-export-core\n- goal: File export\n- capabilities: export\n- requirements: CSV export\n- depends_on: none\n- flag: none\n\n### Slice: add-csv-export-flag\n- goal: Flag for the export\n- capabilities: export-ui\n- requirements: Export flag gate\n- depends_on: add-csv-export-core\n- flag: csv-export\n`);
-  const r = run('split.mjs', ['apply', 'add-csv-export'], dir);
-  assert.match(r.out, /re-split into parent add-reports; children: add-csv-export-core, add-csv-export-flag/);
-  assert.equal(fs.existsSync(path.join(dir, 'openspec/changes/add-csv-export')), false);
+  W(dir, 'openspec/changes/add-reports-03-csv-export/execution/split-proposal.md', `---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: csv-export-core\n- goal: File export\n- capabilities: export\n- requirements: CSV export\n- depends_on: none\n- flag: none\n\n### Slice: csv-export-flag\n- goal: Flag for the export\n- capabilities: export-ui\n- requirements: Export flag gate\n- depends_on: csv-export-core\n- flag: csv-export\n`);
+  const r = run('split.mjs', ['apply', 'add-reports-03-csv-export'], dir);
+  assert.match(r.out, /re-split into parent add-reports; children: add-reports-04-csv-export-core, add-reports-05-csv-export-flag/);
+  assert.equal(fs.existsSync(path.join(dir, 'openspec/changes/add-reports-03-csv-export')), false);
   const s = R(dir, `${C}/slices.md`);
-  assert.match(s, /### Slice: remove-csv-flag[\s\S]*- depends_on: add-csv-export-core, add-csv-export-flag/);
-  assert.equal(fs.existsSync(path.join(dir, 'openspec/changes/add-csv-export-core/slices.md')), false);
-  assert.match(R(dir, 'openspec/changes/add-csv-export-flag/proposal.md'), /- added: Requirement "Export flag gate"/);
+  assert.match(s, /### Slice: add-reports-99-remove-csv-flag[\s\S]*- depends_on: add-reports-04-csv-export-core, add-reports-05-csv-export-flag/);
+  assert.equal(fs.existsSync(path.join(dir, 'openspec/changes/add-reports-04-csv-export-core/slices.md')), false);
+  assert.match(R(dir, 'openspec/changes/add-reports-05-csv-export-flag/proposal.md'), /- added: Requirement "Export flag gate"/);
   const l = run('split.mjs', ['loss', 'add-reports'], dir);
   assert.equal(l.code, 0, l.out);
 });
@@ -318,15 +318,15 @@ test('parallel slice branches: sdd-pp init union merge for slices.md keeps both 
   assert.equal(inst.status, 0, inst.stderr);
   assert.match(R(dir, '.gitattributes'), /^openspec\/changes\/\*\*\/slices\.md merge=union$/m);
   git('add', '-A'); git('commit', '-qm', 'plan');
-  git('switch', '-qc', 'a'); run('split.mjs', ['mark', 'add-reports', 'add-report-totals', 'in-progress'], dir); git('commit', '-qam', 'a');
-  git('switch', '-q', 'main'); git('switch', '-qc', 'b'); run('split.mjs', ['mark', 'add-reports', 'add-csv-export', 'in-progress'], dir); git('commit', '-qam', 'b');
+  git('switch', '-qc', 'a'); run('split.mjs', ['mark', 'add-reports', 'add-reports-01-totals', 'in-progress'], dir); git('commit', '-qam', 'a');
+  git('switch', '-q', 'main'); git('switch', '-qc', 'b'); run('split.mjs', ['mark', 'add-reports', 'add-reports-03-csv-export', 'in-progress'], dir); git('commit', '-qam', 'b');
   git('switch', '-q', 'main'); git('merge', '-q', '--no-ff', 'a', '-m', 'a');
   git('merge', '-q', '--no-ff', 'b', '-m', 'b'); // no conflict
   const s = `${C}/slices.md`;
   const text = R(dir, s);
-  assert.match(text, /### Slice: add-report-totals\n[\s\S]*?- status: in-progress/);
-  assert.match(text, /### Slice: add-csv-export\n[\s\S]*?- status: in-progress/);
-  W(dir, s, text.replace('- ticket: tickets/add-report-totals.md', '- ticket: tickets/add-report-totals.md\n- ticket: none'));
+  assert.match(text, /### Slice: add-reports-01-totals\n[\s\S]*?- status: in-progress/);
+  assert.match(text, /### Slice: add-reports-03-csv-export\n[\s\S]*?- status: in-progress/);
+  W(dir, s, text.replace('- ticket: tickets/add-reports-01-totals.md', '- ticket: tickets/add-reports-01-totals.md\n- ticket: none'));
   const r = run('split.mjs', ['loss', 'add-reports'], dir);
-  assert.match(r.out, /slice "add-report-totals" has "ticket:" twice \(a union merge of two branches\?\)/);
+  assert.match(r.out, /slice "add-reports-01-totals" has "ticket:" twice \(a union merge of two branches\?\)/);
 });

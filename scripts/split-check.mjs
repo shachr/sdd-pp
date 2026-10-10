@@ -2,7 +2,7 @@
 // split-check: the split gate at the end of the specs stage (before /handoff). Rerunnable, warn-only.
 // It counts the change's delta requirements and capabilities: above split.maxRequirements (5) or
 // split.maxCapabilities (2) it warns and asks for a split proposal in execution/split-proposal.md,
-// which it lints; the engineer approves it (approved_by:) and `split.mjs apply` performs it.
+// which it lints; the engineer approves it (approved_by:) and /split-apply (split.mjs apply) performs it.
 // Nothing is split automatically. Line estimates are NOT made here: the ~300-line budget is
 // checked after planning (/spec-check, from the tool's tickets / plan) and at the PR (check-handoff).
 // On a slice it is the same check (a re-split joins the same parent); on a parent it lints slices.md.
@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, loadConfig, UsageError } from './lib/change.mjs';
-import { changeDeltas, changeLocation, dependencyClosure, findParentOf, lintSlices, parseSlices, SPLIT_MAX_CAPABILITIES, SPLIT_MAX_REQUIREMENTS } from './lib/split.mjs';
+import { changeDeltas, changeLocation, dependencyClosure, findParentOf, lintSlices, nameSlices, parseSlices, SPLIT_MAX_CAPABILITIES, SPLIT_MAX_REQUIREMENTS } from './lib/split.mjs';
 
 const lc = (s) => s.trim().toLowerCase();
 
@@ -40,7 +40,11 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
   if (fs.existsSync(pf)) {
     const ptext = fs.readFileSync(pf, 'utf8');
     const prop = parseSlices(ptext);
+    // show the ids split apply will create: <parent>-<nn>-<slice>
+    const named = nameSlices(prop.slices, r.parent || id, { existing: r.parent ? parent.plan.slices.map((x) => x.id) : [] });
+    prop.slices = named.slices;
     const lint = lintSlices(prop, { text: ptext.replace(/^---[\s\S]*?---/, '') });
+    lint.errors.unshift(...named.errors);
     const assigned = new Map();
     for (const s of prop.slices) {
       for (const n of s.requirements) assigned.set(lc(n), [...(assigned.get(lc(n)) || []), s.id]);
@@ -71,15 +75,15 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
 
 /** names: false for the file written into the change (it becomes the parent, which carries no requirement names). */
 export function formatSplitCheck(r, { names = true } = {}) {
-  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: node .openspec-handoff/scripts/split.mjs next ${r.change})`].join('\n');
+  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /split-next ${r.change})`].join('\n');
   if (r.status === 'fits') return `split-check ${r.change}: fits (${r.requirements} requirements, ${r.capabilities} capabilities)`;
   const out = [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (re-split: the new slices join parent ${r.parent}; no nested parents)` : ''}`, ''];
   for (const c of r.byCap) out.push(names ? `- ${c.capability} (${c.requirements.length}): ${c.requirements.join('; ')}` : `- ${c.capability}: ${c.requirements.length} requirements`);
   if (!r.proposal) {
     out.push('', 'Next: propose slices in execution/split-proposal.md (front matter "approved_by:" left empty), show them to the engineer, and wait for approval or edits. Format:',
-      '  ### Slice: <change-id>', '  - goal: <one line, no requirement names>', '  - capabilities: <cap>, <cap>', '  - requirements: <exact name>; <exact name>',
+      '  ### Slice: <slice>   (the slice part only; split apply names the change <parent>-<nn>-<slice>)', '  - order: <nn>   (two digits, 01 = first; the flag cleanup slice uses 99; omit on a re-split to continue the numbering)', '  - goal: <one line, no requirement names>', '  - capabilities: <cap>, <cap>', '  - requirements: <exact name>; <exact name>',
       '  - split: <original name> -> <new name> [<scenario>; <scenario>]   (only to cut one requirement in two)',
-      '  - depends_on: none | <slice>, <slice>', '  - flag: none | <flag>   (only when the slice gates user-visible behaviour)', '  - removes_flag: <flag>   (the cleanup slice; always planned when a flag exists)',
+      '  - depends_on: none | <slice>, <slice>   (slice parts, or full ids of existing slices)', '  - flag: none | <flag>   (only when the slice gates user-visible behaviour)', '  - removes_flag: <flag>   (the cleanup slice; always planned when a flag exists)',
       'Line estimates come after planning (/spec-check on each slice, budget ~300 lines of code + tests).');
     return out.join('\n');
   }
@@ -95,7 +99,7 @@ export function formatSplitCheck(r, { names = true } = {}) {
   out.push('', `Ready first: ${p.ready.join(', ') || 'none'}`, `Parallel-safe pairs (no dependency, no shared capability): ${p.parallelSafe.join(', ') || 'none'}`);
   for (const e of p.errors) out.push(`✗ ${e}`);
   for (const w of p.warnings) out.push(`! ${w}`);
-  out.push('', p.approvedBy ? `Approved. Apply (after committing the deltas - that commit is the loss-check baseline): node .openspec-handoff/scripts/split.mjs apply ${r.change}` : 'Waiting for the engineer: approve or edit the slices, then set "approved_by:" and run split.mjs apply.');
+  out.push('', p.approvedBy ? `Approved. Apply (after committing the deltas - that commit is the loss-check baseline): /split-apply ${r.change}` : 'Waiting for the engineer: approve or edit the slices, then set "approved_by:" and run /split-apply.');
   return out.join('\n');
 }
 

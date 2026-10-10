@@ -28,7 +28,8 @@ approves or edits them. Nothing is split automatically.
 1. **Proposal** - `execution/split-proposal.md` (`approved_by:` empty until approval), one block per slice:
 
    ```markdown
-   ### Slice: add-digest-core
+   ### Slice: core
+   - order: 01
    - goal: Weekly digest content
    - capabilities: digest
    - requirements: Digest content; Digest schedule
@@ -36,13 +37,18 @@ approves or edits them. Nothing is split automatically.
    - flag: none
    ```
 
+   The proposal lists only the slice part (`core`) and its two-digit `order`; `/split-apply` names the
+   child `<parent>-<nn>-<slice>` (`add-digest-01-core`; the flag cleanup slice always gets `99`, e.g.
+   `add-digest-99-remove-flag`). A full id that does not follow the convention is refused with the expected
+   name; `depends_on` may use slice parts. Names get long and the archive adds a date prefix
+   (`archive/2026-10-10-add-digest-01-core/`): keep the parent id and the slice part short.
    `split: <original> -> <new name> [<scenario>; ...]` cuts one requirement in two. `flag:` only when the
    slice gates user-visible behaviour; then a cleanup slice (`removes_flag: <flag>`, depending on the
    flagged slice) is always planned.
 2. **Approval** - the engineer sets `approved_by:` (or edits the slices). `/split-check` shows the slices,
    which are ready first and which pairs can run in parallel.
 3. **Commit the deltas, then apply** - the commit holding the original deltas is the loss-check baseline.
-   `node .openspec-handoff/scripts/split.mjs apply <id>` refuses while the deltas are uncommitted, then:
+   `/split-apply <id>` refuses while the deltas are uncommitted, then:
    - the original change becomes the **parent** (schema `split-plan`, artifacts proposal → slices), a
      **control plane**: `proposal.md` (why and scope) and `slices.md` with front matter
      `parent / approved_by / split_at / split_commit` and one block per slice: id, goal, capabilities,
@@ -73,18 +79,19 @@ approves or edits them. Nothing is split automatically.
    equivalent pair is recorded as `renamed_from` and passes; otherwise the original is missing until it is
    restored or recorded as `dropped`.
 6. **One planning PR** - parent + all children (proposal + specs only, no handoff) committed together.
-   `split.mjs next <parent> --write-tickets` writes `tickets/<slice>.md` (Jira-pasteable, no requirement
+   `/split-next <parent>` writes `tickets/<slice>.md` (Jira-pasteable, no requirement
    names) for READY slices.
 7. **Slices** - a slice is READY when all its `depends_on` are done; **done = the child's archived folder is
    on main**. Two slices are **parallel-safe** only when neither depends on the other (transitively) and
-   they share no capability. To take a slice: `split.mjs mark <parent> <slice> in-progress`, committed on
+   they share no capability. To take a slice: `/split-mark <parent> <slice> in-progress`, committed on
    main - **in progress is a manual mark**; the next report trusts it and does not scan branches. Then a
    branch from main, a short design session narrowed to the slice (reading the parent's
    `execution/grill.md` / `brainstorm.md`), `/handoff <slice>`, and the usual flow. `/opsx:archive <slice>`
    runs on the slice branch and the archive is **committed in the slice's own PR with its code**; after the
-   merge, `split.mjs next <parent> --write-tickets` on main.
-8. **Parent last** - when every slice is done: `split.mjs loss <parent> --final` (also checks the final names
-   against the main specs), then `openspec archive <parent> --skip-specs --yes` (must not sync specs).
+   merge, `/split-next <parent>` on main.
+8. **Parent last** - when every slice is done: `/split-archive <parent>` runs `split.mjs loss <parent> --final`
+   (also checks the final names against the main specs), then `openspec archive <parent> --skip-specs -y`
+   (must not sync specs; `/opsx:archive` cannot pass `--skip-specs`).
    Never run `/opsx:verify` on a parent.
 
 Changing the plan later: edit the child delta, add the split note to that child's proposal, rerun
@@ -96,8 +103,8 @@ then `check-handoff` and `/spec-check`.
 commits); `split.mjs loss` warns if a union merge left a slice field twice.
 
 **Re-split**: run `/split-check <slice>` on a slice that turns out too big (more requirements, or over the
-line estimate after planning); `split.mjs apply <slice>` replaces it in the **same** parent (no nested
-parents), rewires `depends_on`, and carries the old slice's split notes into the new children.
+line estimate after planning); `/split-apply <slice>` replaces it in the **same** parent (no nested
+parents), numbers the new slices after the parent's highest (`-03-`, `-04-`, ...), rewires `depends_on`, and carries the old slice's split notes into the new children.
 
 ## When to split
 

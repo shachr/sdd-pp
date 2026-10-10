@@ -10,7 +10,7 @@ Thin wrapper: you run the real AI Hero skills unmodified, with **this change fol
 Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 - AI Hero skills set `disable-model-invocation: true`. If you cannot call them with the Skill tool, ask the user to type the slash command, or read the installed `SKILL.md` and follow its process yourself.
-- The issue tracker is the change folder: `docs/agents/issue-tracker.md` (installed from `.openspec-handoff/issue-tracker-openspec.md` by `/setup-matt-pocock-skills` -> "Other"). Nothing goes to `.scratch/` or GitHub/Linear.
+- The issue tracker is the change folder: `docs/agents/issue-tracker.md` (installed by `sdd-pp init --tool ai-hero` when absent; otherwise copy `.openspec-handoff/issue-tracker-openspec.md` there, e.g. `/setup-matt-pocock-skills` -> "Other"). Nothing goes to `.scratch/` or GitHub/Linear.
 
 ## Flow
 
@@ -18,7 +18,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 |---|---|---|
 | Proposal | `grill-with-docs` (= `grilling` + `domain-modeling`) | `execution/grill.md`; `GLOSSARY.md`, `docs/adr/` (linked) |
 | Proposal | (OpenSpec) proposal.md + delta, informed by the session | `proposal.md`, `specs/**/spec.md` |
-| Specs (end) | `/split-check` split gate (> 5 requirements or > 2 capabilities: slices proposed, engineer approves, `split.mjs apply`) | `execution/split-check.md` |
+| Specs (end) | `/split-check` split gate (> 5 requirements or > 2 capabilities: slices proposed, engineer approves, `/split-apply`; slices are named `<parent>-<nn>-<slice>`) | `execution/split-check.md` |
 | Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
 | Planning (engineer) | `to-spec`, reading `execution/grill.md` | `execution/spec.md` |
 | Planning (engineer) | `to-tickets` | `execution/tickets/NN-<slug>.md` |
@@ -31,7 +31,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 
 Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches the proposal, before `proposal.md` is written. `openspec instructions proposal` says so.
 
-1. `node .openspec-handoff/scripts/execution-tool.mjs <id>` must say `ai-hero` (project default or `--set ai-hero`). `--set` creates `execution/grill.md` with front matter `tool: ai-hero` / `session: grill-with-docs`; create it the same way if it does not exist.
+1. `/tool <id>` (runs `node .openspec-handoff/scripts/sdd.mjs tool <id>`) must say `ai-hero` (project default or `--set ai-hero`). `--set` creates `execution/grill.md` with front matter `tool: ai-hero` / `session: grill-with-docs`; create it the same way if it does not exist.
 2. Run `grill-with-docs` on the user's request (and the existing main specs it touches). If the user delegated decisions, answer each round yourself with the recommended answer (or a better one) and mark those answers as yours.
 3. Write `execution/grill.md`:
    - keep the front matter; first body line `> Source of truth: [proposal](../proposal.md) · [specs/<cap>/spec.md](../specs/<cap>/spec.md)`
@@ -72,11 +72,11 @@ After `/handoff` wrote `handoff.md` (`tool: ai-hero`, the session file must exis
 
 ## Slice of a split change
 
-A change created by `split.mjs apply` (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `node .openspec-handoff/scripts/split.mjs next <parent>` says READY (all `depends_on` done = archived folder on main). First mark it: `node .openspec-handoff/scripts/split.mjs mark <parent> <slice> in-progress`, committed on main (the next report trusts this mark; there is no branch scanning). Then work on its own branch from main (`git switch -c change/<slice> main`).
+A change created by `/split-apply` (id `<parent>-<nn>-<slice>`) (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `/split-next <parent>` says READY (all `depends_on` done = archived folder on main). First mark it: `/split-mark <parent> <slice> in-progress`, committed on main (the next report trusts this mark; there is no branch scanning). Then work on its own branch from main (`git switch -c change/<slice> main`).
 - **Design session, narrowed:** the parent keeps the shared session (`../<parent>/execution/grill.md`). Before `/handoff <slice>`, run a SHORT ``grill-with-docs`` session limited to this slice: read the parent's session file first, ask only what the slice needs (its seams, what earlier slices left in the code), and write the slice's own `execution/grill.md` (first body line links the parent's session file). Do not re-decide what the parent settled; if the slice needs different behaviour, change its delta and record it in this slice's proposal `## Split notes` (`dropped:` / `added:` / `renamed_from:` / `split_from:`), then `split.mjs loss <parent>`. The parent never names requirements.
 - **Parent session vs. slice: the delta wins.** Where the parent's design session (`../<parent>/execution/grill.md`, frozen at the split commit, original names) and this slice's delta or split notes differ, the delta wins. The slice's narrowed `execution/grill.md` has an `## Overrides` section listing which parent decisions it overrides (one line each: the parent decision, what the slice does instead, the split note or delta it points at; "None" if nothing). Never edit the parent's session after the split; check-handoff warns when a slice with split notes has no `## Overrides` section.
 - A flagged slice keeps its user-visible behaviour behind the flag its delta describes; the cleanup slice removes the flag (its delta `## REMOVED Requirements`).
-- **Done = archived on main.** Run `/opsx:archive <slice>` on the slice branch and commit the archive in the slice's own PR together with its code; after the merge, on main: `node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets` (next-steps prints it).
+- **Done = archived on main.** Run `/opsx:archive <slice>` on the slice branch and commit the archive in the slice's own PR together with its code; after the merge, on main: `/split-next <parent>` (next-steps prints it). When every slice is done, the parent is archived last with `/split-archive <parent>`.
 
 ## Updating tool files after a delta edit
 

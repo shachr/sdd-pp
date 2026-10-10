@@ -7,16 +7,40 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { spawnSync } from 'node:child_process';
 
 export const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TOOLS = ['ai-hero', 'superpowers'];
+/** Workflow subcommands, run by the project's installed scripts/sdd.mjs (see scripts/sdd.mjs). */
+export const RUN_COMMANDS = ['check', 'spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split'];
+
+/** The sdd.mjs to run from `start`: the project's installed copy (nearest .openspec-handoff/scripts), else this package's. */
+export function sddScript(start = process.cwd()) {
+  for (let d = path.resolve(start); ; d = path.dirname(d)) {
+    const f = path.join(d, '.openspec-handoff', 'scripts', 'sdd.mjs');
+    if (fs.existsSync(f)) return { file: f, installed: true };
+    if (path.dirname(d) === d) return { file: path.join(SRC, 'scripts', 'sdd.mjs'), installed: false };
+  }
+}
 
 export const USAGE = `Usage: sdd-pp init [dir] [options]      install into <dir> (default: the current directory)
+       sdd-pp <command> ...              from inside a project (runs its installed .openspec-handoff/scripts):
+         check <id>                      openspec validate <id> --strict + check-handoff <id> --expect-complete
+         spec-check <id>                 coverage report -> execution/spec-check.md
+         split-check <id>                split gate counts -> execution/split-check.md
+         next <id>                       print the change's next steps again
+         tool <id> [--set <tool>]        show / set the change's execution tool (tool --default <tool>: project default)
+         split apply <id>                apply the approved split proposal (slice ids <parent>-<nn>-<slice>)
+         split next <parent>             ready / parallel-safe slices + tickets for READY slices
+         split mark <parent> <slice> <in-progress|planned>
+         split loss <parent> [--final]   loss check
+         split archive <parent>          final loss check + openspec archive <parent> --skip-specs -y
        sdd-pp --help | --version
 
 Options for init:
   --tool <ai-hero|superpowers>  setup phase: the project's default execution tool (.openspec-handoff/project.json);
                                 changes may override it. A re-install without --tool keeps the existing default.
+                                ai-hero also installs docs/agents/issue-tracker.md (OpenSpec as the tracker) if absent.
   --claude / --no-claude        install skills + commands into .claude/   (default: on)
   --cursor / --no-cursor        install skills + commands into .cursor/   (default: on)
   --opencode / --no-opencode    install skills + commands into .opencode/ (default: only if .opencode/ exists)
@@ -91,32 +115,49 @@ export function init(dir, opts = {}, log = console.log) {
     log(`  .openspec-handoff/project.json (kept: "defaultTool": "${cur}")`);
   } else {
     log('  WARNING: no default execution tool - rerun with --tool ai-hero|superpowers, or set one per change:');
-    log('           node .openspec-handoff/scripts/execution-tool.mjs <change> --set <tool>');
+    log('           /tool <change> --set <tool>   (or: npx <toolkit> tool <change> --set <tool>)');
+  }
+
+  // AI Hero's skills read docs/agents/issue-tracker.md; with ai-hero the tracker is OpenSpec itself
+  let effectiveTool = tool;
+  if (!effectiveTool && fs.existsSync(pj)) { try { effectiveTool = JSON.parse(fs.readFileSync(pj, 'utf8')).defaultTool; } catch { /* ignore */ } }
+  if (effectiveTool === 'ai-hero') {
+    const it = T('docs/agents/issue-tracker.md');
+    if (!fs.existsSync(it)) {
+      fs.mkdirSync(path.dirname(it), { recursive: true });
+      fs.copyFileSync(S('config/issue-tracker-openspec.md'), it);
+      log('  docs/agents/issue-tracker.md (AI Hero issue tracker = OpenSpec change folders)');
+    } else log('  docs/agents/issue-tracker.md (kept existing)');
   }
 
   if (appendLine(T('.gitignore'), '.superpowers/')) log('  .gitignore += .superpowers/ (Superpowers SDD scratch)');
   if (appendLine(T('.gitattributes'), 'openspec/changes/**/slices.md merge=union')) log('  .gitattributes += slices.md merge=union (parallel slice branches each edit slices.md)');
 
   log(`
-Done. Next:
+Done. Next (agent slash commands; the same checks run from a shell as \`npx <toolkit> <command>\`, see --help):
   openspec schema validate handoff-driven && openspec schema validate split-plan
-  openspec new change <id>                              # handoff-driven is the project default
-  /opsx:propose <id>  (or /opsx:continue)               # proposal phase runs the tool's design session:
-                                                        #   ai-hero -> grill-with-docs -> execution/grill.md
-                                                        #   superpowers -> brainstorming -> execution/brainstorm.md (stops before writing-plans)
-  node .openspec-handoff/scripts/execution-tool.mjs <id> --set superpowers   # per-change override, before the session
-  /split-check <id>                                     # split gate at the end of the specs stage (runs automatically; rerunnable)
-  node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets   # split changes: ready / parallel-safe slices + tickets
-  node .openspec-handoff/scripts/split.mjs mark <parent> <slice> in-progress   # take a slice (commit on main)
-  node .openspec-handoff/scripts/split.mjs loss <parent> [--final]         # loss check; archive the parent last with --skip-specs
-  /handoff <id>                                         # last OpenSpec stage: handoff.md + prints the next steps
-  node .openspec-handoff/scripts/next-steps.mjs <id>    # reprint them: planning, /spec-check, implement, review, verify, archive
+  /opsx:propose <id>                 proposal phase runs the tool's design session, then proposal + specs:
+                                       ai-hero -> grill-with-docs -> execution/grill.md
+                                       superpowers -> brainstorming -> execution/brainstorm.md (stops before writing-plans)
+  /tool <id> --set superpowers       per-change tool override, before the design session
+  /split-check <id>                  split gate at the end of the specs stage (runs automatically; rerunnable)
+  /handoff <id>                      last OpenSpec stage: handoff.md + prints the next steps (/next-steps <id> reprints them)
+  ... planning, /spec-check <id>, implement, code review (as the next steps say)
+  /check-handoff <id>                openspec validate --strict + check-handoff --expect-complete
+  /opsx:verify <id>, /opsx:archive <id>
+  Split changes: /split-apply <id>, /split-next <parent>, /split-mark <parent> <slice> in-progress, /split-archive <parent>
 Also install the execution toolkits themselves (not bundled):
   AI Hero:     npx skills add mattpocock/skills   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
   Superpowers: npx skills add obra/superpowers    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)`);
 }
 
 export function main(argv = process.argv.slice(2)) {
+  if (RUN_COMMANDS.includes(argv[0])) {
+    const { file } = sddScript();
+    const r = spawnSync(process.execPath, [file, ...argv], { stdio: 'inherit' });
+    if (r.error) { console.error(`sdd-pp: ${r.error.message}`); return 1; }
+    return r.status ?? 1;
+  }
   let parsed;
   try {
     parsed = parseArgs({

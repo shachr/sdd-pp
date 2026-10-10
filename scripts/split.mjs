@@ -3,6 +3,8 @@
 // and report which slices are ready. Nothing is split without an approved proposal.
 //   apply <change>               execution/split-proposal.md (approved_by set) -> children + parent
 //                                (a change that is already a slice is re-split into the same parent)
+//                                child ids: <parent>-<nn>-<slice> (nn = order 01..98, flag cleanup = 99);
+//                                the proposal lists the slice part + "- order: NN"; a re-split continues the numbering
 //   loss  <parent> [--final]     loss check: the original deltas at the split commit (git baseline)
 //                                vs the child deltas + the children's "## Split notes";
 //                                --final: also vs the main specs, before the parent is archived
@@ -17,7 +19,7 @@ import { parseArgs } from 'node:util';
 import { findProjectRoot, git, UsageError } from './lib/change.mjs';
 import {
   baselineDeltas, changeDeltas, dependencyClosure, changeLocation, findParentOf, lintSlices, mainSpecRequirements,
-  nameLeaks, parentDir, parseSlices, parseSplitNotes, readiness, SLICE_STATUSES,
+  nameLeaks, nameSlices, parentDir, parseSlices, parseSplitNotes, readiness, SLICE_STATUSES,
 } from './lib/split.mjs';
 
 const lc = (s) => s.trim().toLowerCase();
@@ -236,7 +238,7 @@ export function formatNext(r) {
   out.push('', '| Slice | Status | Depends on | Ready | Flag | Ticket |', '|---|---|---|---|---|---|');
   for (const x of r.rows) out.push(`| ${x.id} | ${x.status} | ${x.depends_on.join(', ') || '-'} | ${x.ready ? 'READY' : x.status === 'done' ? 'done' : x.status === 'in progress' ? '(taken)' : `waits for ${x.waiting.join(', ')}`} | ${x.flag || (x.removes_flag ? `removes ${x.removes_flag}` : '-')} | ${x.ticket || '-'} |`);
   const inProg = r.rows.filter((x) => x.status === 'in progress');
-  out.push('', `Ready now: ${r.ready.map((x) => x.id).join(', ') || (done === r.rows.length ? 'none - all slices done; run the final loss check, then archive the parent with --skip-specs' : 'none')}`);
+  out.push('', `Ready now: ${r.ready.map((x) => x.id).join(', ') || (done === r.rows.length ? `none - all slices done; archive the parent: /split-archive ${r.parent} (final loss check + openspec archive --skip-specs)` : 'none')}`);
   if (inProg.length) out.push(`In progress (engineer's mark): ${inProg.map((x) => x.id).join(', ')}`);
   const safe = r.pairs.filter((p) => p.bothReady && p.safe);
   const unsafe = r.pairs.filter((p) => p.bothReady && !p.safe);
@@ -272,7 +274,7 @@ export function writeTickets(root, r) {
       s.flag ? `Feature flag: ${s.flag} (user-visible behaviour stays off until the cleanup slice removes the flag)` : null,
       s.removes_flag ? `Removes feature flag: ${s.removes_flag}` : null,
       '',
-      `Start: node .openspec-handoff/scripts/split.mjs mark ${r.parent} ${s.id} in-progress (commit it on main), then git switch -c change/${s.id} main, the slice's design session and /handoff ${s.id}.`,
+      `Start: /split-mark ${r.parent} ${s.id} in-progress (commit it on main), then git switch -c change/${s.id} main, the slice's design session and /handoff ${s.id}.`,
       `Size: line estimate after planning (/spec-check ${s.id}), budget ~300 lines of code + tests.`,
       `Done when: /opsx:verify ${s.id} passes and /opsx:archive ${s.id} is committed in the slice's own PR with its code, merged to main.`,
       '',
@@ -336,6 +338,10 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
   if (!prop.front.approved_by) throw new UsageError(`${proposal}: front matter "approved_by:" is empty - the engineer approves (or edits) the slices first; nothing is split automatically`);
   const parent = findParentOf(root, id);
   const resplit = Boolean(parent && parent.id !== id);
+  // slice ids: <parent>-<nn>-<slice> (the proposal lists the slice part + order; a re-split continues the numbering)
+  const named = nameSlices(prop.slices, resplit ? parent.id : id, { existing: resplit ? parent.plan.slices.map((s) => s.id) : [] });
+  if (named.errors.length) throw new UsageError(`${proposal}:\n  ${named.errors.join('\n  ')}`);
+  prop.slices = named.slices;
   let splitCommit = null;
   if (!resplit) {
     // the loss-check baseline: the original deltas, committed and unchanged
@@ -439,8 +445,8 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
       `# Slices: ${id}`, '',
       'Control plane of a split change (schema split-plan): why/scope is in proposal.md, the slices are below. No requirement or scenario names and no behaviour here - they live in the child deltas; deliberate differences are "## Split notes" in the child proposals.',
       `Loss-check baseline: the original deltas at split_commit (\`git show ${splitCommit.slice(0, 7)}:openspec/changes/${id}/specs/...\`).`,
-      `Status: mark a slice "in-progress" when you take it (\`split.mjs mark ${id} <slice> in-progress\`); it is done when its archived folder is on main.`,
-      `Archive this parent last: \`split.mjs loss ${id} --final\`, then \`openspec archive ${id} --skip-specs --yes\`. Never run /opsx:verify on it.`, '',
+      `Status: mark a slice "in-progress" when you take it (\`/split-mark ${id} <slice> in-progress\`); it is done when its archived folder is on main.`,
+      `Archive this parent last: \`/split-archive ${id}\` (final loss check, then \`openspec archive ${id} --skip-specs -y\`). Never run /opsx:verify on it.`, '',
       '## Slices', '', prop.slices.map(sliceBlock).join('\n\n'), '',
     ].join('\n'));
     let y = fs.readFileSync(path.join(src, '.openspec.yaml'), 'utf8').replace(/^schema:.*$/m, 'schema: split-plan');
@@ -460,7 +466,7 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md' 
     fs.writeFileSync(f, text);
     fs.rmSync(src, { recursive: true, force: true });
   }
-  return { parent: parentId, parentDir: pdir, created, resplit, splitCommit, warnings };
+  return { parent: parentId, parentDir: pdir, created, resplit, splitCommit, warnings, names: named.slices.map((x) => [x.given, x.id]) };
 }
 
 // ------------------------------------------------------------------ CLI
@@ -479,6 +485,7 @@ async function main() {
   if (cmd === 'apply') {
     const r = applySplit(root, id, values.proposal ? { proposal: values.proposal } : {});
     console.log(`split apply ${id}: ${r.resplit ? `re-split into parent ${r.parent}` : `parent ${r.parent} (schema split-plan, split_commit ${r.splitCommit.slice(0, 7)})`}; children: ${r.created.join(', ')}`);
+    console.log(`  slice ids (<parent>-<nn>-<slice>): ${r.names.map(([g, f]) => (g === f ? f : `${g} -> ${f}`)).join(', ')}`);
     console.log('  Child deltas hold the original requirement blocks verbatim; narrow any split requirement by hand (keep its <!-- split_from --> line).');
     const loss = lossCheck(root, r.parent);
     console.log(formatLoss(loss));

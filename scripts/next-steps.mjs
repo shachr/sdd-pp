@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 // next-steps: the exact next steps for a handed-off change, for the tool in handoff.md.
 // The handoff stage ends by printing this; it does not run any of the steps.
-// Usage: node .openspec-handoff/scripts/next-steps.mjs <change> [--root <dir>]
+// Usage: /next-steps <change>  (node .openspec-handoff/scripts/next-steps.mjs <change> [--root <dir>])
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, loadChange, UsageError, SESSION_FILES, APPLY_MODES } from './lib/change.mjs';
 import { findParentOf } from './lib/split.mjs';
 
 export function nextSteps({ id, tool, applyMode, parent = null }) {
-  const S = '.openspec-handoff/scripts';
   const c = `openspec/changes/${id}`;
   const review = (n, what) => `${n}. ${what} in a FRESH session of your own coding agent (a sub-agent, or a new session that sees only the review prompt) -> ${c}/execution/reviews/code-review.md. Write "fresh session" at the top of the review; if it could not run in a fresh session, write "self-review" instead. Fix Critical/Important findings.`;
   const finish = (n) => [
-    `${n}. openspec validate ${id} --strict && node ${S}/check-handoff.mjs ${id} --expect-complete`,
+    `${n}. /check-handoff ${id} (openspec validate --strict + check-handoff --expect-complete)`,
     `${n + 1}. /opsx:verify ${id} - save the report verbatim to ${c}/execution/verify.md`,
     `${n + 2}. /opsx:archive ${id} on the change branch, and commit the archive in this change's PR together with its code (the change is complete when its archived folder is on main).`,
   ];
@@ -45,7 +44,7 @@ export function nextSteps({ id, tool, applyMode, parent = null }) {
 
 /** A slice of a split change: once its PR (code + archive) is on main, report what became ready. */
 function afterArchive(parent, n) {
-  return parent ? [`${n}. On main: node .openspec-handoff/scripts/split.mjs next ${parent} --write-tickets - this slice shows done (archived folder on main); slices now ready get tickets.`] : [];
+  return parent ? [`${n}. On main: /split-next ${parent} - this slice shows done (archived folder on main); slices now ready get tickets.`] : [];
 }
 
 function main() {
@@ -55,7 +54,7 @@ function main() {
   if (!root) throw new UsageError('no openspec/ directory found');
   const change = loadChange(root, positionals[0]);
   if (change.files.includes('slices.md')) {
-    console.log(`${change.id} is a split parent: no handoff or implementation. Run: node .openspec-handoff/scripts/split.mjs next ${change.id}`);
+    console.log(`${change.id} is a split parent: no handoff or implementation. Run: /split-next ${change.id}`);
     return 0;
   }
   const h = change.handoff;

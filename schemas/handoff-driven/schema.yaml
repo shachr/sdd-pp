@@ -14,10 +14,10 @@ artifacts:
     template: proposal.md
     instruction: |
       Handoff-driven - DESIGN SESSION FIRST (before writing proposal.md):
-      1. Resolve the execution tool chosen in the setup phase:
-         `node .openspec-handoff/scripts/execution-tool.mjs <change>`
-         (project default in .openspec-handoff/project.json; a per-change override is
-         recorded with `--set <ai-hero|superpowers>`, which starts the session file).
+      1. Resolve the execution tool chosen in the setup phase: `/tool <change>`
+         (runs `node .openspec-handoff/scripts/sdd.mjs tool <change>`; project default in
+         .openspec-handoff/project.json; a per-change override is recorded with
+         `/tool <change> --set <ai-hero|superpowers>`, which starts the session file).
          No tool set: ask the user once, then record it with --set.
       2. Run that tool's design session - the "Design session" part of its wrapper skill:
          - ai-hero -> skill `openspec-handoff-ai-hero`: grill-with-docs -> execution/grill.md
@@ -207,13 +207,14 @@ artifacts:
       planning, in /spec-check, from the tool's tickets / plan; budget ~300 lines).
       1. Up to 5 requirements and 2 capabilities it prints one line ("fits") - carry on to /handoff.
       2. Above (a warning, never a failure): propose slices in execution/split-proposal.md
-         (goal, capabilities, requirements, depends_on, flag if any - the /split-check command
-         lists the format), show them to the engineer and STOP until they approve or edit
-         (approved_by:). Nothing is split automatically. After approval: commit the deltas
-         (that commit is the loss-check baseline), then
-         `node .openspec-handoff/scripts/split.mjs apply <change>` turns this change into the
-         parent (schema split-plan: a control plane with no requirement names) and creates one
-         handoff-driven child per slice; then `split.mjs loss <parent>` must pass.
+         (slice part + order, goal, capabilities, requirements, depends_on, flag if any - the
+         /split-check command lists the format), show them to the engineer and STOP until they
+         approve or edit (approved_by:). Nothing is split automatically. After approval: commit
+         the deltas (that commit is the loss-check baseline), then `/split-apply <change>` turns
+         this change into the parent (schema split-plan: a control plane with no requirement
+         names) and creates one handoff-driven child per slice, named
+         `<change>-<nn>-<slice>` (nn = two-digit order; the flag cleanup slice uses 99);
+         then `split.mjs loss <parent>` must pass.
          See .openspec-handoff/small-changes.md.
     requires:
       - proposal
@@ -226,15 +227,16 @@ artifacts:
       (`/handoff <change>`). The execution tool was chosen in
       the setup phase (or overridden per change) and its design session already ran in
       the proposal phase (execution/grill.md for ai-hero, execution/brainstorm.md for
-      superpowers); `node .openspec-handoff/scripts/execution-tool.mjs <change>` resolves
-      it (per-change override, else the project default).
+      superpowers); `/tool <change>` resolves it (per-change override, else the
+      project default).
 
       The handoff stage writes handoff.md, runs check-handoff, and ENDS by printing the
-      next steps for the tool - `node .openspec-handoff/scripts/next-steps.mjs <change>` -
-      WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
+      next steps for the tool - `node .openspec-handoff/scripts/next-steps.mjs <change>`
+      (reprint: `/next-steps <change>`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
       writing-plans), /spec-check, implementation, the tool's code review, /opsx:verify
       and /opsx:archive are the engineer's next steps, run through the tool's wrapper
-      skill. There is no OpenSpec tasks artifact: progress lives in the tool's own
+      skill; before verify, `/check-handoff <change>` (openspec validate --strict +
+      check-handoff --expect-complete). There is no OpenSpec tasks artifact: progress lives in the tool's own
       tracking (ticket Status/checkboxes, plan step checkboxes).
 
       handoff.md is the contract between OpenSpec (requirements) and the
@@ -272,7 +274,7 @@ apply:
     - handoff
   instruction: |-
     This workflow does not implement through /opsx:apply. Run
-    `node .openspec-handoff/scripts/next-steps.mjs <change>` and follow it: planning,
+    `/next-steps <change>` and follow it: planning,
     /spec-check and implementation run with the execution tool's own commands
     (handoff.md tool + apply_mode: ai-hero implement | implement-spec; superpowers
     executing-plans | subagent-driven-development) through its wrapper skill

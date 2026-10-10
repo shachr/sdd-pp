@@ -2,7 +2,7 @@
 name: /spec-check
 id: spec-check
 category: Workflow
-description: Check the execution tool's design output against the OpenSpec proposal + delta specs
+description: "Check the execution tool's design output against the OpenSpec proposal + delta specs (usage: /spec-check <change-id>)"
 ---
 
 Arguments: <change-id> as given after the command.
