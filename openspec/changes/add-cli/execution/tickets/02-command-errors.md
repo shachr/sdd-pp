@@ -2,7 +2,7 @@
 
 # 02 - textkit CLI: usage errors
 
-Status: ready-for-agent
+Status: done
 Estimate: ~60 lines
 
 ## What to build
@@ -17,5 +17,5 @@ Makes [delta](../../specs/cli/spec.md) - "Requirement: Command errors" work: the
 
 Scenarios of the [delta](../../specs/cli/spec.md), by name:
 
-- [ ] Scenario "Unknown command" passes
-- [ ] Scenario "Missing argument" passes
+- [x] Scenario "Unknown command" passes
+- [x] Scenario "Missing argument" passes
