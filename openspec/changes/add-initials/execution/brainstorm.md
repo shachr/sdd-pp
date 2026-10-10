@@ -51,7 +51,16 @@ Names only - each is a requirement or scenario in the delta (`../specs/initials/
 
 ## Builder check
 
-No subagent tool in this harness. The builder check ran in a fresh context instead: the skill's `builder-check-prompt.md`, filled in, sent to a separate local model (qwen3:4b-instruct via Ollama) that sees only this document - see "Builder check result" below.
+No subagent tool in this harness. The builder check ran in a **fresh context** instead: the skill's `builder-check-prompt.md`, filled in ([builder-check.prompt.md](builder-check.prompt.md)), sent to a separate local model (qwen3:4b-instruct via Ollama, 00:25-00:28 PT) that saw only this document up to this section. It asked 5 questions; sorted into the skill's three piles:
+
+- **Answered already** (now explicit above / in the delta):
+  1. "John-Doe-Smith"? - every hyphen splits, like whitespace -> "JDS" (Playback 1; delta Scenario "Hyphenated name").
+  2. Is leading punctuation skipped per part or only at the start? - per part (Playback 1: "anything in front of the first letter *of a part*"); delta Scenario "Leading punctuation" uses a bracket in front of a later part.
+  4. Accents preserved or normalised? - preserved (Playback 1, partner confirmed); delta Scenario "Accented initial".
+- **Minor** (settled by me, marked as my call):
+  3. What is "a part with no letters"? - *My call:* "letter" means a Unicode letter; digits and symbols are not letters, so "14" contributes nothing (delta Scenario "Part without letters").
+  5. Non-Latin scripts? - *My call:* any Unicode letter counts, in any script; a CJK part contributes its first character. No special ordering rules (non-goal).
+- **Theirs:** none - nothing left that only the partner can answer.
 
 ## Approval (HARD-GATE)
 
