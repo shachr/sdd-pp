@@ -16,6 +16,8 @@ v1-v7 are historical runs and predate the current toolkit: they still use `insta
 | `handoff-flows-v8/` | v8: first full run of the Node installer + no reviewer/model fields |
 | `handoff-flows-v9/` | v9: AI Hero with `implement-spec` and Superpowers with `subagent-driven-development` (sub-agent roles run in-session, labelled); a scenario edit after planning shown by the /spec-check spec-change report; no check-handoff. Findings in `.run/findings.md` |
 
+The runs used opencode as their coding agent (`openspec init --tools opencode`, skills `-a opencode`, `sdd-pp init ... --opencode`); that is just the agent chosen for those runs. The toolkit is agent-neutral: see the main [README](../README.md#install-into-a-project) for the install with `--tools <agent>` / `-a <agent>`.
+
 Absolute paths such as `/home/box/...` or `/workspace/...` in logs and reviews refer to the machine the runs were made on.
 
 ## Third-party content
