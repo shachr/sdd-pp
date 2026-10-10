@@ -69,3 +69,6 @@ Archive this parent last: `openspec archive add-text-stats-cli --skip-specs --ye
 ## Amendments
 
 - Requirement "Stats command flag" added in add-stats-cli: keeps the user-visible stats command off until remove-stats-cli-flag ships
+- Scenario "Slugify from stdin" dropped: slugify takes its text as an argument only in this feature (add-cli narrowed session; deliberate loss-check test, Grok Bot's call on the user's behalf)
+- Requirement "Slugify command" changed, see change add-cli: no standard-input fallback; a missing text is a usage error ("Requirement: Command errors")
+- Requirement "Command errors" changed, see change add-cli: also covers a command missing its argument
