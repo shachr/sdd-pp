@@ -14,3 +14,7 @@ test('Non-Latin letters', () => assert.equal(countWords('héllo wörld 123'), 3)
 test('Review focus: non-breaking space separates words', () => assert.equal(countWords('two\u00a0words'), 2));
 test('Review focus: emoji-only token is not a word', () => assert.equal(countWords('ship it 👍'), 2));
 test('Review focus: combining mark stays inside its word', () => assert.equal(countWords('cafe\u0301 au lait'), 3));
+test('Number input', () => assert.throws(() => countWords(42), TypeError));
+test('Missing input', () => assert.throws(() => countWords(), TypeError));
+test('Review focus: null input', () => assert.throws(() => countWords(null), TypeError));
+test('Review focus: String object is rejected, not coerced', () => assert.throws(() => countWords(new String('a b')), TypeError));
