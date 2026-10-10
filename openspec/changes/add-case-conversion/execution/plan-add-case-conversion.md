@@ -44,7 +44,7 @@
 - Consumes: nothing.
 - Produces: `snakeCase(text: string): string`, `kebabCase(text: string): string`, internal `words(text: string): string[]` (not exported from index; throws `TypeError` when `text` is not a string).
 
-- [ ] **Step 1: Write the failing tests** in `test/case.test.mjs`, importing from `../src/index.mjs`, one test per scenario name:
+- [x] **Step 1: Write the failing tests** in `test/case.test.mjs`, importing from `../src/index.mjs`, one test per scenario name:
 
 ```js
 test('Separators split words', () => assert.equal(snakeCase('user id-number.v'), 'user_id_number_v'));
@@ -62,11 +62,11 @@ test('decomposed accent kept', () => assert.equal(kebabCase('cafe\u0301 au'), 'c
 test('leading and trailing separators', () => assert.equal(snakeCase('__init__'), 'init'));
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `node --test test/case.test.mjs` - Expected: FAIL (`snakeCase` is not exported).
 
-- [ ] **Step 3: Implement `words`, `snakeCase`, `kebabCase` in `src/case.mjs`**; export the two converters from `src/index.mjs`. The splitter is the one algorithm the tests do not pin down:
+- [x] **Step 3: Implement `words`, `snakeCase`, `kebabCase` in `src/case.mjs`**; export the two converters from `src/index.mjs`. The splitter is the one algorithm the tests do not pin down:
 
 ```js
 const WORD = /\p{Lu}+[\p{N}]*(?=\p{Lu}[\p{Ll}\p{M}])|\p{Lu}?[\p{Ll}\p{Lo}\p{Lm}\p{M}\p{N}]+|\p{Lu}+[\p{M}\p{N}]*/gu;
@@ -74,11 +74,11 @@ const WORD = /\p{Lu}+[\p{N}]*(?=\p{Lu}[\p{Ll}\p{M}])|\p{Lu}?[\p{Ll}\p{Lo}\p{Lm}\
 
 `words` throws `TypeError('case conversion: text must be a string')` for non-strings and returns `text.match(WORD) ?? []`. Converters lower-case each word (`toLowerCase()`, no locale) and join.
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `npm test` - Expected: all pass, 0 fail.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 `git add src/case.mjs src/index.mjs test/case.test.mjs && git commit -m "feat(case): word splitter, snakeCase, kebabCase"`
 
