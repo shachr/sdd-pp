@@ -3,9 +3,11 @@
 // slices.md, no behaviour) and CHILD changes (schema handoff-driven, one per slice, live deltas).
 import fs from 'node:fs';
 import path from 'node:path';
-import { listFiles, UsageError } from './change.mjs';
+import { git, listFiles, UsageError } from './change.mjs';
 
-export const SPLIT_LIMIT_DEFAULT = 300; // estimated changed lines (code + tests) per PR
+export const SPLIT_LIMIT_DEFAULT = 300; // estimated changed lines (code + tests) per PR, checked after planning (/spec-check)
+export const SPLIT_MAX_REQUIREMENTS = 5; // /split-check warns above this many delta requirements
+export const SPLIT_MAX_CAPABILITIES = 2; // ... or above this many capabilities
 const lc = (s) => s.trim().toLowerCase();
 const datePrefix = /^\d{4}-\d{2}-\d{2}-/;
 
@@ -91,51 +93,53 @@ export function findParentOf(root, id) {
   return null;
 }
 
+// ---------------------------------------------------------------- git baseline
+/** Delta requirements of `changeId` as committed at `commit` (the loss-check baseline). */
+export function baselineDeltas(root, commit, changeId) {
+  const base = `openspec/changes/${changeId}/specs`;
+  let files;
+  try {
+    files = git(root, ['ls-tree', '-r', '--name-only', commit, '--', base]).split('\n').filter((f) => f.endsWith('.md'));
+  } catch (e) {
+    throw new UsageError(`cannot read the split baseline ${commit}:${base} (${String(e.stderr || e.message).trim().split('\n')[0]})`);
+  }
+  if (!files.length) throw new UsageError(`split baseline ${commit} has no ${base}/**/spec.md`);
+  const out = [];
+  for (const f of files) {
+    const rel = f.slice(base.length + 1);
+    out.push(...parseDelta(git(root, ['show', `${commit}:${f}`]), path.posix.dirname(rel), `specs/${rel}`));
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- slices.md / split-proposal.md
 const LIST_FIELDS = new Set(['capabilities', 'depends_on', 'requirements', 'split']);
+export const SLICE_STATUSES = ['planned', 'in-progress'];
 /**
  * Slice blocks:  ### Slice: <id>  followed by "- key: value" lines.
- *   goal, capabilities (a, b), requirements (Name; Name), split (Original -> New [Scen; Scen]; ...),
- *   depends_on (a, b | none), flag (name | none), removes_flag (name), estimate (lines), ticket (path | none)
- * Checklist:  - [ ] Requirement: <name>   /   indented  - [ ] Scenario: <name>
- * Amendments: - Requirement "<name>" dropped: <why>
- *             - Requirement "<name>" changed, see change <id>
- *             - Requirement "<name>" added in <slice>: <why>      (e.g. a feature flag)
- *             - Scenario "<name>" dropped|added in <slice>: <why>
- *             - Requirement "<name>" split into "A", "B" - confirmed
+ *   goal, capabilities (a, b), depends_on (a, b | none), flag (name | none), removes_flag (name),
+ *   ticket (path | none), status (planned | in-progress; "done" = archived folder on main)
+ *   split-proposal.md only (never the parent): requirements (Name; Name), split (Original -> New [Scen; Scen])
  */
 export function parseSlices(text) {
-  const slices = []; const checklist = []; const amendments = []; const front = {}; const duplicates = []; const seen = new Map();
-  let cur = null; let section = null; let lastReq = null;
+  const slices = []; const front = {}; const duplicates = []; const seen = new Map();
+  let cur = null;
   const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
   if (fm) for (const l of fm[1].split(/\r?\n/)) { const m = /^(\w+):\s*(.*)$/.exec(l); if (m) front[m[1]] = m[2].trim(); }
   text.split(/\r?\n/).forEach((line, i) => {
     let m;
-    if ((m = /^##\s+(.*)$/.exec(line))) { section = lc(m[1]); cur = null; return; }
-    if ((m = /^###\s+Slice:\s*(\S+)/.exec(line))) { cur = { id: m[1], line: i + 1, depends_on: [], capabilities: [], requirements: [], split: [], flag: null }; slices.push(cur); return; }
+    if (/^##\s+/.test(line)) { cur = null; return; }
+    if ((m = /^###\s+Slice:\s*(\S+)/.exec(line))) { cur = { id: m[1], line: i + 1, depends_on: [], capabilities: [], requirements: [], split: [], flag: null, status: 'planned' }; slices.push(cur); return; }
     if (cur && (m = /^-\s+([a-z_]+):\s*(.*)$/.exec(line))) {
       const [, k, v] = m;
       if (k !== 'split') { const ks = seen.get(cur) || new Set(); if (ks.has(k)) duplicates.push({ slice: cur.id, field: k, line: i + 1 }); ks.add(k); seen.set(cur, ks); }
       if (k === 'split') cur.split.push(...parseSplitField(v));
       else if (LIST_FIELDS.has(k)) cur[k] = /^(none|-)?$/i.test(v.trim()) ? [] : v.split(k === 'requirements' ? ';' : ',').map((x) => x.trim()).filter(Boolean);
-      else if (k === 'estimate') cur.estimate = Number((/\d+/.exec(v) || [NaN])[0]);
+      else if (k === 'status') cur.status = lc(v).replace(/\s+/g, '-') || 'planned';
       else cur[k] = /^(none|-)$/i.test(v.trim()) ? null : v.trim();
-      return;
-    }
-    if (section && section.startsWith('checklist')) {
-      if ((m = /^-\s+\[( |x)\]\s+Requirement:\s*(.+?)\s*$/i.exec(line))) { lastReq = { name: m[2], done: m[1] !== ' ', scenarios: [], line: i + 1 }; checklist.push(lastReq); return; }
-      if ((m = /^\s+-\s+\[( |x)\]\s+Scenario:\s*(.+?)\s*$/i.exec(line)) && lastReq) { lastReq.scenarios.push({ name: m[2], done: m[1] !== ' ', line: i + 1 }); return; }
-    }
-    if (section && section.startsWith('amendments') && (m = /^-\s+(Requirement|Scenario)\s+"([^"]+)"\s+(.*)$/.exec(line))) {
-      const [, kind, name, rest] = m; let a;
-      if ((a = /^dropped\b/.exec(rest))) amendments.push({ kind, name, type: 'dropped', line: i + 1 });
-      else if ((a = /^changed,\s*see change\s+(\S+)/.exec(rest))) amendments.push({ kind, name, type: 'changed', change: a[1].replace(/[.,;:]$/, ''), line: i + 1 });
-      else if ((a = /^added in\s+(\S+?)[:.,]?(\s|$)/.exec(rest))) amendments.push({ kind, name, type: 'added', slice: a[1], line: i + 1 });
-      else if ((a = /^split into\s+(.*)$/.exec(rest))) amendments.push({ kind, name, type: 'split', into: [...a[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]), confirmed: /confirmed/i.test(a[1]), line: i + 1 });
-      else amendments.push({ kind, name, type: 'unknown', text: rest, line: i + 1 });
     }
   });
-  return { front, slices, checklist, amendments, duplicates };
+  return { front, slices, duplicates };
 }
 
 /** "Original -> New A [Scen 1; Scen 2]; Original -> New B [Scen 3]" */
@@ -145,12 +149,49 @@ export function parseSplitField(v) {
   }));
 }
 
-/** Behaviour text must not appear in a parent (names only). */
+/**
+ * "## Split notes" of a child's proposal.md - deliberate differences from the original change,
+ * recorded by the child that made them:
+ *   - dropped: Requirement|Scenario "<original name>" - <why>
+ *   - added: Requirement|Scenario "<new name>" - <why>            (e.g. a feature flag)
+ *   - renamed_from: Requirement|Scenario "<original name>" -> "<new name>" - <why the agent judged them equivalent>
+ *   - split_from: Requirement "<original name>" - confirmed        (this child holds part of a cut requirement)
+ */
+export function parseSplitNotes(text) {
+  const notes = []; const errors = [];
+  const m = /^##\s+Split notes\s*$/m.exec(text);
+  if (!m) return { notes, errors, present: false };
+  const body = text.slice(m.index + m[0].length).split(/^##\s/m)[0];
+  const offset = text.slice(0, m.index).split('\n').length;
+  body.split(/\r?\n/).forEach((line, i) => {
+    if (!/^-\s+\S/.test(line) || /^-\s+_?none/i.test(line)) return;
+    let a;
+    if ((a = /^-\s+(dropped|added):\s*(Requirement|Scenario)\s+"([^"]+)"/.exec(line))) notes.push({ type: a[1], kind: a[2], name: a[3], line: offset + i });
+    else if ((a = /^-\s+renamed_from:\s*(Requirement|Scenario)\s+"([^"]+)"\s*->\s*"([^"]+)"/.exec(line))) notes.push({ type: 'renamed', kind: a[1], name: a[2], to: a[3], line: offset + i });
+    else if ((a = /^-\s+split_from:\s*Requirement\s+"([^"]+)"\s*-\s*confirmed/i.exec(line))) notes.push({ type: 'split', kind: 'Requirement', name: a[1], line: offset + i });
+    else errors.push(`proposal.md:${offset + i}: split note not understood: ${line.trim()}`);
+  });
+  return { notes, errors, present: true };
+}
+
+/** Behaviour text must not appear in a parent. */
 export function behaviourLeaks(text) {
   const out = [];
   text.split(/\r?\n/).forEach((l, i) => {
     if (/\b(SHALL|MUST)\b/.test(l) || /\*\*(WHEN|THEN|GIVEN|AND)\*\*/.test(l) || /^#{2,4}\s+(ADDED|MODIFIED|REMOVED)\s+Requirements/.test(l)) out.push({ line: i + 1, text: l.trim().slice(0, 80) });
   });
+  return out;
+}
+
+/** Requirement / scenario names that appear in a parent file (the parent is a pure control plane). */
+export function nameLeaks(text, names) {
+  const out = [];
+  const lines = text.split(/\r?\n/);
+  for (const n of new Set(names)) {
+    if (n.length < 4) continue;
+    const re = new RegExp(`(^|[^\\w])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w])`);
+    lines.forEach((l, i) => { if (re.test(l)) out.push({ line: i + 1, name: n }); });
+  }
   return out;
 }
 
@@ -171,8 +212,8 @@ export function dependencyClosure(slices) {
   return memo;
 }
 
-/** Lint a slice plan (proposal or parent): fields, dependencies, flags, estimates, names only. */
-export function lintSlices(plan, { limit = SPLIT_LIMIT_DEFAULT, text = '' } = {}) {
+/** Lint a slice plan (proposal or parent): fields, dependencies, flags, statuses, no behaviour. */
+export function lintSlices(plan, { text = '', parent = false } = {}) {
   const errors = []; const warnings = [];
   const ids = new Set();
   for (const s of plan.slices) {
@@ -181,8 +222,8 @@ export function lintSlices(plan, { limit = SPLIT_LIMIT_DEFAULT, text = '' } = {}
     if (!/^[a-z0-9][a-z0-9-]*$/.test(s.id)) errors.push(`slice "${s.id}": id must be a kebab-case change name`);
     if (!s.goal) errors.push(`slice "${s.id}": no goal`);
     if (!s.capabilities.length) warnings.push(`slice "${s.id}": no capabilities listed`);
-    if (!Number.isFinite(s.estimate)) warnings.push(`slice "${s.id}": no estimate (lines of code + tests)`);
-    else if (s.estimate > limit) warnings.push(`slice "${s.id}": estimate ${s.estimate} > ${limit} lines - consider splitting it further`);
+    if (!SLICE_STATUSES.includes(s.status)) warnings.push(`slice "${s.id}": status "${s.status}" - use planned or in-progress (done = its archived folder on main)`);
+    if (parent && (s.requirements.length || s.split.length)) errors.push(`slice "${s.id}": requirement names in the parent - the parent is a control plane; behaviour and names live in the child delta`);
   }
   for (const s of plan.slices) for (const d of s.depends_on) if (!ids.has(d)) errors.push(`slice "${s.id}": depends_on "${d}" is not a slice`);
   try { dependencyClosure(plan.slices.filter((s) => s.depends_on.every((d) => ids.has(d)))); } catch (e) { errors.push(e.message); }
@@ -195,31 +236,31 @@ export function lintSlices(plan, { limit = SPLIT_LIMIT_DEFAULT, text = '' } = {}
     }
   }
   for (const d of plan.duplicates || []) warnings.push(`slices.md:${d.line}: slice "${d.slice}" has "${d.field}:" twice (a union merge of two branches?) - keep one; the last one wins`);
-  for (const l of behaviourLeaks(text)) errors.push(`line ${l.line}: behaviour text in a split plan (names only; behaviour lives in the child deltas): "${l.text}"`);
+  for (const l of behaviourLeaks(text)) errors.push(`line ${l.line}: behaviour text in a split plan (behaviour lives in the child deltas): "${l.text}"`);
   return { errors, warnings };
 }
 
 // ---------------------------------------------------------------- status / readiness
-export function sliceStatus(root, id) {
-  const loc = changeLocation(root, id);
+/** done = the child's archived folder is present (run on main); otherwise the engineer's mark in slices.md. */
+export function sliceStatus(root, slice) {
+  const loc = changeLocation(root, slice.id);
+  if (loc?.archived) return 'done';
   if (!loc) return 'missing';
-  if (loc.archived) return 'archived';
-  if (fs.existsSync(path.join(loc.dir, 'handoff.md'))) return 'in-progress';
-  return 'planned';
+  return slice.status === 'in-progress' ? 'in progress' : 'planned';
 }
 
 export function readiness(root, plan) {
   const closure = dependencyClosure(plan.slices);
-  const status = Object.fromEntries(plan.slices.map((s) => [s.id, sliceStatus(root, s.id)]));
+  const status = Object.fromEntries(plan.slices.map((s) => [s.id, sliceStatus(root, s)]));
   const rows = plan.slices.map((s) => {
-    const waiting = s.depends_on.filter((d) => status[d] !== 'archived');
-    return { ...s, status: status[s.id], waiting, ready: status[s.id] !== 'archived' && status[s.id] !== 'missing' && !waiting.length };
+    const waiting = s.depends_on.filter((d) => status[d] !== 'done');
+    return { ...s, mark: s.status, status: status[s.id], waiting, ready: status[s.id] === 'planned' && !waiting.length };
   });
   const ready = rows.filter((r) => r.ready);
   const independent = (a, b) => !closure[a.id].has(b.id) && !closure[b.id].has(a.id);
   const shared = (a, b) => a.capabilities.filter((c) => b.capabilities.map(lc).includes(lc(c)));
   const pairs = [];
-  const open = rows.filter((r) => r.status !== 'archived');
+  const open = rows.filter((r) => r.status !== 'done');
   for (let i = 0; i < open.length; i++) for (let j = i + 1; j < open.length; j++) {
     const a = open[i]; const b = open[j];
     const sh = shared(a, b);

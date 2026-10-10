@@ -24,7 +24,7 @@ export function makeFixture({ handoff = {}, keepExecution = true } = {}) {
   const hf = path.join(changeDir, 'handoff.md');
   if (fs.existsSync(hf)) fs.writeFileSync(hf, fs.readFileSync(hf, 'utf8').replace(/\n## Reviews\n[\s\S]*$/, '\n'));
   const g = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'pipe' }).toString().trim();
-  g('init', '-q', '-b', 'main');
+  g('init', '-q', '-b', 'main'); g('config', 'user.name', 't'); g('config', 'user.email', 't@t');
   g('-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '-A');
   g('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'fixture');
   const base = g('rev-parse', 'HEAD');

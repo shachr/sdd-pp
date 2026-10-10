@@ -1,44 +1,43 @@
 # split-plan schema for OpenSpec (tested with @fission-ai/openspec 1.14.1). Hand-written.
-# The PARENT of a split change: a planning record with NO behaviour. Behaviour lives in the
-# child changes (schema handoff-driven), one per slice. OpenSpec sets skip_specs: true for a
-# schema without a specs artifact; archive the parent last with `openspec archive <id> --skip-specs`.
+# The PARENT of a split change: a control plane with NO requirement names and NO behaviour.
+# Behaviour (and every requirement / scenario name) lives in the child changes (schema
+# handoff-driven), one per slice. OpenSpec sets skip_specs: true for a schema without a specs
+# artifact; archive the parent last with `openspec archive <id> --skip-specs`.
 # Created by `node .openspec-handoff/scripts/split.mjs apply <change>` (converts the original change).
 name: split-plan
-version: 1
-description: Parent of a split change - the original proposal plus the approved slices, a checklist of the original requirement and scenario names and amendments; no behaviour, no handoff, never verified - proposal → slices
+version: 2
+description: Parent of a split change - a control plane (why/scope, the approved slices with status marks, the split commit); no requirement names, no behaviour, no handoff, never verified - proposal → slices
 artifacts:
   - id: proposal
     generates: proposal.md
-    description: The original change's proposal (why and what), kept as the parent's
+    description: Why and scope of the whole feature (no requirement or scenario names)
     template: proposal.md
     instruction: |
-      The parent keeps the ORIGINAL change's proposal.md unchanged (why and what changes for
-      the whole feature). It is converted by `split.mjs apply`; do not write behaviour here.
+      The parent keeps the original change's proposal.md as the why and scope of the whole
+      feature. It must not name requirements or scenarios (`split.mjs loss` fails on any
+      original name in the parent's proposal.md, slices.md or tickets/); rephrase as scope.
     requires: []
   - id: slices
     generates: slices.md
-    description: Approved slices, checklist of original requirement/scenario NAMES, amendments
+    description: The approved slices (id, goal, capabilities, depends_on, flag, ticket, status) and the split commit
     template: slices.md
     instruction: |
       slices.md is written by `node .openspec-handoff/scripts/split.mjs apply <change>` from the
       engineer-approved execution/split-proposal.md. Rules:
-      - Names only. Never write behaviour (SHALL/MUST, WHEN/THEN) here; behaviour lives in the
-        child deltas (openspec/changes/<slice>/specs/). Never edit the checklist names.
-      - Each slice: id (= child change name), goal, capabilities, requirements, depends_on,
-        flag (only when the slice gates user-visible behaviour), removes_flag (cleanup slice,
-        always planned when a flag exists), estimate, ticket.
-      - Checklist: the ORIGINAL requirement and scenario names, ticked by
-        `split.mjs loss <id> --final --write` once they are in the main specs.
-      - Amendments (the only way the plan changes after the split):
-        - Requirement "<name>" dropped: <why>
-        - Requirement "<name>" changed, see change <id>
-        - Requirement "<name>" added in <slice>: <why>      (e.g. a feature flag)
-        - Scenario "<name>" dropped: <why> | added in <slice>: <why>
-        - Requirement "<name>" split into "<A>", "<B>" - confirmed   (after checking the children)
+      - Control plane only: no requirement or scenario names, no behaviour (SHALL/MUST, WHEN/THEN).
+        Those live in the child deltas (openspec/changes/<slice>/specs/).
+      - Front matter: parent, approved_by, split_at, split_commit. The loss-check baseline is the
+        original change's deltas at split_commit (git show).
+      - Each slice: id (= child change name), goal, capabilities, depends_on, flag (only when the
+        slice gates user-visible behaviour), removes_flag (cleanup slice, always planned when a
+        flag exists), ticket, status (planned | in-progress - the engineer's mark,
+        `split.mjs mark <parent> <slice> in-progress`). Done = the child's archived folder is on main.
+      - Deliberate differences from the original (dropped, added, renamed_from, split_from) are
+        "## Split notes" lines in the CHILD's proposal.md, never here.
       - Re-split a slice with the same gate (/split-check <slice>): new slices join this parent
         (no nested parents).
-      Checks: `split.mjs loss <id>` after the split and after any amendment; `split.mjs next <id>`
-      for the ready / parallel-safe report and tickets of READY slices (tickets/<slice>.md).
+      Checks: `split.mjs loss <id>` after the split and after any child delta edit;
+      `split.mjs next <id>` for the ready / parallel-safe report and tickets of READY slices.
     requires:
       - proposal
 apply:
@@ -48,8 +47,8 @@ apply:
     A split parent is never implemented, handed off or verified (do not run /opsx:apply or
     /opsx:verify on it). Work happens in the child changes:
     `node .openspec-handoff/scripts/split.mjs next <parent>` lists READY slices (all depends_on
-    archived) and parallel-safe pairs (no dependency, no shared capability). Each engineer
-    branches from main per slice, runs the slice's short design session (reading the parent's
-    execution/ session file), /handoff <slice>, and follows the printed next steps.
-    When every slice is archived: `split.mjs loss <parent> --final --write`, then
-    `openspec archive <parent> --skip-specs --yes` (must not sync specs).
+    done) and parallel-safe pairs (no dependency, no shared capability). Each engineer marks the
+    slice in-progress, branches from main, runs the slice's short design session (reading the
+    parent's execution/ session file), /handoff <slice>, and follows the printed next steps; the
+    slice's archive is committed in its own PR with its code. When every slice is done:
+    `split.mjs loss <parent> --final`, then `openspec archive <parent> --skip-specs --yes`.

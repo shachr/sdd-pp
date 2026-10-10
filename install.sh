@@ -96,9 +96,11 @@ Done. Next:
                                                         #   ai-hero -> grill-with-docs -> execution/grill.md
                                                         #   superpowers -> brainstorming -> execution/brainstorm.md (stops before writing-plans)
   node .openspec-handoff/scripts/execution-tool.mjs <id> --set superpowers   # per-change override, before the session
-  /split-check <id>                                     # size gate at the end of the specs stage (runs automatically; rerunnable)
-                                                        #   over ~300 lines: slices proposed -> engineer approves -> split.mjs apply
+  /split-check <id>                                     # split gate at the end of the specs stage (runs automatically; rerunnable)
+                                                        #   > 5 requirements or > 2 capabilities: slices proposed -> engineer approves
+                                                        #   -> commit the deltas -> split.mjs apply
   node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets   # split changes: ready / parallel-safe slices + tickets
+  node .openspec-handoff/scripts/split.mjs mark <parent> <slice> in-progress   # take a slice (commit on main)
   node .openspec-handoff/scripts/split.mjs loss <parent> [--final]         # loss check; archive the parent last with --skip-specs
   /handoff <id> <model>                                 # last OpenSpec stage: handoff.md + prints the next steps
   node .openspec-handoff/scripts/next-steps.mjs <id>    # reprint them: planning, /spec-check, implement, review, verify, archive

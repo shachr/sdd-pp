@@ -17,7 +17,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 |---|---|---|
 | Proposal | `brainstorming` - **stopped after the written design** | `execution/brainstorm.md` |
 | Proposal | (OpenSpec) proposal.md + delta, informed by the session | `proposal.md`, `specs/**/spec.md` |
-| Specs (end) | `/split-check` size gate (~300 lines code + tests; over it: slices proposed, engineer approves, `split.mjs apply`) | `execution/size-estimate.md`, `execution/split-check.md` |
+| Specs (end) | `/split-check` split gate (> 5 requirements or > 2 capabilities: slices proposed, engineer approves, `split.mjs apply`) | `execution/split-check.md` |
 | Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
 | Planning (engineer) | `writing-plans`, reading `execution/brainstorm.md` | `execution/plan-<id>.md` |
 | Planning (engineer) | `/spec-check` (stop on GAPS) | `execution/spec-check.md` |
@@ -64,19 +64,20 @@ After `/handoff` wrote `handoff.md` (`tool: superpowers`, the session file must 
 
 ## Slice of a split change
 
-A change created by `split.mjs apply` (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `node .openspec-handoff/scripts/split.mjs next <parent>` says READY (all `depends_on` archived), on its own branch from main (`git switch -c change/<slice> main`).
-- **Design session, narrowed:** the parent keeps the shared session (`../<parent>/execution/brainstorm.md`). Before `/handoff <slice>`, run a SHORT ``brainstorming`` session limited to this slice: read the parent's session file first, ask only what the slice needs (its seams, what earlier slices left in the code), and write the slice's own `execution/brainstorm.md` (first body line links the parent's session file). Do not re-decide what the parent settled; if the slice needs different behaviour, change its delta and record an amendment in the parent (`slices.md`), then `split.mjs loss <parent>`.
+A change created by `split.mjs apply` (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `node .openspec-handoff/scripts/split.mjs next <parent>` says READY (all `depends_on` done = archived folder on main). First mark it: `node .openspec-handoff/scripts/split.mjs mark <parent> <slice> in-progress`, committed on main (the next report trusts this mark; there is no branch scanning). Then work on its own branch from main (`git switch -c change/<slice> main`).
+- **Design session, narrowed:** the parent keeps the shared session (`../<parent>/execution/brainstorm.md`). Before `/handoff <slice>`, run a SHORT ``brainstorming`` session limited to this slice: read the parent's session file first, ask only what the slice needs (its seams, what earlier slices left in the code), and write the slice's own `execution/brainstorm.md` (first body line links the parent's session file). Do not re-decide what the parent settled; if the slice needs different behaviour, change its delta and record it in this slice's proposal `## Split notes` (`dropped:` / `added:` / `renamed_from:` / `split_from:`), then `split.mjs loss <parent>`. The parent never names requirements.
 - A flagged slice keeps its user-visible behaviour behind the flag its delta describes; the cleanup slice removes the flag (its delta `## REMOVED Requirements`).
-- After `/opsx:archive <slice>`: `node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets` (next-steps prints it).
+- **Done = archived on main.** Run `/opsx:archive <slice>` on the slice branch and commit the archive in the slice's own PR together with its code; after the merge, on main: `node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets` (next-steps prints it).
 
 ## Updating tool files after a delta edit
 
-Superpowers `writing-plans` writes a whole plan; it has no update mode. Rerun it with the existing plan as input and keep finished tasks (all step checkboxes ticked) unchanged; replan only open tasks, keeping their `### Task N:` numbers stable where possible.
-After any delta edit (a /spec-check gap, an amendment, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `check-handoff <id>` and `/spec-check <id>` again.
+Superpowers `writing-plans` writes a whole plan; it has no update mode. Rerun it with the existing plan as input and **never reset a finished task** (all step checkboxes ticked) - refuse to overwrite it; replan only open tasks, keeping their `### Task N:` numbers stable where possible.
+If a finished task was reset anyway, `check-handoff` fails with "done work reset" (it compares with git HEAD); restore the plan with `git checkout HEAD -- <plan>` and replan again.
+After any delta edit (a /spec-check gap, a split note, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `check-handoff <id>` and `/spec-check <id>` again.
 
 ## Implementation (the engineer runs `executing-plans` / `subagent-driven-development`)
 
 1. Execute with the `apply_mode` skill. Tick each plan step checkbox (`- [x]`) as it is done, committed with the task (that is the progress `check-handoff` reads).
-2. Final whole-branch review with `requesting-code-review` -> `execution/reviews/code-review.md`. Dispatch the reviewer as a **fresh subagent** from `code-reviewer.md`. Without a subagent tool, run the filled `code-reviewer.md` in another fresh context (a new session or a local model); if neither is possible, write "self-review" at the top. Fix Critical/Important.
+2. Final whole-branch review with `requesting-code-review` -> `execution/reviews/code-review.md`. **Default reviewer: a fresh session of your own coding agent** - dispatch it as a fresh subagent from `code-reviewer.md`, or run the filled `code-reviewer.md` in a new session. Fallback when that is impossible: a local model (`.openspec-handoff/scripts/runners/ollama.mjs`), labelled `weak fallback reviewer: <model>` at the top of the review file (check-handoff warns when the label is missing); if neither is possible, write "self-review" at the top. Fix Critical/Important.
 3. Before deleting the SDD workspace, write `execution/progress.md` (source-of-truth line, ledger lines). `openspec validate <id> --strict`; `check-handoff <id> --expect-complete` (fails while a plan step is unticked).
-4. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `finishing-a-development-branch`, then `/opsx:archive <id>` as written.
+4. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written, on the change branch, committed with the code; then `finishing-a-development-branch` (merge / PR with the archive in it).

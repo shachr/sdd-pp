@@ -18,7 +18,7 @@ Paths are relative to `openspec/changes/<id>/` (the "change folder").
 |---|---|---|
 | Proposal | `grill-with-docs` (= `grilling` + `domain-modeling`) | `execution/grill.md`; `GLOSSARY.md`, `docs/adr/` (linked) |
 | Proposal | (OpenSpec) proposal.md + delta, informed by the session | `proposal.md`, `specs/**/spec.md` |
-| Specs (end) | `/split-check` size gate (~300 lines code + tests; over it: slices proposed, engineer approves, `split.mjs apply`) | `execution/size-estimate.md`, `execution/split-check.md` |
+| Specs (end) | `/split-check` split gate (> 5 requirements or > 2 capabilities: slices proposed, engineer approves, `split.mjs apply`) | `execution/split-check.md` |
 | Handoff (OpenSpec's last stage) | `/handoff` writes handoff.md, prints the next steps | `handoff.md` |
 | Planning (engineer) | `to-spec`, reading `execution/grill.md` | `execution/spec.md` |
 | Planning (engineer) | `to-tickets` | `execution/tickets/NN-<slug>.md` |
@@ -73,20 +73,21 @@ After `/handoff` wrote `handoff.md` (`tool: ai-hero`, the session file must exis
 
 ## Slice of a split change
 
-A change created by `split.mjs apply` (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `node .openspec-handoff/scripts/split.mjs next <parent>` says READY (all `depends_on` archived), on its own branch from main (`git switch -c change/<slice> main`).
-- **Design session, narrowed:** the parent keeps the shared session (`../<parent>/execution/grill.md`). Before `/handoff <slice>`, run a SHORT ``grill-with-docs`` session limited to this slice: read the parent's session file first, ask only what the slice needs (its seams, what earlier slices left in the code), and write the slice's own `execution/grill.md` (first body line links the parent's session file). Do not re-decide what the parent settled; if the slice needs different behaviour, change its delta and record an amendment in the parent (`slices.md`), then `split.mjs loss <parent>`.
+A change created by `split.mjs apply` (its proposal links the parent's `slices.md`) is a normal handoff-driven change with live deltas. Take it only when `node .openspec-handoff/scripts/split.mjs next <parent>` says READY (all `depends_on` done = archived folder on main). First mark it: `node .openspec-handoff/scripts/split.mjs mark <parent> <slice> in-progress`, committed on main (the next report trusts this mark; there is no branch scanning). Then work on its own branch from main (`git switch -c change/<slice> main`).
+- **Design session, narrowed:** the parent keeps the shared session (`../<parent>/execution/grill.md`). Before `/handoff <slice>`, run a SHORT ``grill-with-docs`` session limited to this slice: read the parent's session file first, ask only what the slice needs (its seams, what earlier slices left in the code), and write the slice's own `execution/grill.md` (first body line links the parent's session file). Do not re-decide what the parent settled; if the slice needs different behaviour, change its delta and record it in this slice's proposal `## Split notes` (`dropped:` / `added:` / `renamed_from:` / `split_from:`), then `split.mjs loss <parent>`. The parent never names requirements.
 - A flagged slice keeps its user-visible behaviour behind the flag its delta describes; the cleanup slice removes the flag (its delta `## REMOVED Requirements`).
-- After `/opsx:archive <slice>`: `node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets` (next-steps prints it).
+- **Done = archived on main.** Run `/opsx:archive <slice>` on the slice branch and commit the archive in the slice's own PR together with its code; after the merge, on main: `node .openspec-handoff/scripts/split.mjs next <parent> --write-tickets` (next-steps prints it).
 
 ## Updating tool files after a delta edit
 
 AI Hero's `to-spec` and `to-tickets` have no update mode: `to-spec` writes the whole spec again, and `to-tickets` drafts a new set and publishes it ("write one file per ticket ... numbered from 01"; on a real tracker it creates new issues and never modifies existing ones). So:
 1. `to-spec` again -> overwrite `execution/spec.md`.
-2. Tickets: keep tickets with `Status: done` as they are. Delete the open ones, then run `to-tickets` for the remaining work only, numbering after the last kept ticket (it reads the existing files as context). On a real tracker, close the obsolete issues by hand.
-After any delta edit (a /spec-check gap, an amendment, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `check-handoff <id>` and `/spec-check <id>` again.
+2. Tickets: **never overwrite a ticket marked `Status: done`** (refuse, even if asked to regenerate everything). Delete only the open ones, then run `to-tickets` for the remaining work only, numbering after the last kept ticket (it reads the existing files as context). On a real tracker, close the obsolete issues by hand.
+If a done ticket was reset anyway, `check-handoff` fails with "done work reset" (it compares with git HEAD); restore it with `git checkout HEAD -- <ticket>`.
+After any delta edit (a /spec-check gap, a split note, a re-split): `openspec validate <id> --strict`, rerun the planning command so its files match the delta, then `check-handoff <id>` and `/spec-check <id>` again.
 
 ## Implementation (the engineer runs `implement` / `implement-spec`)
 
 1. Implement with the `apply_mode` command. Ticket done: `Status: done` + tick its scenario checkboxes in the same commit (that is the progress `check-handoff` reads).
-2. `code-review` -> `execution/reviews/code-review.md`. Run its Standards and Spec reviewers as **fresh sub-agents** (no access to this conversation). Without a sub-agent tool, run the same briefs in another fresh context (a new session or a local model); if neither is possible, write "self-review" at the top. Fix Critical/Important findings. Then `openspec validate <id> --strict` and `check-handoff <id> --expect-complete` (fails while a ticket is open).
-3. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written.
+2. `code-review` -> `execution/reviews/code-review.md`. **Default reviewer: a fresh session of your own coding agent** - run its Standards and Spec reviewers as fresh sub-agents, or in a new session that sees only the review briefs (no access to this conversation). Fallback when that is impossible: a local model (`.openspec-handoff/scripts/runners/ollama.mjs`), labelled `weak fallback reviewer: <model>` at the top of the review file (check-handoff warns when a local-model review lacks the label); if neither is possible, write "self-review" at the top. Fix Critical/Important findings. Then `openspec validate <id> --strict` and `check-handoff <id> --expect-complete` (fails while a ticket is open).
+3. `/opsx:verify <id>`; save the report verbatim to `execution/verify.md`. Then `/opsx:archive <id>` as written, on the change branch, and commit the archive in the change's PR with its code; then merge the PR.

@@ -1,86 +1,52 @@
 #!/usr/bin/env node
-// split-check: the size gate at the end of the specs stage (before /handoff). Rerunnable.
-// The agent estimates, per delta requirement, the changed lines of code + tests (from its
-// scenarios and the code it touches) in execution/size-estimate.md:
-//   | Requirement | Scenarios | Code touched | Estimate |
-//   |---|---|---|---|
-//   | <exact requirement name> | 3 | src/x.mjs (new), test/x.test.mjs | 90 |
-// This script records the estimates and the total. Under the limit (~300 lines, config
-// split.limitLines) it prints one line. Over it, it warns (never fails) and asks for a split
-// proposal in execution/split-proposal.md, which it lints; the engineer approves it
-// (approved_by:) and `split.mjs apply` performs it. Nothing is split automatically.
+// split-check: the split gate at the end of the specs stage (before /handoff). Rerunnable, warn-only.
+// It counts the change's delta requirements and capabilities: above split.maxRequirements (5) or
+// split.maxCapabilities (2) it warns and asks for a split proposal in execution/split-proposal.md,
+// which it lints; the engineer approves it (approved_by:) and `split.mjs apply` performs it.
+// Nothing is split automatically. Line estimates are NOT made here: the ~300-line budget is
+// checked after planning (/spec-check, from the tool's tickets / plan) and at the PR (check-handoff).
+// On a slice it is the same check (a re-split joins the same parent); on a parent it lints slices.md.
 // Usage: node split-check.mjs <change-id> [--root <dir>] [--write] [--json]
 // Exit: 0 (warn-only), 2 usage error.
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, loadConfig, UsageError } from './lib/change.mjs';
-import { changeDeltas, changeLocation, dependencyClosure, findParentOf, lintSlices, parseSlices, SPLIT_LIMIT_DEFAULT } from './lib/split.mjs';
+import { changeDeltas, changeLocation, dependencyClosure, findParentOf, lintSlices, parseSlices, SPLIT_MAX_CAPABILITIES, SPLIT_MAX_REQUIREMENTS } from './lib/split.mjs';
 
 const lc = (s) => s.trim().toLowerCase();
 
-export function readEstimates(text) {
-  const rows = [];
-  for (const line of text.split(/\r?\n/)) {
-    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
-    if (cells.length < 4 || /^-+$/.test(cells[0].replace(/:/g, '')) || /^requirement$/i.test(cells[0])) continue;
-    const est = Number((/\d+/.exec(cells.at(-1)) || [NaN])[0]);
-    rows.push({ requirement: cells[0].replace(/^"|"$/g, '').replace(/^Requirement:\s*/i, ''), scenarios: cells[1], code: cells[2], estimate: est });
-  }
-  return rows;
-}
-
-export function splitCheck(root, id, { limit = SPLIT_LIMIT_DEFAULT } = {}) {
+export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS, maxCapabilities = SPLIT_MAX_CAPABILITIES } = {}) {
   const loc = changeLocation(root, id);
   if (!loc) throw new UsageError(`change not found: ${id}`);
-  const r = { change: id, limit, warnings: [], notes: [] };
+  const r = { change: id, maxRequirements, maxCapabilities, warnings: [] };
   if (fs.existsSync(path.join(loc.dir, 'slices.md'))) {
     const text = fs.readFileSync(path.join(loc.dir, 'slices.md'), 'utf8');
     const plan = parseSlices(text);
-    const lint = lintSlices(plan, { limit, text: text.replace(/^---[\s\S]*?---/, '') });
-    return { ...r, kind: 'parent', slices: plan.slices.length, warnings: [...lint.errors, ...lint.warnings], total: plan.slices.reduce((n, s) => n + (s.estimate || 0), 0) };
+    const lint = lintSlices(plan, { text: text.replace(/^---[\s\S]*?---/, ''), parent: true });
+    return { ...r, kind: 'parent', slices: plan.slices.length, errors: lint.errors, warnings: lint.warnings };
   }
   const reqs = changeDeltas(loc.dir);
   const parent = findParentOf(root, id);
   if (parent && parent.id !== id) r.parent = parent.id;
-  const ef = path.join(loc.dir, 'execution', 'size-estimate.md');
-  if (!fs.existsSync(ef) && r.parent) {
-    // A slice of a split: the approved slice estimate in the parent's slices.md is the gate estimate.
-    const s = parent.plan.slices.find((x) => x.id === id);
-    if (s && Number.isFinite(s.estimate)) {
-      const over = s.estimate > limit;
-      if (over) r.warnings.push(`approved slice estimate ${s.estimate} lines > ~${limit}-line PR budget - re-split with an execution/size-estimate.md (the new slices join parent ${r.parent}; no nested parents)`);
-      return { ...r, kind: 'change', rows: [], fromParent: true, total: s.estimate, over, status: over ? 'over' : 'fits', requirementsCount: reqs.length };
-    }
-  }
-  if (!fs.existsSync(ef)) {
-    return { ...r, kind: 'change', status: 'no-estimate', requirements: reqs.map((x) => x.name), total: null };
-  }
-  const est = readEstimates(fs.readFileSync(ef, 'utf8'));
-  const rows = reqs.map((q) => {
-    const e = est.find((x) => lc(x.requirement) === lc(q.name));
-    if (!e) r.warnings.push(`no estimate for Requirement "${q.name}"`);
-    else if (!Number.isFinite(e.estimate)) r.warnings.push(`estimate for "${q.name}" is not a number`);
-    return { requirement: q.name, section: q.section, scenarios: q.scenarios.length, code: e?.code || '?', estimate: e?.estimate ?? NaN };
-  });
-  for (const e of est) if (!reqs.some((q) => lc(q.name) === lc(e.requirement))) r.warnings.push(`estimate row "${e.requirement}" is not a delta requirement`);
-  const total = rows.reduce((n, x) => n + (Number.isFinite(x.estimate) ? x.estimate : 0), 0);
-  const over = total > limit;
-  const out = { ...r, kind: 'change', rows, total, over, status: over ? 'over' : 'fits' };
-  if (!over) return out;
-  out.warnings.unshift(`estimated ${total} lines > ~${limit}-line PR budget - propose a split${r.parent ? ` (re-split: the new slices join parent ${r.parent}; no nested parents)` : ''}`);
+  const caps = [...new Set(reqs.map((x) => x.capability))];
+  const byCap = caps.map((c) => ({ capability: c, requirements: reqs.filter((x) => x.capability === c).map((x) => x.name) }));
+  const over = [];
+  if (reqs.length > maxRequirements) over.push(`${reqs.length} requirements (> ${maxRequirements})`);
+  if (caps.length > maxCapabilities) over.push(`${caps.length} capabilities (> ${maxCapabilities})`);
+  const out = { ...r, kind: 'change', requirements: reqs.length, capabilities: caps.length, byCap, over, status: over.length ? 'over' : 'fits' };
+  if (!over.length) return out;
   const pf = path.join(loc.dir, 'execution', 'split-proposal.md');
   if (fs.existsSync(pf)) {
     const ptext = fs.readFileSync(pf, 'utf8');
     const prop = parseSlices(ptext);
-    const lint = lintSlices(prop, { limit, text: ptext.replace(/^---[\s\S]*?---/, '') });
+    const lint = lintSlices(prop, { text: ptext.replace(/^---[\s\S]*?---/, '') });
     const assigned = new Map();
     for (const s of prop.slices) {
       for (const n of s.requirements) assigned.set(lc(n), [...(assigned.get(lc(n)) || []), s.id]);
       for (const x of s.split) assigned.set(lc(x.from), [...(assigned.get(lc(x.from)) || []), `${s.id} (part)`]);
     }
-    const amended = new Set(prop.amendments.map((a) => lc(a.name)));
-    const unassigned = reqs.filter((q) => !assigned.has(lc(q.name)) && !amended.has(lc(q.name))).map((q) => q.name);
+    const unassigned = reqs.filter((q) => !assigned.has(lc(q.name))).map((q) => q.name);
     const unknown = [...assigned.keys()].filter((n) => !reqs.some((q) => lc(q.name) === n));
     let closure = {};
     try { closure = dependencyClosure(prop.slices); } catch { /* reported by lint */ }
@@ -93,42 +59,43 @@ export function splitCheck(root, id, { limit = SPLIT_LIMIT_DEFAULT } = {}) {
     }
     out.proposal = {
       approvedBy: prop.front.approved_by || null,
-      slices: prop.slices.map((s) => ({ id: s.id, goal: s.goal, requirements: [...s.requirements, ...s.split.map((x) => `${x.to} (split from ${x.from})`)], depends_on: s.depends_on, flag: s.flag, removes_flag: s.removes_flag || null, estimate: s.estimate, capabilities: s.capabilities })),
-      errors: [...lint.errors, ...unassigned.map((n) => `Requirement "${n}" is in no slice and has no amendment`), ...unknown.map((n) => `slice names unknown requirement "${n}"`)],
+      slices: prop.slices.map((s) => ({ id: s.id, requirements: [...s.requirements, ...s.split.map((x) => `${x.to} (split from ${x.from})`)], depends_on: s.depends_on, flag: s.flag, removes_flag: s.removes_flag || null })),
+      errors: [...lint.errors, ...unassigned.map((n) => `Requirement "${n}" is in no slice`), ...unknown.map((n) => `slice names unknown requirement "${n}"`)],
       warnings: lint.warnings,
       ready: prop.slices.filter((s) => !s.depends_on.length).map((s) => s.id),
       parallelSafe: pairs,
-      total: prop.slices.reduce((n, s) => n + (s.estimate || 0), 0),
     };
   }
   return out;
 }
 
-export function formatSplitCheck(r) {
-  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices, ~${r.total} lines estimated in total`, ...r.warnings.map((w) => `  ! ${w}`), `  (status: node .openspec-handoff/scripts/split.mjs next ${r.change})`].join('\n');
-  if (r.status === 'no-estimate') return [`split-check ${r.change}: no execution/size-estimate.md yet - estimate each requirement (code + tests lines) first:`, '  | Requirement | Scenarios | Code touched | Estimate |', '  |---|---|---|---|', ...r.requirements.map((n) => `  | ${n} | | | |`)].join('\n');
-  if (r.fromParent && r.status === 'fits') return `split-check ${r.change}: fits (~${r.total} of ~${r.limit} lines, approved slice estimate in ${r.parent}/slices.md, ${r.requirementsCount} requirements)`;
-  if (r.fromParent) return [`split-check ${r.change}: OVER BUDGET (warning) - ~${r.total} lines (approved slice estimate in ${r.parent}/slices.md), budget ~${r.limit}`, ...r.warnings.map((w) => `! ${w}`)].join('\n');
-  if (r.status === 'fits') return `split-check ${r.change}: fits (~${r.total} of ~${r.limit} lines estimated, ${r.rows.length} requirements)${r.warnings.length ? '\n' + r.warnings.map((w) => `  ! ${w}`).join('\n') : ''}`;
-  const out = [`split-check ${r.change}: OVER BUDGET (warning) - ~${r.total} lines estimated, budget ~${r.limit}`, '', '| Requirement | Scenarios | Code touched | Estimate |', '|---|---|---|---|'];
-  for (const x of r.rows) out.push(`| ${x.requirement} | ${x.scenarios} | ${x.code} | ${Number.isFinite(x.estimate) ? x.estimate : '?'} |`);
-  out.push(`| **Total** | | | **${r.total}** |`, '');
-  for (const w of r.warnings) out.push(`! ${w}`);
+/** names: false for the file written into the change (it becomes the parent, which carries no requirement names). */
+export function formatSplitCheck(r, { names = true } = {}) {
+  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: node .openspec-handoff/scripts/split.mjs next ${r.change})`].join('\n');
+  if (r.status === 'fits') return `split-check ${r.change}: fits (${r.requirements} requirements, ${r.capabilities} capabilities)`;
+  const out = [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (re-split: the new slices join parent ${r.parent}; no nested parents)` : ''}`, ''];
+  for (const c of r.byCap) out.push(names ? `- ${c.capability} (${c.requirements.length}): ${c.requirements.join('; ')}` : `- ${c.capability}: ${c.requirements.length} requirements`);
   if (!r.proposal) {
     out.push('', 'Next: propose slices in execution/split-proposal.md (front matter "approved_by:" left empty), show them to the engineer, and wait for approval or edits. Format:',
-      '  ### Slice: <change-id>', '  - goal: <one line>', '  - capabilities: <cap>, <cap>', '  - requirements: <exact name>; <exact name>',
+      '  ### Slice: <change-id>', '  - goal: <one line, no requirement names>', '  - capabilities: <cap>, <cap>', '  - requirements: <exact name>; <exact name>',
       '  - split: <original name> -> <new name> [<scenario>; <scenario>]   (only to cut one requirement in two)',
-      '  - depends_on: none | <slice>, <slice>', '  - flag: none | <flag>   (only when the slice gates user-visible behaviour)', '  - removes_flag: <flag>   (the cleanup slice; always planned when a flag exists)', '  - estimate: <lines>',
-      '  Optional "## Amendments": - Requirement "<name>" dropped: <why> | changed, see change <id> | added in <slice>: <why>');
+      '  - depends_on: none | <slice>, <slice>', '  - flag: none | <flag>   (only when the slice gates user-visible behaviour)', '  - removes_flag: <flag>   (the cleanup slice; always planned when a flag exists)',
+      'Line estimates come after planning (/spec-check on each slice, budget ~300 lines of code + tests).');
     return out.join('\n');
   }
   const p = r.proposal;
-  out.push('', `Proposed slices (execution/split-proposal.md, ${p.approvedBy ? `approved by ${p.approvedBy}` : 'NOT approved yet'}), ~${p.total} lines in total:`, '', '| Slice | Requirements | Depends on | Flag | Estimate |', '|---|---|---|---|---|');
-  for (const s of p.slices) out.push(`| ${s.id} | ${s.requirements.join('; ') || '-'} | ${s.depends_on.join(', ') || '-'} | ${s.flag || (s.removes_flag ? `removes ${s.removes_flag}` : '-')} | ${Number.isFinite(s.estimate) ? s.estimate : '?'} |`);
+  out.push('', `Proposed slices (execution/split-proposal.md, ${p.approvedBy ? `approved by ${p.approvedBy}` : 'NOT approved yet'}):`, '');
+  if (names) {
+    out.push('| Slice | Requirements | Depends on | Flag |', '|---|---|---|---|');
+    for (const s of p.slices) out.push(`| ${s.id} | ${s.requirements.join('; ') || '-'} | ${s.depends_on.join(', ') || '-'} | ${s.flag || (s.removes_flag ? `removes ${s.removes_flag}` : '-')} |`);
+  } else {
+    out.push('| Slice | Requirements | Depends on | Flag |', '|---|---|---|---|');
+    for (const s of p.slices) out.push(`| ${s.id} | ${s.requirements.length} | ${s.depends_on.join(', ') || '-'} | ${s.flag || (s.removes_flag ? `removes ${s.removes_flag}` : '-')} |`);
+  }
   out.push('', `Ready first: ${p.ready.join(', ') || 'none'}`, `Parallel-safe pairs (no dependency, no shared capability): ${p.parallelSafe.join(', ') || 'none'}`);
   for (const e of p.errors) out.push(`✗ ${e}`);
   for (const w of p.warnings) out.push(`! ${w}`);
-  out.push('', p.approvedBy ? `Approved. Apply: node .openspec-handoff/scripts/split.mjs apply ${r.change}` : 'Waiting for the engineer: approve or edit the slices, then set "approved_by:" and run split.mjs apply.');
+  out.push('', p.approvedBy ? `Approved. Apply (after committing the deltas - that commit is the loss-check baseline): node .openspec-handoff/scripts/split.mjs apply ${r.change}` : 'Waiting for the engineer: approve or edit the slices, then set "approved_by:" and run split.mjs apply.');
   return out.join('\n');
 }
 
@@ -137,16 +104,14 @@ async function main() {
   if (values.help || positionals.length !== 1) { console.log('usage: split-check <change-id> [--root <dir>] [--write] [--json]'); return values.help ? 0 : 2; }
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
   if (!root) throw new UsageError('no openspec/changes directory found (use --root)');
-  const config = loadConfig(root);
-  const limit = config.split?.limitLines ?? config.sizeThresholds?.lines?.[0] ?? SPLIT_LIMIT_DEFAULT;
-  const r = splitCheck(root, positionals[0], { limit });
-  const text = formatSplitCheck(r);
-  if (values.write && r.kind === 'change' && r.status !== 'no-estimate') {
+  const sc = loadConfig(root).split || {};
+  const r = splitCheck(root, positionals[0], { maxRequirements: sc.maxRequirements ?? SPLIT_MAX_REQUIREMENTS, maxCapabilities: sc.maxCapabilities ?? SPLIT_MAX_CAPABILITIES });
+  if (values.write && r.kind === 'change') {
     const f = path.join(changeLocation(root, positionals[0]).dir, 'execution', 'split-check.md');
     fs.mkdirSync(path.dirname(f), { recursive: true });
-    fs.writeFileSync(f, `> Source of truth: [proposal](../proposal.md) · specs: ../specs/\n\n<!-- written by split-check.mjs; estimates from execution/size-estimate.md -->\n\n${text}\n`);
+    fs.writeFileSync(f, `> Source of truth: [proposal](../proposal.md) · specs: ../specs/\n\n<!-- written by split-check.mjs (counts only; names stay in the deltas) -->\n\n${formatSplitCheck(r, { names: false })}\n`);
   }
-  console.log(values.json ? JSON.stringify(r, null, 2) : text);
+  console.log(values.json ? JSON.stringify(r, null, 2) : formatSplitCheck(r));
   return 0;
 }
 

@@ -21,7 +21,7 @@ import {
   findProjectRoot, loadChange, loadConfig, normativeLines, normalize, countRequirements,
   countWorkUnits, diffSize, git, TOOLS, REQUIRED_KEYS, UsageError,
   paraphraseFindings, PARAPHRASE, restatingSections, findPlan, requirementLinkFindings, APPLY_MODES,
-  resolveTool, SESSION_FILES, proposalLeaks, newCapabilityDeltas, executionProgress,
+  resolveTool, SESSION_FILES, proposalLeaks, newCapabilityDeltas, executionProgress, resetDoneWork,
 } from './lib/change.mjs';
 
 export function checkChange(change, config, opts = {}) {
@@ -155,6 +155,9 @@ export function checkChange(change, config, opts = {}) {
   // happens after /handoff, so "not planned yet" is normal - unless --expect-complete.
   const prog = executionProgress(change, h.tool);
   metrics.progress = prog ? `${prog.done}/${prog.total} ${prog.kind} done (${prog.boxes.done}/${prog.boxes.total} checkboxes)` : 'not planned yet';
+  if (useGit && !change.archived) for (const e of resetDoneWork(change, h.tool)) errors.push(`done work reset: ${e}`);
+  const review = change.read('execution/reviews/code-review.md');
+  if (review && /\bollama\b|local model|qwen|llama/i.test(review) && !/weak fallback/i.test(review)) warnings.push('execution/reviews/code-review.md: a local-model review is a fallback - label it "weak fallback reviewer" at the top (the default reviewer is a fresh session of your own coding agent)');
   if (opts.expectComplete) {
     if (!prog) errors.push(`--expect-complete: no ${h.tool === 'ai-hero' ? 'tickets in execution/tickets/' : `plan in execution/plan-${change.id}.md`} - planning has not run`);
     else if (prog.open.length) errors.push(`--expect-complete: ${prog.open.length} ${prog.kind} not done: ${prog.open.join('; ')}${h.tool === 'ai-hero' ? ' (set "Status: done" and tick every checkbox)' : ' (tick every step checkbox)'}`);

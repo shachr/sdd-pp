@@ -10,40 +10,42 @@ import { findParentOf } from './lib/split.mjs';
 export function nextSteps({ id, tool, applyMode, parent = null }) {
   const S = '.openspec-handoff/scripts';
   const c = `openspec/changes/${id}`;
-  const common = (n, review) => [
-    `${n}. ${review} in a FRESH context (sub-agent; otherwise a new session or a local model via ${S}/runners/ollama.mjs; otherwise label it "self-review") -> ${c}/execution/reviews/code-review.md. Fix Critical/Important findings.`,
-    `${n + 1}. openspec validate ${id} --strict && node ${S}/check-handoff.mjs ${id} --expect-complete`,
-    `${n + 2}. /opsx:verify ${id} - save the report verbatim to ${c}/execution/verify.md`,
+  const review = (n, what) => `${n}. ${what} in a FRESH session of your own coding agent (a sub-agent, or a new session that sees only the review prompt) -> ${c}/execution/reviews/code-review.md. Fallback when that is impossible: a local model via ${S}/runners/ollama.mjs, labelled "weak fallback reviewer" at the top of the review file; otherwise label it "self-review". Fix Critical/Important findings.`;
+  const finish = (n) => [
+    `${n}. openspec validate ${id} --strict && node ${S}/check-handoff.mjs ${id} --expect-complete`,
+    `${n + 1}. /opsx:verify ${id} - save the report verbatim to ${c}/execution/verify.md`,
+    `${n + 2}. /opsx:archive ${id} on the change branch, and commit the archive in this change's PR together with its code (the change is complete when its archived folder is on main).`,
   ];
   if (tool === 'ai-hero') {
     const impl = applyMode === 'implement-spec' ? '/implement-spec (sub-agents)' : '/implement (single session)';
     return [
       `Next steps for ${id} (ai-hero, apply_mode: ${applyMode}). Skill: openspec-handoff-ai-hero - outputs stay in ${c}/execution/.`,
       `1. /to-spec - reads ${c}/${SESSION_FILES['ai-hero']} -> ${c}/execution/spec.md (user stories cite "Requirement: <name>").`,
-      `2. /to-tickets -> ${c}/execution/tickets/NN-<slug>.md (each names its requirement(s); scenarios by name only).`,
-      `3. /spec-check ${id} -> ${c}/execution/spec-check.md. On GAPS: stop, fix, re-run.`,
+      `2. /to-tickets -> ${c}/execution/tickets/NN-<slug>.md (each names its requirement(s); scenarios by name only; one "Estimate: ~N lines" line each). Re-running it later: regenerate open tickets only - never overwrite a ticket marked done.`,
+      `3. /spec-check ${id} -> ${c}/execution/spec-check.md (coverage + the line estimate after planning, budget ~300). On GAPS: stop, fix, re-run.`,
       `4. ${impl} with tdd, ticket by ticket; set "Status: done" and tick the ticket's checkboxes as each lands.`,
-      ...common(5, '/code-review (Standards + Spec reviewers)'),
-      `8. /opsx:archive ${id}`,
-      ...afterArchive(parent, 9),
+      review(5, '/code-review (Standards + Spec reviewers)'),
+      ...finish(6),
+      `9. Merge the PR (branch change/${id}) into main.`,
+      ...afterArchive(parent, 10),
     ].join('\n');
   }
   const impl = applyMode === 'subagent-driven-development' ? 'subagent-driven-development' : 'executing-plans';
   return [
     `Next steps for ${id} (superpowers, apply_mode: ${applyMode}). Skill: openspec-handoff-superpowers - outputs stay in ${c}/execution/.`,
-    `1. writing-plans - reads ${c}/${SESSION_FILES.superpowers} -> ${c}/execution/plan-${id}.md (each task starts with **Covers:** "Requirement: <name>").`,
-    `2. /spec-check ${id} -> ${c}/execution/spec-check.md. On GAPS: stop, fix, re-run.`,
+    `1. writing-plans - reads ${c}/${SESSION_FILES.superpowers} -> ${c}/execution/plan-${id}.md (each task starts with **Covers:** "Requirement: <name>" and has one "**Estimate:** ~N lines" line). Re-running it later: replan open tasks only - never reset a finished task.`,
+    `2. /spec-check ${id} -> ${c}/execution/spec-check.md (coverage + the line estimate after planning, budget ~300). On GAPS: stop, fix, re-run.`,
     `3. ${impl} on branch change/${id} (workspace .superpowers/sdd/plan-${id}/); tick the plan's step checkboxes as each task lands; copy the ledger to ${c}/execution/progress.md before deleting the workspace.`,
-    ...common(4, 'requesting-code-review (final whole-branch review, code-reviewer.md)'),
-    `7. finishing-a-development-branch`,
-    `8. /opsx:archive ${id}`,
+    review(4, 'requesting-code-review (final whole-branch review, code-reviewer.md)'),
+    ...finish(5),
+    `8. finishing-a-development-branch (merge / PR into main, with the archive in it)`,
     ...afterArchive(parent, 9),
   ].join('\n');
 }
 
-/** A slice of a split change: after archiving, report what became ready in the parent. */
+/** A slice of a split change: once its PR (code + archive) is on main, report what became ready. */
 function afterArchive(parent, n) {
-  return parent ? [`${n}. node .openspec-handoff/scripts/split.mjs next ${parent} --write-tickets - slices now ready (and their tickets) in the split parent ${parent}.`] : [];
+  return parent ? [`${n}. On main: node .openspec-handoff/scripts/split.mjs next ${parent} --write-tickets - this slice shows done (archived folder on main); slices now ready get tickets.`] : [];
 }
 
 function main() {

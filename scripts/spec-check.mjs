@@ -76,7 +76,7 @@ export function formatReport(r) {
   list('Added without source (units that name no delta requirement)', r.unsourced);
   if (r.size) {
     const s = r.size;
-    out.push('', '### Size (re-estimate after planning, warn-only)', '');
+    out.push('', '### Size (line estimate after planning, warn-only - the real diff is measured at the PR by check-handoff)', '');
     out.push(`- ${s.estimated}/${s.units} tickets / plan tasks carry an "Estimate: ~N lines" line; total ~${s.total} lines (code + tests), budget ~${s.limit}.`);
     if (s.missing.length) out.push(`- ! no estimate: ${s.missing.join('; ')}`);
     if (s.total > s.limit) out.push(`- ! over budget: consider re-splitting with /split-check ${r.change} before implementing (new slices join the same parent).`);

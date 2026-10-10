@@ -497,3 +497,45 @@ export function executionProgress(change, tool) {
   }
   return null;
 }
+
+/**
+ * Done work that was reset: tickets marked done (AI Hero) or plan tasks fully ticked (Superpowers)
+ * at git HEAD that are no longer done in the working tree - e.g. a planning tool re-run that
+ * overwrote them. Planning tools have no update mode: regenerate open tickets / tasks only.
+ */
+export function resetDoneWork(change, tool) {
+  const out = [];
+  let top; let rel;
+  try {
+    top = git(change.root, ['rev-parse', '--show-toplevel']).trim();
+    rel = path.relative(top, change.dir).split(path.sep).join('/');
+  } catch { return out; }
+  const show = (f) => { try { return git(top, ['show', `HEAD:${rel}/${f}`]); } catch { return null; } };
+  const ls = (d) => { try { return git(top, ['ls-tree', '--name-only', 'HEAD', `${rel}/${d}/`]).split('\n').filter(Boolean).map((x) => x.slice(rel.length + 1)); } catch { return []; } };
+  const isDone = (t) => /^done\b/.test(((t.match(/^\**Status:?\**:?\s*(.+)$/mi) || [])[1] || '').trim().toLowerCase());
+  const unticked = (t) => /^\s*- \[ \]/m.test(t);
+  if (tool === 'ai-hero') {
+    for (const f of ls('execution/tickets').filter((x) => x.endsWith('.md'))) {
+      const before = show(f);
+      if (!before || !isDone(before) || unticked(before)) continue;
+      const now = change.read(f);
+      if (now === null) out.push(`${f}: was done at HEAD and is gone - never delete or overwrite a done ticket; regenerate open tickets only`);
+      else if (!isDone(now) || unticked(now)) out.push(`${f}: was done at HEAD and is reset now (status or checkboxes) - never overwrite a done ticket; regenerate open tickets only`);
+    }
+  }
+  if (tool === 'superpowers') {
+    const pf = findPlan(change);
+    const before = pf && show(pf);
+    if (before) {
+      const tasks = (t) => Object.fromEntries(t.split(/^(?=###\s+Task\s+\d+)/m).filter((p) => /^###\s+Task\s+\d+/.test(p)).map((p) => [p.split('\n')[0].trim(), p.split(/^##\s/m)[0]]));
+      const was = tasks(before); const now = tasks(change.read(pf) || '');
+      for (const [h, body] of Object.entries(was)) {
+        if (!/^\s*- \[[xX]\]/m.test(body) || unticked(body)) continue;
+        if (!now[h]) out.push(`${pf}: "${h.replace(/^###\s+/, '')}" was finished at HEAD and is gone - keep finished tasks when re-running writing-plans`);
+        else if (unticked(now[h])) out.push(`${pf}: "${h.replace(/^###\s+/, '')}" was finished at HEAD and has unticked steps now - keep finished tasks when re-running writing-plans`);
+      }
+    }
+  }
+  return out;
+}
+

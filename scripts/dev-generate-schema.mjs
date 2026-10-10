@@ -42,9 +42,10 @@ Handoff-driven addition - **Size Budget** section (required):
 State the expected size of this change so it stays PR-sized: number of
 requirements in the deltas, expected tickets/plan tasks, and a rough
 changed-lines estimate. Default budget (see .openspec-handoff/small-changes.md):
-<= 5 requirements, <= 8 tickets/plan tasks, ~300 changed lines of code + tests.
-Do not split by hand here: the size gate (/split-check) runs at the end of the
-specs stage, when the requirements exist, and proposes slices for the engineer.
+<= 5 requirements and <= 2 capabilities (checked by /split-check at the end of the
+specs stage), ~300 changed lines of code + tests (estimated after planning by
+/spec-check, measured at the PR by check-handoff). Do not split by hand here: the
+split gate proposes slices for the engineer when the requirements exist.
 `;
 
 const specs = { ...by.specs };
@@ -62,19 +63,20 @@ After /handoff, execution artifacts cite requirements and scenarios by name and
 link (\`../specs/<capability>/spec.md\` - "Requirement: <name>"), so give every
 requirement and scenario a short, distinctive name.
 
-SIZE GATE - run automatically when the deltas are written, before /handoff (rerunnable):
+SPLIT GATE - run automatically when the deltas are written, before /handoff (rerunnable):
 \`/split-check <change>\` (\`node .openspec-handoff/scripts/split-check.mjs <change> --write\`).
-1. Estimate each requirement's changed lines of code + tests from its scenarios and the
-   code it touches, in execution/size-estimate.md
-   (| Requirement | Scenarios | Code touched | Estimate |, exact requirement names).
-2. Under ~300 lines it prints one line ("fits") - carry on to /handoff.
-3. Over it (a warning, never a failure): propose slices in execution/split-proposal.md
-   (scope, requirements, depends_on, estimate, flag if any - the /split-check command
+It counts requirements and capabilities (no line estimate here - that comes after
+planning, in /spec-check, from the tool's tickets / plan; budget ~300 lines).
+1. Up to 5 requirements and 2 capabilities it prints one line ("fits") - carry on to /handoff.
+2. Above (a warning, never a failure): propose slices in execution/split-proposal.md
+   (goal, capabilities, requirements, depends_on, flag if any - the /split-check command
    lists the format), show them to the engineer and STOP until they approve or edit
-   (approved_by:). Nothing is split automatically. After approval:
+   (approved_by:). Nothing is split automatically. After approval: commit the deltas
+   (that commit is the loss-check baseline), then
    \`node .openspec-handoff/scripts/split.mjs apply <change>\` turns this change into the
-   parent (schema split-plan, names only) and creates one handoff-driven child per slice;
-   then \`split.mjs loss <parent>\` must pass. See .openspec-handoff/small-changes.md.
+   parent (schema split-plan: a control plane with no requirement names) and creates one
+   handoff-driven child per slice; then \`split.mjs loss <parent>\` must pass.
+   See .openspec-handoff/small-changes.md.
 `;
 
 const handoff = {

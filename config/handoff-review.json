@@ -107,7 +107,7 @@
     }
   },
   "sizeThresholds": {
-    "$comment": "Warn-only (never fails). [budget, well-over]. lines/files: real diff since base_ref, code + tests only (lockfiles, generated files, installed tooling excluded). The gate before handoff is /split-check (split.limitLines).",
+    "$comment": "Warn-only (never fails). [budget, well-over]. lines/files: real diff since base_ref at the PR (check-handoff), code + tests only (lockfiles, generated files, installed tooling excluded).",
     "requirements": [
       5,
       8
@@ -132,7 +132,9 @@
     "qwen": "llama3.2:3b"
   },
   "split": {
-    "$comment": "/split-check gate at the end of the specs stage: estimated changed lines (code + tests) per PR. Warn-only.",
+    "$comment": "Warn-only. /split-check at the end of the specs stage counts delta requirements and capabilities (warn above maxRequirements / maxCapabilities). The ~limitLines estimate (code + tests) is checked after planning by /spec-check from the tool's tickets / plan tasks; the real diff by check-handoff (sizeThresholds.lines).",
+    "maxRequirements": 5,
+    "maxCapabilities": 2,
     "limitLines": 300
   }
 }

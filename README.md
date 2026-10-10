@@ -17,15 +17,16 @@ openspec/changes/<id>/
     spec-check.md                (/spec-check: planning output vs proposal + delta, end of planning)
     reviews/code-review.md       (the tool's own code review; reviews/<ts>-<model>.md if /adversarial-review is used)
     verify.md                    (/opsx:verify report, saved before archive)
-    size-estimate.md, split-check.md, split-proposal.md   (/split-check size gate, end of the specs stage)
+    split-check.md, split-proposal.md   (/split-check split gate, end of the specs stage; the proposal is removed at apply)
 
-A change too big for one PR (~300 lines of code + tests) is split after the engineer approves:
+A change too big for one PR (> 5 requirements or > 2 capabilities) is split after the engineer approves:
 openspec/changes/<parent>/     schema split-plan (proposal → slices), never handed off or verified
-  proposal.md                  the original proposal
-  slices.md                    slices (goal, capabilities, depends_on, flag, estimate, ticket) + checklist of the
-                               ORIGINAL requirement/scenario NAMES + amendments - no behaviour
+  proposal.md                  the original proposal (why / scope, no requirement names)
+  slices.md                    control plane: slices (goal, capabilities, depends_on, flag, ticket, status) +
+                               split_commit (loss-check baseline) - no requirement names, no behaviour
   tickets/<slice>.md           Jira-pasteable tickets for READY slices
-openspec/changes/<slice>/      one handoff-driven child per slice, live deltas (exact names; split_from for a cut requirement)
+openspec/changes/<slice>/      one handoff-driven child per slice, live deltas (exact names) + proposal "## Split notes"
+                               (dropped / added / renamed_from / split_from)
 ```
 
 Phases: **setup** (pick the execution tool: `install.sh --tool`, project default in `.openspec-handoff/project.json`)
@@ -43,7 +44,7 @@ Schema stages: **proposal → specs → handoff** (no tasks stage: progress is t
 |---|---|
 | `schemas/handoff-driven/` | Custom OpenSpec schema (`schema.yaml` + templates incl. `handoff.md`) - story 1 |
 | `schemas/split-plan/` | Parent of a split change: proposal → slices (no specs; OpenSpec sets `skip_specs: true`; archived last with `--skip-specs`) |
-| `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/split-check.md` | `/split-check <id>`: size gate at the end of the specs stage (estimates per requirement, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children, re-split into the same parent), `loss` (exactly-once / amendment check, `--final` against main specs), `next` (ready / parallel-safe slices, tickets) |
+| `scripts/split-check.mjs`, `scripts/split.mjs`, `scripts/lib/split.mjs` + `commands/*/split-check.md` | `/split-check <id>`: split gate at the end of the specs stage (counts requirements and capabilities, warn-only, slices proposed for the engineer); `split.mjs apply` (approved proposal → parent + children, re-split into the same parent; records `split_commit`), `loss` (exactly-once vs the original deltas at `split_commit` via git show, split notes, rename candidates, `--final` against main specs), `next` (ready / in progress / parallel-safe slices, tickets), `mark` (in-progress status) |
 | `scripts/spec-check.mjs` + `commands/*/spec-check.md` | `/spec-check <id>`: coverage of every delta requirement/scenario by the tool's stories, tickets or plan tasks; missing, unknown and unsourced units (script) + contradictions (agent); writes `execution/spec-check.md` |
 | `scripts/execution-tool.mjs` | Setup phase: `--default <tool>` (project), `<id> --set <tool>` (per-change override; starts the session file), `<id>` (resolve: handoff.md > session front matter > project default). Refuses a switch once a session exists (`docs/switching-tools.md`) |
 | `scripts/check-handoff.mjs` | Lint: execution tool set and consistent (handoff.md vs session file; one session file; error), proposal.md implementation-detail heuristic (warning), new capability without `## Purpose` (warning), handoff fields, reference-not-duplicate (errors: verbatim copies, delta headers, SHALL; warnings: token-overlap paraphrases and User-Stories-style sections with no link to the proposal/delta - errors with `strictDuplication`), requirement links (every user story / ticket / plan task names an existing delta requirement: error), `apply_mode`, ownership (no OpenSpec design.md), outputs in change folder, PR size (warn-only: ~300 changed lines of code + tests, lockfiles / generated / tooling excluded) |
@@ -79,8 +80,8 @@ node .openspec-handoff/scripts/execution-tool.mjs add-greeting-name --set superp
       ai-hero:     grill-with-docs -> execution/grill.md
       superpowers: brainstorming -> execution/brainstorm.md, STOPPED after the written design (no writing-plans)
    -> proposal.md (what/why only; lint warns on implementation detail) + delta (scenarios found in the session)
-/split-check add-greeting-name           # size gate, end of the specs stage (automatic): "fits", or over ~300 lines
-   -> slices proposed (execution/split-proposal.md) -> engineer approves -> split.mjs apply -> parent + children
+/split-check add-greeting-name           # split gate, end of the specs stage (automatic): "fits", or > 5 requirements / > 2 capabilities
+   -> slices proposed (execution/split-proposal.md) -> engineer approves -> commit deltas -> split.mjs apply -> parent + children
    -> split.mjs loss <parent> PASS -> one planning PR -> split.mjs next <parent> --write-tickets -> per slice:
 /handoff add-greeting-name claude-sonnet-4-5
    -> handoff.md (tool = session's tool, model, apply_mode, base_ref, links), check-handoff,
@@ -90,7 +91,7 @@ node .openspec-handoff/scripts/execution-tool.mjs add-greeting-name --set superp
 /spec-check add-greeting-name             # stops on GAPS -> execution/spec-check.md
 # implementation: the tool's own command recorded as handoff.md apply_mode (NOT /opsx:apply)
 /implement  |  /implement-spec  |  executing-plans  |  subagent-driven-development
-   -> ticket Status/checkboxes or plan step checkboxes; tool's code review (fresh context) -> execution/reviews/code-review.md
+   -> ticket Status/checkboxes or plan step checkboxes; tool's code review (fresh session of your own agent; local model = weak fallback) -> execution/reviews/code-review.md
 /adversarial-review add-greeting-name     # optional: different model, headless, -> execution/reviews/
 openspec validate add-greeting-name --strict && node .openspec-handoff/scripts/check-handoff.mjs add-greeting-name --expect-complete
 /opsx:verify add-greeting-name            # save the report to execution/verify.md
@@ -102,10 +103,11 @@ Scripts directly:
 ```bash
 node .openspec-handoff/scripts/check-handoff.mjs <id> [--json] [--no-git] [--expect-complete]
 node .openspec-handoff/scripts/next-steps.mjs <id>
-node .openspec-handoff/scripts/split-check.mjs <id> [--write] [--json]       # size gate (warn-only)
+node .openspec-handoff/scripts/split-check.mjs <id> [--write] [--json]       # split gate (warn-only)
 node .openspec-handoff/scripts/split.mjs apply <id>                          # approved split-proposal.md -> parent + children (or re-split a slice)
-node .openspec-handoff/scripts/split.mjs loss <parent> [--final [--write]]   # nothing lost / duplicated / unsourced
-node .openspec-handoff/scripts/split.mjs next <parent> [--write-tickets]     # ready + parallel-safe slices, tickets
+node .openspec-handoff/scripts/split.mjs loss <parent> [--final]            # nothing lost / duplicated / unsourced (baseline: git show split_commit)
+node .openspec-handoff/scripts/split.mjs next <parent> [--write-tickets]     # ready / in progress / parallel-safe slices, tickets
+node .openspec-handoff/scripts/split.mjs mark <parent> <slice> in-progress|planned   # the engineer's status mark
 node .openspec-handoff/scripts/adversarial-review.mjs <id> [--dry-run] [--emit-prompt] [--json]
      [--reviewer-model <id>] [--runner claude|codex|cursor-agent] [--allow-same-family]
 ```
@@ -143,7 +145,7 @@ before acting on them (the example's `execution/reviews/triage.md` shows a 3B mo
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 78 tests (split gate, loss check, ready report incl.): lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
+npm test               # 82 tests (split gate, git-baseline loss check, split notes, renames, done-work reset, ready report incl.): lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```

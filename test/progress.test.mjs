@@ -10,12 +10,16 @@ const ex = (dir) => path.join(dir, 'openspec', 'changes', CHANGE, 'execution');
 const check = (dir, ...a) => run('check-handoff.mjs', [CHANGE, '--json', ...a], dir);
 
 test('ai-hero progress: tickets with Status done and ticked boxes; --expect-complete fails on an open ticket', () => {
-  const { dir } = makeFixture();
+  const { dir, git } = makeFixture();
   let r = check(dir, '--expect-complete');
   assert.equal(r.code, 0, r.out);
   assert.match(JSON.parse(r.stdout).metrics.progress, /^2\/2 tickets done/);
   const t = path.join(ex(dir), 'tickets', '02-cli-passes-the-name.md');
   fs.writeFileSync(t, fs.readFileSync(t, 'utf8').replace(/\*\*Status:\*\* done/, '**Status:** ready-for-agent'));
+  r = check(dir);
+  assert.equal(r.code, 1, 'a ticket done at HEAD and reset in the working tree is an error');
+  assert.match(JSON.parse(r.stdout).errors.join('\n'), /done work reset: execution\/tickets\/02-cli-passes-the-name\.md: was done at HEAD/);
+  git('commit', '-qam', 'reopen ticket deliberately');
   r = check(dir);
   assert.equal(r.code, 0, 'open tickets are normal before --expect-complete');
   assert.match(JSON.parse(r.stdout).metrics.progress, /^1\/2 tickets done/);
@@ -56,13 +60,41 @@ test('superpowers progress: plan step checkboxes per task', () => {
 
 test('next-steps prints the tool sequence without running anything', () => {
   const ai = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement-spec' });
-  const order = ['/to-spec', 'grill.md', '/to-tickets', '/spec-check x', '/implement-spec', '/code-review', 'FRESH context', '--expect-complete', '/opsx:verify x', 'execution/verify.md', '/opsx:archive x'];
+  const order = ['/to-spec', 'grill.md', '/to-tickets', '/spec-check x', '/implement-spec', '/code-review', 'FRESH session of your own coding agent', 'weak fallback reviewer', '--expect-complete', '/opsx:verify x', 'execution/verify.md', '/opsx:archive x', 'together with its code', 'Merge the PR'];
   let at = -1; for (const s of order) { const i = ai.indexOf(s, at + 1); assert.ok(i > at, `ai-hero: ${s} out of order`); at = i; }
   const sp = nextSteps({ id: 'x', tool: 'superpowers', applyMode: 'subagent-driven-development' });
-  const order2 = ['writing-plans', 'brainstorm.md', 'plan-x.md', '/spec-check x', 'subagent-driven-development', 'requesting-code-review', '/opsx:verify x', 'finishing-a-development-branch', '/opsx:archive x'];
+  const order2 = ['writing-plans', 'brainstorm.md', 'plan-x.md', '/spec-check x', 'subagent-driven-development', 'requesting-code-review', 'weak fallback reviewer', '/opsx:verify x', '/opsx:archive x', 'together with its code', 'finishing-a-development-branch'];
   at = -1; for (const s of order2) { const i = sp.indexOf(s, at + 1); assert.ok(i > at, `superpowers: ${s} out of order`); at = i; }
   const { dir } = makeFixture();
   const r = run('next-steps.mjs', [CHANGE], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Next steps for add-greeting-name \(ai-hero, apply_mode: implement\)/);
+});
+
+test('superpowers: a finished plan task reset after a planning re-run is an error (compared with git HEAD)', () => {
+  const { dir, git } = makeFixture();
+  setHandoff(dir, { tool: 'superpowers', apply_mode: 'executing-plans' });
+  fs.rmSync(path.join(ex(dir), 'tickets'), { recursive: true });
+  fs.rmSync(path.join(ex(dir), 'grill.md')); fs.rmSync(path.join(ex(dir), 'spec.md'));
+  fs.writeFileSync(path.join(ex(dir), 'brainstorm.md'), '---\ntool: superpowers\n---\n> Source of truth: [proposal](../proposal.md)\n');
+  const plan = (t1) => ['# Plan', '', '**Spec:** [proposal](../proposal.md)', '',
+    '### Task 1: greet(name)', '**Covers:** "Requirement: Greeting by name"', `- [${t1}] **Step 1: test**`, `- [${t1}] **Step 2: code**`, '',
+    '### Task 2: blank', '**Covers:** "Requirement: Blank name falls back to default"', '- [ ] **Step 1: test**'].join('\n');
+  fs.writeFileSync(path.join(ex(dir), `plan-${CHANGE}.md`), plan('x'));
+  git('add', '-A'); git('commit', '-qm', 'plan with task 1 done');
+  assert.deepEqual(JSON.parse(check(dir).stdout).errors, []);
+  fs.writeFileSync(path.join(ex(dir), `plan-${CHANGE}.md`), plan(' '));
+  const r = check(dir);
+  assert.equal(r.code, 1);
+  assert.match(JSON.parse(r.stdout).errors.join('\n'), /done work reset: .*"Task 1: greet\(name\)" was finished at HEAD and has unticked steps now/);
+});
+
+test('code review by a local model without the "weak fallback" label is a warning', () => {
+  const { dir } = makeFixture();
+  fs.mkdirSync(path.join(ex(dir), 'reviews'), { recursive: true });
+  const f = path.join(ex(dir), 'reviews', 'code-review.md');
+  fs.writeFileSync(f, '# Code review\n\nReviewer: qwen3:4b-instruct via ollama (fresh context)\n');
+  assert.match(JSON.parse(check(dir).stdout).warnings.join('\n'), /label it "weak fallback reviewer"/);
+  fs.writeFileSync(f, '# Code review\n\nweak fallback reviewer: qwen3:4b-instruct via ollama (fresh context)\n');
+  assert.doesNotMatch(JSON.parse(check(dir).stdout).warnings.join('\n'), /weak fallback/);
 });

@@ -11,18 +11,19 @@ Size never fails a change. It is checked at three points and only warns:
 
 | Point | What is measured | Budget | Tool |
 |---|---|---|---|
-| 1. **Gate** - end of the specs stage, before handoff (automatic, rerunnable) | The agent's estimate per delta requirement (changed lines of code + tests, from its scenarios and the code it touches) | ~300 lines | `/split-check <id>` → `execution/size-estimate.md`, `execution/split-check.md` |
-| 2. **Re-estimate after planning** | `Estimate: ~N lines` per AI Hero ticket / Superpowers plan task, summed | ~300 lines | `/spec-check <id>` ("Size" section) |
+| 1. **Split gate** - end of the specs stage, before handoff (automatic, rerunnable) | Requirements and capabilities in the deltas (counted, no estimate) | ≤ 5 requirements, ≤ 2 capabilities | `/split-check <id>` → `execution/split-check.md` |
+| 2. **Line estimate after planning** | `Estimate: ~N lines` per AI Hero ticket / Superpowers plan task, summed | ~300 lines of code + tests | `/spec-check <id>` ("Size" section) |
 | 3. **Real PR diff** | Changed lines/files since `base_ref`: code + tests; lockfiles, generated output (`dist/`, `build/`, `*.min.js`, `*.generated.*`, snapshots...), `openspec/` and installed tooling excluded | lines 300 (louder above 600), files 15 (25) | `check-handoff <id>` |
 | (also) | Requirements in the deltas / tickets or plan tasks | 5 (8) / 8 (12) | `check-handoff <id>` |
 
-Thresholds: `.openspec-handoff/config.json` → `split.limitLines` (gate and re-estimate) and `sizeThresholds`
-(`[budget, well-over]`, both warnings).
+Thresholds: `.openspec-handoff/config.json` → `split.maxRequirements`, `split.maxCapabilities` (gate),
+`split.limitLines` (estimate after planning) and `sizeThresholds` (`[budget, well-over]`, both warnings).
+Over budget after planning: re-split the change with `/split-check <id>`; new slices join the same parent.
 
 ## Splitting a change (the gate)
 
-Over ~300 estimated lines, `/split-check` asks the agent to **propose slices**; the engineer approves or edits
-them. Nothing is split automatically.
+Over 5 requirements or 2 capabilities, `/split-check` asks the agent to **propose slices**; the engineer
+approves or edits them. Nothing is split automatically.
 
 1. **Proposal** - `execution/split-proposal.md` (`approved_by:` empty until approval), one block per slice:
 
@@ -33,60 +34,70 @@ them. Nothing is split automatically.
    - requirements: Digest content; Digest schedule
    - depends_on: none
    - flag: none
-   - estimate: 160
    ```
 
    `split: <original> -> <new name> [<scenario>; ...]` cuts one requirement in two. `flag:` only when the
    slice gates user-visible behaviour; then a cleanup slice (`removes_flag: <flag>`, depending on the
-   flagged slice) is always planned. Optional `## Amendments`.
+   flagged slice) is always planned.
 2. **Approval** - the engineer sets `approved_by:` (or edits the slices). `/split-check` shows the slices,
    which are ready first and which pairs can run in parallel.
-3. **Apply** - `node .openspec-handoff/scripts/split.mjs apply <id>`:
-   - the original change becomes the **parent** (schema `split-plan`, artifacts proposal → slices):
-     `proposal.md` (unchanged) and `slices.md` = slices (id, goal, capabilities, requirements,
-     depends_on, flag, estimate, ticket), a **checklist of the original requirement and scenario names**
-     (no behaviour text), and amendments. Its `specs/` is removed; OpenSpec sets `skip_specs: true`.
+3. **Commit the deltas, then apply** - the commit holding the original deltas is the loss-check baseline.
+   `node .openspec-handoff/scripts/split.mjs apply <id>` refuses while the deltas are uncommitted, then:
+   - the original change becomes the **parent** (schema `split-plan`, artifacts proposal → slices), a
+     **control plane**: `proposal.md` (why and scope) and `slices.md` with front matter
+     `parent / approved_by / split_at / split_commit` and one block per slice: id, goal, capabilities,
+     depends_on, flag (or removes_flag), ticket, status. **No requirement or scenario names** and no behaviour
+     (the loss check fails on any original name in the parent's proposal.md, slices.md or tickets/). Its
+     `specs/` and `execution/split-proposal.md` are removed; OpenSpec sets `skip_specs: true`.
    - one **child** change per slice (schema `handoff-driven`) with the original requirement blocks copied
-     verbatim into live deltas (exact names; `## Purpose` for new capabilities). A requirement cut in two
-     carries `<!-- split_from: <original name> -->` under its header.
-4. **Loss check** - `split.mjs loss <parent>`: every original requirement and scenario is in **exactly one**
-   child or covered by an amendment; fails on missing, duplicate and unsourced (a child requirement that is
-   not an original name, a confirmed split, or an `added in <slice>` amendment). A `split_from` needs the
-   agent to confirm the children together cover the original, recorded as
-   `- Requirement "<name>" split into "<A>", "<B>" - confirmed`.
-5. **One planning PR** - parent + all children (proposal + specs only, no handoff) committed together.
-   `split.mjs next <parent> --write-tickets` writes `tickets/<slice>.md` (Jira-pasteable) for READY slices.
-6. **Slices** - a slice is READY when all its `depends_on` are archived. Two slices are **parallel-safe**
-   only when neither depends on the other (transitively) and they share no capability. Each engineer branches
-   from main per slice, runs a short design session narrowed to the slice (reading the parent's
-   `execution/grill.md` / `brainstorm.md`), `/handoff <slice>`, and the usual flow to `/opsx:archive`. Then
-   `split.mjs next <parent> --write-tickets` again.
-7. **Parent last** - when every slice is archived: `split.mjs loss <parent> --final --write` (original names vs
-   the main specs and the archived children; ticks the checklist), then
-   `openspec archive <parent> --skip-specs --yes` (must not sync specs). Never run `/opsx:verify` on a parent.
+     verbatim into live deltas (exact names; `## Purpose` for new capabilities) and an empty
+     `## Split notes` section in its proposal.md. A requirement cut in two carries
+     `<!-- split_from: <original name> -->` under its header.
+4. **Split notes** - every deliberate difference from the original lives in the proposal of the child that
+   made it, never in the parent:
 
-**Amendments** are the only way the plan changes after the split; behaviour is never edited in the parent:
+   ```markdown
+   ## Split notes
+   - dropped: Scenario "Empty input" - covered by the CLI usage error
+   - added: Requirement "Stats flag" - gates the command until the cleanup slice
+   - renamed_from: Requirement "Word count" -> "Word counting" - same behaviour, clearer name
+   - split_from: Requirement "Digest content" - confirmed
+   ```
 
-```markdown
-- Requirement "<name>" dropped: <why>
-- Requirement "<name>" changed, see change <id>: <why>   (<id> = another change, or the slice that holds it
-                                                      when a slice session edited its live delta)
-- Requirement "<name>" added in <slice>: <why>        (e.g. the feature-flag requirement)
-- Scenario "<name>" dropped: <why> | added in <slice>: <why>
-```
+5. **Loss check** - `split.mjs loss <parent>`. Baseline = the original change's deltas at `split_commit`
+   (`git show`, so nothing has to be copied). Every original requirement and scenario is in **exactly one**
+   child or covered by a split note; it fails on missing, duplicate and unsourced (a child requirement or
+   scenario that is not an original name, a confirmed `split_from`, a `renamed_from` target or `added`).
+   **Renames:** when an original name has no match, the report lists the unmatched originals next to the
+   child names that have no original ("Possible renames"). The agent judges semantic equivalence: an
+   equivalent pair is recorded as `renamed_from` and passes; otherwise the original is missing until it is
+   restored or recorded as `dropped`.
+6. **One planning PR** - parent + all children (proposal + specs only, no handoff) committed together.
+   `split.mjs next <parent> --write-tickets` writes `tickets/<slice>.md` (Jira-pasteable, no requirement
+   names) for READY slices.
+7. **Slices** - a slice is READY when all its `depends_on` are done; **done = the child's archived folder is
+   on main**. Two slices are **parallel-safe** only when neither depends on the other (transitively) and
+   they share no capability. To take a slice: `split.mjs mark <parent> <slice> in-progress`, committed on
+   main - **in progress is a manual mark**; the next report trusts it and does not scan branches. Then a
+   branch from main, a short design session narrowed to the slice (reading the parent's
+   `execution/grill.md` / `brainstorm.md`), `/handoff <slice>`, and the usual flow. `/opsx:archive <slice>`
+   runs on the slice branch and the archive is **committed in the slice's own PR with its code**; after the
+   merge, `split.mjs next <parent> --write-tickets` on main.
+8. **Parent last** - when every slice is done: `split.mjs loss <parent> --final` (also checks the final names
+   against the main specs), then `openspec archive <parent> --skip-specs --yes` (must not sync specs).
+   Never run `/opsx:verify` on a parent.
 
-A slice gate (`/split-check <slice>`) uses the approved slice estimate from `slices.md` when the slice has no
-`execution/size-estimate.md` of its own (one line when it fits).
+Changing the plan later: edit the child delta, add the split note to that child's proposal, rerun
+`split.mjs loss <parent>`, then update the tool files (regenerate open tickets / tasks only - never a done
+one; `check-handoff` errors with "done work reset" when a ticket marked done at git HEAD was overwritten),
+then `check-handoff` and `/spec-check`.
 
-Slices run in parallel on their own branches, and each may append amendment lines to the parent's `slices.md`.
-`install.sh` adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` so those appends merge without
-conflicts; `split.mjs loss` warns if a union merge left a slice field twice.
+`install.sh` still adds `openspec/changes/**/slices.md merge=union` to `.gitattributes` (two parallel `mark`
+commits); `split.mjs loss` warns if a union merge left a slice field twice.
 
-Edit the child delta, add the amendment, rerun `split.mjs loss <parent>`, then update the tool files
-(rerun the planning command, then `/spec-check`).
-
-**Re-split**: run `/split-check <slice>` on a slice that turns out too big; `split.mjs apply <slice>` replaces it
-in the **same** parent (no nested parents) and rewires `depends_on`.
+**Re-split**: run `/split-check <slice>` on a slice that turns out too big (more requirements, or over the
+line estimate after planning); `split.mjs apply <slice>` replaces it in the **same** parent (no nested
+parents), rewires `depends_on`, and carries the old slice's split notes into the new children.
 
 ## When to split
 
@@ -126,7 +137,7 @@ Add rules to `openspec/config.yaml` so every artifact instruction repeats the bu
 ```yaml
 rules:
   proposal:
-    - Include a Size Budget section (~300 changed lines of code + tests); /split-check gates it after the specs
+    - Include a Size Budget section (<= 5 requirements, <= 2 capabilities, ~300 changed lines of code + tests); /split-check counts after the specs, /spec-check estimates lines after planning
   handoff:
     - Record the Size Budget; at most 8 tickets / plan tasks
 ```

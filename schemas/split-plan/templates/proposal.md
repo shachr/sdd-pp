@@ -1,6 +1,6 @@
 # Proposal
 
-<!-- The original change's proposal, kept unchanged by split.mjs apply. -->
+<!-- The original change's proposal: why and scope of the whole feature. No requirement or scenario names. -->
 
 ## Why
 
@@ -9,5 +9,3 @@
 ## Capabilities
 
 ## Impact
-
-## Size Budget
