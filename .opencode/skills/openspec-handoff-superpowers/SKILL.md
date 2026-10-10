@@ -1,6 +1,6 @@
 ---
 name: openspec-handoff-superpowers
-description: Run the Superpowers flow (obra/superpowers - brainstorming, writing-plans, executing-plans or subagent-driven-development, requesting-code-review) on an OpenSpec change folder. Design session in the proposal phase (brainstorming -> execution/brainstorm.md, stopped before writing-plans so OpenSpec writes the specs); planning at handoff (writing-plans reading brainstorm.md -> execution/plan-<id>.md). Use when the change's execution tool is superpowers.
+description: Run the Superpowers flow (obra/superpowers - brainstorming, writing-plans, executing-plans or subagent-driven-development, requesting-code-review) on an OpenSpec change folder. Design session in the proposal phase (brainstorming -> execution/brainstorm.md, stopped before writing-plans so OpenSpec writes the specs); planning after handoff as the engineer's next steps (writing-plans reading brainstorm.md -> execution/plan-<id>.md). Use when the change's execution tool is superpowers.
 ---
 
 # Superpowers on an OpenSpec change
@@ -32,11 +32,11 @@ Runs when `/opsx:propose`, `/opsx:new` + `/opsx:continue` or `/opsx:ff` reaches 
 
 1. `node .openspec-handoff/scripts/execution-tool.mjs <id>` must say `superpowers` (project default, or `--set superpowers` for a per-change override). `--set` creates `execution/brainstorm.md` with front matter `tool: superpowers` / `session: brainstorming`; create it the same way if it does not exist.
 2. Run `brainstorming` on the user's request (and the existing main specs it touches) as written: first message, questions, approaches, design sections, approval. If decisions were delegated, answer on the user's behalf and mark those answers as your calls.
-   - **Size the Work**: pick "a project with a written design" (the change will be planned with writing-plans at handoff).
+   - **Size the Work**: pick "a project with a written design" (the engineer plans it with writing-plans after /handoff).
 3. **The Written Design** goes to `execution/brainstorm.md` (keep the front matter): first body line `> Source of truth: [proposal](../proposal.md) · [specs/<cap>/spec.md](../specs/<cap>/spec.md)`. Write it as brainstorming says (intent and why, goals / non-goals, constraints, the parts of the how they decided, what's left to the builder), and end with `## Scenarios found`: names only of the behaviours the session surfaced - each becomes a requirement or scenario in the delta.
    - Builder check: dispatch the subagent if you have one; otherwise read the document as that builder yourself (the skill allows this). Record the three piles.
    - Approval (HARD-GATE): the user's, or yours on their behalf if delegated (say so).
-4. **STOP brainstorming here.** Its terminal step says "invoke writing-plans". In this workflow that step is deferred to `/handoff`: do **not** invoke writing-plans, do not write a plan, and do not start implementation. Write at the end of `brainstorm.md`: `Next: OpenSpec proposal + specs; writing-plans runs at /handoff.`
+4. **STOP brainstorming here.** Its terminal step says "invoke writing-plans". In this workflow that step is deferred until after `/handoff` (the engineer's first next step): do **not** invoke writing-plans, do not write a plan, and do not start implementation. Write at the end of `brainstorm.md`: `Next: OpenSpec proposal + specs + /handoff; writing-plans is the engineer's first next step after it.`
 5. Hand back to OpenSpec: write `proposal.md` (what/why only - decisions stay in `brainstorm.md`) and the delta (every scenario from step 3, `## Purpose` first for a new capability). `openspec validate <id> --strict`. `check-handoff` warns on implementation detail in proposal.md.
 6. Once the delta exists, cite it by name from the written design's goals; the conversation record and playbacks may keep the partner's words (paraphrase warnings on them are expected and advisory).
 

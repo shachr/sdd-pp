@@ -26,8 +26,8 @@ proposal.instruction = `Handoff-driven - DESIGN SESSION FIRST (before writing pr
    - ai-hero -> skill \`openspec-handoff-ai-hero\`: grill-with-docs -> execution/grill.md
    - superpowers -> skill \`openspec-handoff-superpowers\`: brainstorming -> execution/brainstorm.md
      (the written design goes there, not docs/superpowers/specs/). STOP brainstorming
-     after the written design is approved: do NOT invoke writing-plans - planning runs
-     at /handoff. Control returns here.
+     after the written design is approved: do NOT invoke writing-plans - planning is the
+     engineer's first next step after /handoff. Control returns here.
 3. Then write proposal.md from the session, WHAT and WHY only: no decisions,
    file layouts, algorithms or code - those stay in the session file.
    Behaviours the session surfaced become requirements/scenarios in the delta (next artifact).
