@@ -72,3 +72,24 @@ test('bad base_ref fails', () => {
   assert.equal(r.code, 1);
   assert.match(r.out, /base_ref "deadbeef" is not a commit/);
 });
+
+test('changed lines over budget warn, over hard limit fail', () => {
+  const { dir } = makeFixture();
+  const big = (n) => Array.from({ length: n }, (_, i) => `export const x${i} = ${i};`).join('\n');
+  fs.writeFileSync(path.join(dir, 'src', 'big.mjs'), big(500));
+  let r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /! size: changed lines since base_ref 500 > budget 400/);
+  fs.writeFileSync(path.join(dir, 'src', 'big.mjs'), big(900));
+  r = run('check-handoff.mjs', [CHANGE], dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /✗ size: changed lines since base_ref 900 > hard limit 800/);
+});
+
+test('openspec/ planning files and paths outside diff_paths do not count toward size', () => {
+  const { dir, changeDir } = makeFixture();
+  fs.writeFileSync(path.join(changeDir, 'execution', 'notes.md'), '> Source of truth: [proposal](../proposal.md)\n' + 'x\n'.repeat(2000));
+  fs.writeFileSync(path.join(dir, 'README.md'), 'y\n'.repeat(2000));
+  const r = run('check-handoff.mjs', [CHANGE, '--json'], dir);
+  assert.equal(JSON.parse(r.stdout).metrics.lines, 0, r.out);
+});

@@ -4,3 +4,9 @@ context: |
   Node >= 18, ES modules, no runtime dependencies. Tests use node --test.
   Execution tools: AI Hero (mattpocock/skills) or Superpowers (obra/superpowers),
   handed off via handoff.md. Keep every change PR-sized (see docs/small-changes.md in the toolkit).
+
+rules:
+  proposal:
+    - Include a Size Budget section; split if over 5 requirements / 8 tickets / 400 changed lines
+  tasks:
+    - One checkbox per execution ticket or plan task; at most 8

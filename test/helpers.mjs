@@ -16,6 +16,8 @@ export function makeFixture({ handoff = {}, keepExecution = true } = {}) {
   fs.cpSync(path.join(TOOLKIT, 'example'), dir, { recursive: true, dereference: true });
   const changeDir = path.join(dir, 'openspec', 'changes', CHANGE);
   if (!keepExecution) fs.rmSync(path.join(changeDir, 'execution'), { recursive: true, force: true });
+  // start every fixture without prior review output so tests can assert on what a run writes
+  fs.rmSync(path.join(changeDir, 'execution', 'reviews'), { recursive: true, force: true });
   const g = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'pipe' }).toString().trim();
   g('init', '-q', '-b', 'main');
   g('-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '-A');
