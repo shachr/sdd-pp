@@ -143,7 +143,7 @@ before acting on them (the example's `execution/reviews/triage.md` shows a 3B mo
 
 ```bash
 npm install            # installs @fission-ai/openspec 1.14.1 locally for the tests
-npm test               # 77 tests (split gate, loss check, ready report incl.): lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
+npm test               # 78 tests (split gate, loss check, ready report incl.): lint rules incl. paraphrase detection, review selection, fake-runner review, real CLI, e2e
 npm run validate:example
 node scripts/dev-generate-schema.mjs   # regenerate schema.yaml from upstream spec-driven + our additions
 ```

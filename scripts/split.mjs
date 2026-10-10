@@ -27,6 +27,7 @@ export function lossCheck(root, parentId, { final = false } = {}) {
   const plan = parseSlices(fs.readFileSync(path.join(dir, 'slices.md'), 'utf8'));
   const errors = []; const warnings = []; const confirm = []; const rows = [];
   const am = (kind, name) => plan.amendments.filter((a) => a.kind === kind && lc(a.name) === lc(name));
+  for (const d of plan.duplicates) warnings.push(`slices.md:${d.line}: slice "${d.slice}" has "${d.field}:" twice (a union merge of two branches?) - keep one; the last one wins`);
   // child requirements (ADDED / MODIFIED provide behaviour; REMOVED do not)
   const child = [];
   const removed = [];

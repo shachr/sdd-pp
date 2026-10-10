@@ -225,3 +225,25 @@ test('spec-check: size re-estimate after planning from "Estimate: ~N lines" in t
   assert.match(r.out, /total ~380 lines[\s\S]*! over budget: consider re-splitting with \/split-check/);
   assert.equal(r.code, 0, r.out);
 });
+
+test('parallel slice branches: install.sh union merge for slices.md keeps both amendment lines; duplicate fields are flagged', () => {
+  const { dir } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  const git = (...a) => { const r = spawnSync('git', a, { cwd: dir, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
+  const inst = spawnSync('bash', [path.join(TOOLKIT, 'install.sh'), dir, '--no-claude', '--no-cursor', '--no-opencode', '--no-set-default'], { encoding: 'utf8' });
+  assert.equal(inst.status, 0, inst.stderr);
+  assert.match(R(dir, '.gitattributes'), /^openspec\/changes\/\*\*\/slices\.md merge=union$/m);
+  git('init', '-q', '-b', 'main'); git('-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '-A'); git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'plan');
+  const s = 'openspec/changes/add-reports/slices.md';
+  const append = (line) => W(dir, s, R(dir, s).trimEnd() + `\n${line}\n`);
+  git('switch', '-qc', 'a'); append('- Scenario "Filter by tag" dropped: later'); git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qam', 'a');
+  git('switch', '-q', 'main'); git('switch', '-qc', 'b'); append('- Requirement "CSV export" changed, see change add-csv-export: columns'); git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qam', 'b');
+  git('switch', '-q', 'main'); git('-c', 'user.name=t', '-c', 'user.email=t@t', 'merge', '-q', '--no-ff', 'a', '-m', 'a');
+  git('-c', 'user.name=t', '-c', 'user.email=t@t', 'merge', '-q', '--no-ff', 'b', '-m', 'b'); // no conflict
+  const text = R(dir, s);
+  assert.match(text, /Scenario "Filter by tag" dropped/);
+  assert.match(text, /Requirement "CSV export" changed, see change add-csv-export/);
+  W(dir, s, text.replace('- ticket: tickets/add-report-totals.md', '- ticket: tickets/add-report-totals.md\n- ticket: none'));
+  const r = run('split.mjs', ['loss', 'add-reports'], dir);
+  assert.match(r.out, /slice "add-report-totals" has "ticket:" twice \(a union merge of two branches\?\)/);
+});

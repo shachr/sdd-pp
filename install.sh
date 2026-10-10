@@ -84,6 +84,8 @@ fi
 
 gi="$TARGET/.gitignore"
 grep -qxF '.superpowers/' "$gi" 2>/dev/null || { echo '.superpowers/' >> "$gi"; echo "  .gitignore += .superpowers/ (Superpowers SDD scratch)"; }
+ga="$TARGET/.gitattributes"
+grep -qF 'slices.md merge=union' "$ga" 2>/dev/null || { echo 'openspec/changes/**/slices.md merge=union' >> "$ga"; echo "  .gitattributes += slices.md merge=union (parallel slice branches each append amendments)"; }
 
 cat <<MSG
 
