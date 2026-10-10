@@ -4,7 +4,7 @@
 
 - [x] 1.1 Plan Task 1 title-case module - word casing and spacing - execution/plan-add-title-case.md#task-1-title-case-module---word-casing-and-spacing - verify: `node --test test/title-case.test.mjs`
 - [x] 1.2 Plan Task 2 title-case module - minor words - execution/plan-add-title-case.md#task-2-title-case-module---minor-words - verify: `node --test test/title-case.test.mjs`
-- [ ] 1.3 Plan Task 3 title-case module - input type guard - execution/plan-add-title-case.md#task-3-title-case-module---input-type-guard - verify: `npm test`
+- [x] 1.3 Plan Task 3 title-case module - input type guard - execution/plan-add-title-case.md#task-3-title-case-module---input-type-guard - verify: `npm test`
 
 ## 2. Review and verification
 

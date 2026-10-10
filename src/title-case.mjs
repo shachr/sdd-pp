@@ -4,6 +4,9 @@ const isWord = (item) => item !== '' && !item.startsWith(' ');
 const capitalise = (word) => word[0].toUpperCase() + word.slice(1).toLowerCase();
 
 export function toTitleCase(text) {
+  if (typeof text !== 'string') {
+    throw new TypeError(`text must be a string, got ${typeof text}`);
+  }
   const items = text.split(/( +)/);
   const wordCount = items.filter(isWord).length;
   let position = 0;

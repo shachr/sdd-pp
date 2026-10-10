@@ -12,3 +12,8 @@ test('Minor word at the end', () => assert.equal(toTitleCase('what are you looki
 test('A lone minor word is capitalised', () => assert.equal(toTitleCase('the'), 'The'));
 test('Leading spaces do not hide the first word', () => assert.equal(toTitleCase('  the end'), '  The End'));
 test('A shouted minor word in the middle is lowered', () => assert.equal(toTitleCase('war OF worlds'), 'War of Worlds'));
+test('Number input', () => assert.throws(() => toTitleCase(42), { name: 'TypeError', message: /number/ }));
+test('null and undefined are rejected', () => {
+  assert.throws(() => toTitleCase(null), { name: 'TypeError', message: /string/ });
+  assert.throws(() => toTitleCase(undefined), { name: 'TypeError', message: /string/ });
+});
