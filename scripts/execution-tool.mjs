@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findParentOf } from './lib/split.mjs';
-import { findProjectRoot, loadChange, resolveTool, projectToolConfigPath, SESSION_FILES, SESSION_SKILLS, TOOLS, UsageError, sessionFiles, isStub } from './lib/change.mjs';
+import { addArgs, findProjectRoot, loadChange, resolveTool, projectToolConfigPath, SESSION_FILES, SESSION_SKILLS, TOOLS, UsageError, sessionFiles, isStub } from './lib/change.mjs';
 
 function main() {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
@@ -43,7 +43,7 @@ function main() {
     const started = other.filter((s) => !isStub(change.read(s.file)));
     if (!started.length) for (const s of other) { fs.rmSync(path.join(change.dir, s.file)); replaced = true; console.log(`replaced the unused ${s.file} stub (no design session in it yet)`); }
     else if (other.length) {
-      console.error(`refused: ${other.map((s) => s.file).join(', ')} already holds a ${other[0].fileTool} design session. Switching tools means redoing the session - see .openspec-handoff/switching-tools.md.`);
+      console.error(`refused: ${other.map((s) => s.file).join(', ')} already holds ${/^[aeiou]/i.test(other[0].fileTool) ? 'an' : 'a'} ${other[0].fileTool} design session. Switching tools means redoing the session - see .openspec-handoff/switching-tools.md.`);
       return 1;
     }
     created = startSession(root, change, values.set);
@@ -59,7 +59,8 @@ function main() {
   else {
     console.log(`${change.id}: ${r.tool} (from ${r.source}${out.override ? `; overrides project default ${r.projectDefault}` : ''}) -> design session: ${out.sessionSkill} -> ${out.sessionFile}${created ? ' (created)' : started ? '' : ' (not started)'}`);
     // a replaced stub's deletion must be staged too: -A on the execution folder
-    if (created) console.log(`Commit with the change: git add ${replaced ? `-A openspec/changes/${change.id}/execution` : `openspec/changes/${change.id}/${created}`} && git commit -m "tool(${change.id}): ${r.tool}"`);
+    // the whole change folder (-A): a new change's .openspec.yaml / proposal, a replaced stub's deletion
+    if (created) console.log(`Commit with the change: git add ${addArgs(root, path.relative(root, change.dir).split(path.sep).join('/'))} && git commit -m "tool(${change.id}): ${r.tool}"`);
   }
   return r.tool ? 0 : 1;
 }

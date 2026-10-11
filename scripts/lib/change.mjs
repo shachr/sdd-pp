@@ -110,6 +110,8 @@ export function openWork(change) {
       const st = (/^\s*\**status:?\**\s*([^\n]*)$/im.exec(t) || [])[1]?.trim();
       open.push(`${f}: Status ${st ? `"${st}"` : 'missing'}, not done`);
     }
+    // a done ticket = Status done AND every checkbox ticked
+    t.split(/\r?\n/).forEach((l, i) => { if (/^\s*[-*]\s*\[ \]/.test(l)) open.push(`${f}:${i + 1}: unticked checkbox: ${l.trim().replace(/^[-*]\s*\[ \]\s*/, '')}`); });
   }
   const plan = findPlan(change);
   if (plan) {
@@ -278,4 +280,15 @@ export function resolveTool(change) {
   if (s) return { tool: s.tool, source: s.file, projectDefault: def, sessions };
   if (def) return { tool: def, source: '.openspec-handoff/project.json (project default)', projectDefault: def, sessions };
   return { tool: null, source: null, projectDefault: def, sessions };
+}
+
+/** Project-level docs AI Hero's grill-with-docs writes next to the change (the documented exception), when present. */
+export const PROJECT_DOCS = ['GLOSSARY.md', 'docs/adr'];
+
+/**
+ * The `git add` arguments for a commit line about a change: the whole change folder (-A: deltas, proposal split
+ * notes, execution/, deleted stubs) plus GLOSSARY.md / docs/adr when they exist. `relDir` is relative to the root.
+ */
+export function addArgs(root, relDir) {
+  return ['-A', relDir, ...PROJECT_DOCS.filter((p) => fs.existsSync(path.join(root, p)))].join(' ');
 }

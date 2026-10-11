@@ -41,7 +41,7 @@ artifacts:
       - Re-split a slice with the same gate (/sdd-split-check <slice>): new slices join this parent
         (no nested parents).
       Checks: `split.mjs loss <id>` after the split and after any child delta edit;
-      `/sdd-split-next <id>` for the ready / parallel-safe report and tickets of READY slices.
+      `/sdd-split-status <id>` for the ready / parallel-safe report and tickets of READY slices.
     requires:
       - proposal
 apply:
@@ -50,7 +50,7 @@ apply:
   instruction: |-
     A split parent is never implemented, handed off or verified (do not run /opsx:apply or
     /opsx:verify on it). Work happens in the child changes:
-    `/sdd-split-next <parent>` lists READY slices (all depends_on
+    `/sdd-split-status <parent>` lists READY slices (all depends_on
     done) and parallel-safe pairs (no dependency, no shared capability). Each engineer marks the
     slice in-progress (`/sdd-slice-start <slice>`, committed on main), branches from main, runs the slice's short design session (reading the
     parent's execution/ session file), /sdd-handoff <slice>, and follows the printed next steps; the

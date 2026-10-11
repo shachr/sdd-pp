@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // sdd: one entry point for the workflow's checks, so nobody types the individual scripts.
-// The agent slash commands (/sdd-split-apply, /sdd-split-next, /sdd-split-finish, /sdd-slice-start, /sdd-slice-finish, /sdd-split-undo,
-// /sdd-next-steps, /sdd-tool) and the `sdd-pp` CLI subcommands both run this file; it only runs the scripts
+// The agent slash commands (/sdd-split-apply, /sdd-split-status, /sdd-split-finish, /sdd-slice-start, /sdd-slice-finish, /sdd-split-undo,
+// /sdd-change-status, /sdd-tool) and the `sdd-pp` CLI subcommands both run this file; it only runs the scripts
 // below and passes their output and exit code through.
 //   spec-check <id> [--accept|--check]  spec-check.mjs <id> --write [--accept]  (--check: no --write, writes nothing)
 //   split-check <id>                split-check.mjs <id> --write
-//   next <id>                       next-steps.mjs <id>
+//   change-status <id>              next-steps.mjs <id>
+//   handoff-draft <id>              handoff-draft.mjs <id>   (pre-fills handoff.md for /sdd-handoff)
 //   tool <id> [--set <tool>]        execution-tool.mjs <id> [--set <tool>]   (also: tool --default <tool>)
-//   split apply <id>                split.mjs apply <id>
-//   split next <parent>             split.mjs next <parent> --write-tickets
+//   split apply <id> [--force]      split.mjs apply <id> [--force]   (--force: re-split an in-progress slice)
+//   split-status <parent>           split.mjs next <parent> --write-tickets
 //   slice-start <slice> [--undo]    split.mjs start <slice> [--undo]
 //   split undo <parent> [--force]  split.mjs undo <parent> [--force]
 //   split loss <parent> [--final]   split.mjs loss <parent> [--final]
@@ -23,12 +24,13 @@ import { isMain } from './lib/main.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 export const USAGE = `usage: sdd <command> ...
-  spec-check <id> [--accept|--check] coverage report -> execution/spec-check.md (the agent's /sdd-spec-check adds the review; kept when unchanged since the accepted PASS); --accept: record a saved PASS as the spec-change baseline; --check: write nothing
+  spec-check <id> [--accept|--check|--verbose] coverage report -> execution/spec-check.md (the agent's /sdd-spec-check adds the review; kept when unchanged since the accepted PASS); --accept: record a saved PASS as the spec-change baseline; --check: write nothing
   split-check <id>                 split gate counts -> execution/split-check.md
-  next <id>                        print the change's next steps again
+  change-status <id>               where the change is: its steps with [done] markers (before or after the handoff)
+  handoff-draft <id>               pre-fill handoff.md (tool, base_ref, links, slice/parent, size); only apply_mode / harness / notes left
   tool <id> [--set <tool>]         show / set the change's execution tool (tool --default <tool>: project default)
-  split apply <id>                 apply the approved execution/split-proposal.md
-  split next <parent>              ready / parallel-safe slices + tickets for READY slices
+  split apply <id> [--force]       apply the approved execution/split-proposal.md (--force: re-split a slice that is in progress)
+  split-status <parent>            ready / parallel-safe slices + tickets for READY slices
   slice-start <slice> [--undo]     take a READY slice: mark it in-progress (finds the parent) + next lines; --undo: back to planned
   split undo <parent> [--force]    undo the split: the original change back from split_commit, slice folders removed (uncommitted)
   split loss <parent> [--final]    loss check
@@ -47,18 +49,20 @@ export function plan(argv) {
   switch (cmd) {
     case 'spec-check': need(1, 'spec-check <id>'); return [node('spec-check.mjs', [rest[0], ...(rest.includes('--check') ? [] : ['--write']), ...rest.slice(1)])];
     case 'split-check': need(1, 'split-check <id>'); return [node('split-check.mjs', [rest[0], '--write', ...rest.slice(1)])];
-    case 'next': case 'next-steps': need(1, 'next <id>'); return [node('next-steps.mjs', rest)];
+    case 'handoff-draft': need(1, 'handoff-draft <id>'); return [node('handoff-draft.mjs', rest)];
+    case 'change-status': need(1, 'change-status <id>'); return [node('next-steps.mjs', rest)];
+    case 'split-status': need(1, 'split-status <parent>'); return [node('split.mjs', ['next', ...rest, ...(rest.includes('--write-tickets') ? [] : ['--write-tickets'])])];
+    case 'next': case 'next-steps': throw new SddUsage(`"${cmd}" is now "change-status <id>"\n\n${USAGE}`);
     case 'tool': if (!rest.length) throw new SddUsage(`tool <id> [--set <tool>] | tool --default <tool>\n\n${USAGE}`); return [node('execution-tool.mjs', rest)];
     case 'slice-start': need(1, 'slice-start <slice>'); return [node('split.mjs', ['start', ...rest])];
     case 'slice-finish': need(1, 'slice-finish <slice>'); return finish(rest[0]);
     case 'split-finish': need(1, 'split-finish <parent>'); return [node('split.mjs', ['finalize', rest[0]]), openspec(['archive', rest[0], '--skip-specs', '-y']), say(`Commit the archive: git add -A openspec/changes && git commit -m "split: finish parent ${rest[0]}"`)];
     case 'split': {
       const [sub, ...a] = rest;
-      if (!a.length || a[0].startsWith('-')) throw new SddUsage(`split ${sub || '<apply|next|undo|loss>'} <id>\n\n${USAGE}`);
+      if (!a.length || a[0].startsWith('-')) throw new SddUsage(`split ${sub || '<apply|undo|loss>'} <id>\n\n${USAGE}`);
       if (sub === 'apply' || sub === 'loss') return [node('split.mjs', [sub, ...a])];
-      if (sub === 'next') return [node('split.mjs', ['next', ...a, ...(a.includes('--write-tickets') ? [] : ['--write-tickets'])])];
       if (sub === 'undo') return [node('split.mjs', [sub, ...a])];
-      const moved = { start: 'slice-start <slice>', archive: 'split-finish <parent>', finish: 'slice-finish <slice>' }[sub];
+      const moved = { start: 'slice-start <slice>', archive: 'split-finish <parent>', finish: 'slice-finish <slice>', next: 'split-status <parent>' }[sub];
       throw new SddUsage(`${moved ? `"split ${sub}" is now "${moved}"` : `unknown split command "${sub}"`}\n\n${USAGE}`);
     }
     default: throw new SddUsage(`${cmd ? `unknown command "${cmd}"` : 'no command'}\n\n${USAGE}`);

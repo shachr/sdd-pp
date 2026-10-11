@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { findProjectRoot, loadConfig, UsageError } from './lib/change.mjs';
+import { addArgs, findProjectRoot, loadConfig, UsageError } from './lib/change.mjs';
 import { changeDeltas, changeLocation, dependencyClosure, findParentOf, lintSlices, nameSlices, parseSlices, SPLIT_MAX_CAPABILITIES, SPLIT_MAX_REQUIREMENTS } from './lib/split.mjs';
 import { isMain } from './lib/main.mjs';
 
@@ -85,7 +85,7 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
 
 /** names: false for the file written into the change (it becomes the parent, which carries no requirement names). */
 export function formatSplitCheck(r, { names = true } = {}) {
-  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /sdd-split-next ${r.change})`].join('\n');
+  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /sdd-split-status ${r.change})`].join('\n');
   const warn = (r.warnings || []).map((w) => `  ! ${w}`);
   const reqs = `${r.requirements} requirement${r.requirements === 1 ? '' : 's'}`;
   const caps = `${r.capabilities} ${r.capabilities === 1 ? 'capability' : 'capabilities'}`;
@@ -132,7 +132,9 @@ async function main() {
   console.log(values.json ? JSON.stringify(r, null, 2) : formatSplitCheck(r));
   if (values.write && r.kind === 'change' && !values.json) {
     // the whole change (proposal, deltas, design session, split files): /sdd-split-apply needs it committed as its baseline
-    console.log(`Commit the change with its deltas (/sdd-split-apply needs them committed - that commit is the loss-check baseline): git add -A openspec/changes/${positionals[0]} && git commit -m "split-check(${positionals[0]})"`);
+    const add = addArgs(root, path.relative(root, changeLocation(root, positionals[0]).dir).split(path.sep).join('/'));
+    if (r.status === 'fits') console.log(`Commit with the change: git add ${add} && git commit -m "split-check(${positionals[0]}): fits"`);
+    else console.log(`Commit the change with its deltas (/sdd-split-apply needs them committed - that commit is the loss-check baseline): git add ${add} && git commit -m "split-check(${positionals[0]})"`);
   }
   return 0;
 }

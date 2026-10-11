@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // next-steps: the exact next steps for a handed-off change, for the tool in handoff.md.
 // The handoff stage ends by printing this; it does not run any of the steps.
-// Usage: /sdd-next-steps <change>  (node .openspec-handoff/scripts/next-steps.mjs <change> [--root <dir>])
+// Usage: /sdd-change-status <change>  (node .openspec-handoff/scripts/next-steps.mjs <change> [--root <dir>])
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { findProjectRoot, loadChange, UsageError, SESSION_FILES, SESSION_SKILLS, APPLY_MODES, findPlan, git, resolveTool, isStub } from './lib/change.mjs';
 import { SNAPSHOT, snapshotDigest, specSnapshot } from './spec-check.mjs';
-import { findParentOf } from './lib/split.mjs';
+import { changeLocation, findParentOf } from './lib/split.mjs';
 import { nextReport, placeholders } from './split.mjs';
 import { isMain } from './lib/main.mjs';
 
@@ -36,7 +36,7 @@ export function nextSteps({ id, tool, applyMode, parent = null, state = {} }) {
       d('spec', `1. /to-spec - reads ${c}/${SESSION_FILES['ai-hero']} -> ${c}/execution/spec.md (user stories cite "Requirement: <name>").`),
       d('tickets', `2. /to-tickets -> ${c}/execution/tickets/NN-<slug>.md (each names its requirement(s); scenarios by name only; one "Estimate: ~N lines" line each). Re-running it later (after a delta edit): only the open tickets /sdd-spec-check names - never overwrite a ticket marked done.`),
       ...specCheck(3),
-      `   Commit the planning files with the change: ${sw}, then commit ${c}/execution/ including .spec-check.json (git add ${c}/execution && git commit -m "plan(${id})"; branch before implementation; everything for this change - planning, code, archive - goes in its PR).`,
+      `   Commit the planning files with the change: ${sw}, then commit the change folder including .spec-check.json (git add -A ${c} && git commit -m "plan(${id})"; branch before implementation; everything for this change - planning, code, archive - goes in its PR).`,
       d('impl', applyMode === 'implement-spec'
         ? `4. ${impl} with tdd: its integration branch is change/${id}; each ticket gets its own branch / worktree, and its "Status: done" + ticked checkboxes go in that ticket-branch commit with its code, before the branch is merged into change/${id}. No sub-agent tool in the harness: use /implement instead, or run each role in-session and label it.`
         : `4. ${impl} with tdd, ticket by ticket on branch change/${id}; set "Status: done" and tick the ticket's checkboxes as each lands (commit each ticket with its code).`),
@@ -51,7 +51,7 @@ export function nextSteps({ id, tool, applyMode, parent = null, state = {} }) {
     `Next steps for ${id} (superpowers, apply_mode: ${applyMode}). Skill: openspec-handoff-superpowers - outputs stay in ${c}/execution/.`,
     d('plan', `1. writing-plans - reads ${c}/${SESSION_FILES.superpowers} -> ${c}/execution/plan-${id}.md (each task starts with **Covers:** "Requirement: <name>" and has one "**Estimate:** ~N lines" line). Re-running it later (after a delta edit): only the open tasks /sdd-spec-check names - never reset a finished task.`),
     ...specCheck(2),
-    `   Before implementation, work on branch change/${id} (${sw}) - a plain branch or a worktree (using-git-worktrees; Superpowers recommends the worktree), either works - and commit the plan and .spec-check.json there: git add ${c}/execution && git commit -m "plan(${id})" (everything for this change - plan, code, archive - goes in its PR).`,
+    `   Before implementation, work on branch change/${id} (${sw}) - a plain branch or a worktree (using-git-worktrees; Superpowers recommends the worktree), either works - and commit the plan and .spec-check.json there: git add -A ${c} && git commit -m "plan(${id})" (everything for this change - plan, code, archive - goes in its PR).`,
     d('impl', `3. ${impl} on branch change/${id}. Its workspace (.superpowers/sdd/plan-${id}/, git-ignored) and ledger are shared by executing-plans and subagent-driven-development; the script that prints the workspace lives in the subagent-driven-development skill folder for both: ${state.skillsDir || '<skills dir>'}/subagent-driven-development/scripts/sdd-workspace ${c}/execution/plan-${id}.md${state.skillsDir ? '' : ' (<skills dir> = where the Superpowers skills are installed, e.g. .claude/skills or .agents/skills)'}. Tick the plan's step checkboxes as each task lands.${applyMode === 'subagent-driven-development' ? ' No sub-agent tool in the harness: use executing-plans instead, or run each role in-session and label it.' : ''}`),
     d('progress', `   Before the final review deletes the workspace: copy the ledger <workspace>/progress.md to ${c}/execution/progress.md and commit it (git add ${c}/execution/progress.md) - /opsx:verify checks it and the archive keeps it.`),
     review(4, 'requesting-code-review (final whole-branch review, code-reviewer.md)'),
@@ -63,7 +63,7 @@ export function nextSteps({ id, tool, applyMode, parent = null, state = {} }) {
 
 /** A slice of a split change: once its PR (code + archive) is on main, report what became ready. */
 function afterArchive(parent, n) {
-  return parent ? [`${n}. On main: /sdd-split-next ${parent} - this slice shows done (archived folder on main); slices now ready get tickets.`] : [];
+  return parent ? [`${n}. On main: /sdd-split-status ${parent} - this slice shows done (archived folder on main); slices now ready get tickets.`] : [];
 }
 
 /** Where the Superpowers skills are installed in this project (the folder holding subagent-driven-development), or null. */
@@ -88,13 +88,13 @@ export function beforeHandoff(root, change, parent = null) {
   const session = r.tool ? SESSION_FILES[r.tool] : null;
   const started = session && !isStub(change.read(session));
   out.push(d(started, r.tool
-    ? `${n++}. Design session: ${SESSION_SKILLS[r.tool]} -> ${c}/${session} (tool ${r.tool}, from ${r.source}; /sdd-tool ${id} shows it, /sdd-tool ${id} --set <tool> changes it before the session starts).${parent ? ` A slice's session builds on the parent's: record only what this slice decides, and under "## Overrides" each split note / parent decision it changes (else None).` : ''}`
+    ? `${n++}. Design session: ${SESSION_SKILLS[r.tool]} -> ${c}/${session} (tool ${r.tool}, from ${r.source}${started ? '' : `; /sdd-tool ${id} shows it, /sdd-tool ${id} --set <tool> changes it before the session starts`}).${parent ? ` A slice's session builds on the parent's: record only what this slice decides, and under "## Overrides" each split note / parent decision it changes (else None).` : ''}`
     : `${n++}. Pick the tool: /sdd-tool ${id} --set ai-hero|superpowers (or a project default: sdd-pp tool --default <tool>), then the design session it names.`));
   out.push(d(change.files.includes('proposal.md'), `${n++}. ${c}/proposal.md (/opsx:propose ${id} or /opsx:continue ${id}).`));
   const todos = parent ? placeholders(root, change.dir) : [];
   out.push(d(has(/^specs\/.+\/spec\.md$/) && !todos.length, `${n++}. Delta specs ${c}/specs/<capability>/spec.md, then openspec validate ${id} --strict.${todos.length ? ` Fill the TODO(agent: ...) placeholders first: ${todos.join(', ')}.` : ''}`));
   if (!parent) out.push(d(change.files.includes('execution/split-check.md'), `${n++}. /sdd-split-check ${id} - split gate (warn-only; a split proposal goes to the engineer).`));
-  out.push(`${n++}. /sdd-handoff ${id} -> ${c}/handoff.md (tool, apply_mode, base_ref); it then prints the implementation steps (/sdd-next-steps ${id} reprints them).`);
+  out.push(`${n++}. /sdd-handoff ${id} -> ${c}/handoff.md (tool, apply_mode, base_ref); it then prints the implementation steps (/sdd-change-status ${id} reprints them).`);
   out.push(`([done] = its result is already in ${c}/; a file check, not progress tracking)`);
   return out.join('\n');
 }
@@ -128,12 +128,29 @@ function main() {
   const root = values.root ? path.resolve(values.root) : findProjectRoot();
   if (!root) throw new UsageError('no openspec/ directory found');
   const change = loadChange(root, positionals[0]);
+  const rel = path.relative(root, change.dir).split(path.sep).join('/');
+  if (change.archived) {
+    // archived = done: no live paths, no steps left
+    const p = change.files.includes('slices.md') ? null : findParentOf(root, change.id);
+    const parent = p && p.id !== change.id ? p.id : null;
+    let next = '';
+    if (change.files.includes('slices.md')) next = ' The split is finished (parent archived last).';
+    else if (parent) {
+      let all = false;
+      try { const r = nextReport(root, parent); all = r.rows.every((x) => x.status === 'done'); } catch { /* unreadable parent */ }
+      next = changeLocation(root, parent)?.archived ? ` Slice of ${parent}, which is archived too: the split is finished.`
+        : all ? ` Slice of ${parent}: every slice is archived - finish the parent: /sdd-split-finish ${parent}.`
+          : ` Slice of ${parent}: once its PR is on main, /sdd-split-status ${parent} shows what is ready next.`;
+    }
+    console.log(`${change.id} is done: archived in ${rel}/ - every step is [done].${next}`);
+    return 0;
+  }
   if (change.files.includes('slices.md')) {
     let all = false;
     try { const r = nextReport(root, change.id); all = r.rows.length > 0 && r.rows.every((x) => x.status === 'done'); } catch { /* archived parent */ }
     console.log(all
       ? `${change.id} is a split parent and every slice is done (archived). Run: /sdd-split-finish ${change.id} (final loss check + openspec archive --skip-specs)`
-      : `${change.id} is a split parent: no handoff or implementation. Run: /sdd-split-next ${change.id}`);
+      : `${change.id} is a split parent: no handoff or implementation. Run: /sdd-split-status ${change.id}`);
     return 0;
   }
   const p = findParentOf(root, change.id);

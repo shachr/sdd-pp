@@ -84,11 +84,11 @@ approves or edits them. Nothing is split automatically.
    equivalent pair is recorded as `renamed_from` and passes; otherwise the original is missing until it is
    restored or recorded as `dropped`.
 6. **One planning PR** - parent + all children (proposal + specs only, no handoff) committed together.
-   `/sdd-split-next <parent>` writes `tickets/<slice>.md` (Jira-pasteable, no requirement
+   `/sdd-split-status <parent>` writes `tickets/<slice>.md` (Jira-pasteable, no requirement
    names) for READY slices.
 7. **Slices** - a slice is READY when all its `depends_on` are done; **done = the child's archived folder is
    on main**. Two slices are **parallel-safe** only when neither depends on the other (transitively) and
-   they share no capability (not files: `/sdd-split-next` warns, best effort, when both slices' planning names the same
+   they share no capability (not files: `/sdd-split-status` warns, best effort, when both slices' planning names the same
    code path; such slices merge with conflicts - consider doing them one after the other). To take a slice: `/sdd-slice-start <slice>` (finds the parent, refuses unless READY;
    `--undo` releases it), committed on main - **in progress is a manual mark**; the next report trusts it and does not scan branches. Then a
    branch from main, a short design session narrowed to the slice (reading the parent's
@@ -97,7 +97,7 @@ approves or edits them. Nothing is split automatically.
    branch: it refuses a non-slice, a slice not in progress, a missing verify / progress file, or open work (a ticket not
    `Status: done`, an unticked plan step, CRITICAL issues in verify.md, a leftover `TODO(agent:` placeholder in its deltas), runs `openspec archive
    <slice> -y`, writes `status: done` in the parent's `slices.md` and prints the commit line. The archive is **committed in
-   the slice's own PR with its code**; after the merge, `/sdd-split-next <parent>` on main.
+   the slice's own PR with its code**; after the merge, `/sdd-split-status <parent>` on main.
 8. **Parent last** - when every slice is done: `/sdd-split-finish <parent>` runs `split.mjs finalize <parent>` (stops unless every slice is archived, marks them done, `loss --final`)
    (also checks the final names against the main specs), then `openspec archive <parent> --skip-specs -y`
    (must not sync specs; `/opsx:archive` cannot pass `--skip-specs`).
@@ -117,7 +117,7 @@ commits); `split.mjs loss` warns if a union merge left a slice field twice.
 
 **Re-split**: run `/sdd-split-check <slice>` on a slice that turns out too big (more requirements, or over the
 line estimate after planning); `/sdd-split-apply <slice>` replaces it in the **same** parent (no nested
-parents), numbers the new slices after the parent's highest (`-03-`, `-04-`, ...), rewires `depends_on`, and carries the old slice's split notes into the new children.
+parents), numbers the new slices after the parent's highest (`-03-`, `-04-`, ...), rewires `depends_on`, and carries the old slice's split notes into the new children (an `added:` note and the flag only to the child that holds the flagged requirement). Re-splitting a slice already in progress needs `--force`.
 
 ## When to split
 

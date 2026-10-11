@@ -234,9 +234,11 @@ artifacts:
       superpowers); `/sdd-tool <change>` resolves it (per-change override, else the
       project default).
 
-      The handoff stage writes handoff.md and ENDS by printing the
+      The handoff stage writes handoff.md - start from `node .openspec-handoff/scripts/sdd.mjs handoff-draft <change>`
+      (every derivable field filled: change, tool, base_ref, links, slice/parent, size; only
+      apply_mode, harness and notes left as <...>) - and ENDS by printing the
       next steps for the tool - `node .openspec-handoff/scripts/next-steps.mjs <change>`
-      (reprint: `/sdd-next-steps <change>`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
+      (reprint: `/sdd-change-status <change>`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
       writing-plans), /sdd-spec-check, implementation, the tool's code review, /opsx:verify
       and /opsx:archive are the engineer's next steps, run through the tool's wrapper
       skill. The code review is the tool's own review step (CI also reviews the PR). There is no OpenSpec tasks artifact: progress lives in the tool's own
@@ -277,7 +279,7 @@ apply:
     - handoff
   instruction: |-
     This workflow does not implement through /opsx:apply. Run
-    `/sdd-next-steps <change>` and follow it: planning,
+    `/sdd-change-status <change>` and follow it: planning,
     /sdd-spec-check and implementation run with the execution tool's own commands
     (handoff.md tool + apply_mode: ai-hero implement | implement-spec; superpowers
     executing-plans | subagent-driven-development) through its wrapper skill
@@ -292,5 +294,5 @@ apply:
     copied from the workspace) must exist; report it missing as CRITICAL.
     This overrides verify's own "Task Completion: not applicable" (OpenSpec sees no
     tasks.md, taskTrackingConfigured false): do the Task Completion check on these files
-    anyway. /sdd-slice-finish enforces it for slices (refuses open tickets, unticked plan
-    steps, CRITICAL issues in verify.md).
+    anyway. /sdd-slice-finish enforces it for slices (refuses open tickets, unticked
+    ticket checkboxes or plan steps, CRITICAL issues in verify.md).
