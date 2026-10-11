@@ -77,7 +77,7 @@ test('wrappers and templates: spec changes after a delta edit, flag requirement 
     assert.match(s, /3\. Re-plan ONLY the open units the report names .*Done units are never touched; a change that affects done work becomes a new (ticket|plan task)\. .*`superseded by delta edit: <reason>`.*the design session file stays as-is/);
     assert.match(s, /4\. `\/sdd-spec-check <id>` until PASS; the command then accepts it .*commit `execution\/\.spec-check\.json`/);
     assert.match(s, /`openspec list` \/ `openspec status` do not see/);
-    assert.match(s, /\*\*Ignore OpenSpec's apply prompts\.\*\*.*follow `\/sdd-next-steps <id>`/);
+    assert.match(s, /\*\*Ignore OpenSpec's apply prompts\.\*\*.*follow `\/sdd-change-status <id>`/);
     assert.match(s, /\*\*No sub-agents in the harness\?\*\*/);
     // B8: the wrappers agree with the script - show writes nothing, --set starts the session file
     assert.match(s, /`\/sdd-tool <id>` only shows the tool and writes nothing; `--set (ai-hero|superpowers)` starts `execution\/(grill|brainstorm)\.md`/);

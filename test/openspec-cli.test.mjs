@@ -51,7 +51,7 @@ test('openspec instructions apply: no task tracking, points at the tool via next
   assert.deepEqual(json.progress, { total: 0, complete: 0, remaining: 0 });
   assert.equal(json.state, 'ready');
   assert.match(json.instruction, /does not implement through \/opsx:apply/);
-  assert.match(json.instruction, /\/sdd-next-steps <change>/);
+  assert.match(json.instruction, /\/sdd-change-status <change>/);
   const list = JSON.parse(os(['list', '--json'], dir).out);
   assert.equal(list.changes.find((c) => c.name === CHANGE).status, 'no-tasks');
 });

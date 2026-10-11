@@ -31,7 +31,7 @@ test('scripts run from a path with spaces: next-steps, spec-check, split-check, 
   r = node('execution-tool.mjs', CHANGE);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /add-greeting-name: ai-hero/);
-  r = node('sdd.mjs', 'next', CHANGE);
+  r = node('sdd.mjs', 'change-status', CHANGE);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /^Next steps for add-greeting-name/m);
   // the CLI itself from a path with spaces

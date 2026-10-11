@@ -20,7 +20,7 @@ test('next-steps prints the tool sequence without running anything', () => {
 
 test('next-steps: branch before implementation, what to commit, spec changes after a delta edit; superpowers: sdd-workspace, branch or worktree, why archive first', () => {
   const ai = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement' });
-  assert.match(ai, /git switch -c change\/x, then commit openspec\/changes\/x\/execution\/ including \.spec-check\.json \(git add openspec\/changes\/x\/execution && git commit -m "plan\(x\)"; branch before implementation/);
+  assert.match(ai, /git switch -c change\/x, then commit the change folder including \.spec-check\.json \(git add -A openspec\/changes\/x && git commit -m "plan\(x\)"; branch before implementation/);
   assert.match(ai, /On PASS, \/sdd-spec-check accepts it \(--accept\)/);
   assert.match(ai, /After any later delta edit, one order: openspec validate x --strict -> \/sdd-spec-check x \(lists .* since the last accepted PASS .*\) -> re-plan ONLY the open units it names \(done units are never touched; a change affecting done work becomes a new ticket; note "superseded by delta edit: <reason>" .*\) -> \/sdd-spec-check until PASS\./);
   assert.match(ai, /Review the diff since base_ref in openspec\/changes\/x\/handoff\.md .*the spec is the change folder/);

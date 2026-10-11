@@ -42,11 +42,11 @@ export function agentsBlock(file) {
 /** Agent slash commands renamed to sdd-<name> (old unprefixed copies are removed on reinstall). */
 /** Command files an earlier install wrote, by old name -> current command (removed on reinstall when they are ours). */
 export const RENAMED_COMMANDS = {
-  handoff: 'sdd-handoff', tool: 'sdd-tool', 'next-steps': 'sdd-next-steps', 'spec-check': 'sdd-spec-check', 'split-check': 'sdd-split-check',
-  'split-apply': 'sdd-split-apply', 'split-next': 'sdd-split-next', 'split-undo': 'sdd-split-undo',
+  handoff: 'sdd-handoff', tool: 'sdd-tool', 'next-steps': 'sdd-change-status', 'sdd-next-steps': 'sdd-change-status', 'sdd-split-next': 'sdd-split-status', 'spec-check': 'sdd-spec-check', 'split-check': 'sdd-split-check',
+  'split-apply': 'sdd-split-apply', 'split-next': 'sdd-split-status', 'split-undo': 'sdd-split-undo',
   'split-start': 'sdd-slice-start', 'split-archive': 'sdd-split-finish', 'sdd-split-start': 'sdd-slice-start', 'sdd-split-archive': 'sdd-split-finish',
 };
-export const RUN_COMMANDS = ['spec-check', 'split-check', 'next', 'next-steps', 'tool', 'split', 'slice-start', 'slice-finish', 'split-finish'];
+export const RUN_COMMANDS = ['spec-check', 'split-check', 'change-status', 'split-status', 'handoff-draft', 'next', 'next-steps', 'tool', 'split', 'slice-start', 'slice-finish', 'split-finish'];
 
 /** The sdd.mjs to run from `start`: the project's installed copy (nearest .openspec-handoff/scripts), else this package's. */
 export function sddScript(start = process.cwd()) {
@@ -61,10 +61,10 @@ export const USAGE = `Usage: sdd-pp init [dir] [options]      install into <dir>
        sdd-pp <command> ...              from inside a project (runs its installed .openspec-handoff/scripts):
          spec-check <id> [--accept|--check]  coverage report -> execution/spec-check.md (--accept: baseline after PASS; --check: writes nothing)
          split-check <id>                split gate counts -> execution/split-check.md
-         next <id>                       print the change's next steps again
+         change-status <id>              where the change is: its steps with [done] markers
          tool <id> [--set <tool>]        show / set the change's execution tool (tool --default <tool>: project default)
          split apply <id>                apply the approved split proposal (slice ids <parent>-<nn>-<slice>)
-         split next <parent>             ready / parallel-safe slices + tickets for READY slices
+         split-status <parent>           ready / parallel-safe slices + tickets for READY slices
          slice-start <slice> [--undo]    take a READY slice (marks it in-progress, prints the next lines)
          split undo <parent> [--force]   undo a split: original change back from split_commit, slices removed
          split loss <parent> [--final]   loss check
@@ -206,13 +206,13 @@ Done. Next (agent slash commands; the same checks run from a shell as \`npx <too
                                        superpowers -> brainstorming -> execution/brainstorm.md (stops before writing-plans)
   /sdd-tool <id> --set superpowers       per-change tool override, before the design session
   /sdd-split-check <id>                  split gate at the end of the specs stage (runs automatically; rerunnable)
-  /sdd-handoff <id>                      last OpenSpec stage: handoff.md + prints the next steps (/sdd-next-steps <id> reprints them)
+  /sdd-handoff <id>                      last OpenSpec stage: handoff.md + prints the next steps (/sdd-change-status <id> reprints them)
   ... planning, /sdd-spec-check <id>, implement (the tool's own completion), code review (as the next steps say)
   /opsx:verify <id> (save to execution/verify.md), /opsx:archive <id>
-  Split changes: /sdd-split-apply <id>, /sdd-split-next <parent>, /sdd-slice-start <slice>, /sdd-slice-finish <slice>, /sdd-split-finish <parent>, /sdd-split-undo <parent>
+  Split changes: /sdd-split-apply <id>, /sdd-split-status <parent>, /sdd-slice-start <slice>, /sdd-slice-finish <slice>, /sdd-split-finish <parent>, /sdd-split-undo <parent>
 Also install the execution toolkits themselves (not bundled; <agent> = your coding agent, e.g. claude-code, cursor, opencode):
-  AI Hero:     npx skills add mattpocock/skills -a <agent>   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
-  Superpowers: npx skills add obra/superpowers -a <agent>    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)`);
+  AI Hero:     npx -y skills@latest add mattpocock/skills --skill '*' -a <agent> -y   (grill-with-docs, to-spec, to-tickets, implement, tdd, code-review)
+  Superpowers: npx -y skills@latest add obra/superpowers --skill '*' -a <agent> -y    (brainstorming, writing-plans, executing-plans / subagent-driven-development, requesting-code-review)`);
 }
 
 export function main(argv = process.argv.slice(2)) {

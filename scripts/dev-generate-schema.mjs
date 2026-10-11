@@ -20,8 +20,9 @@ proposal.instruction = `Handoff-driven - DESIGN SESSION FIRST (before writing pr
 1. Resolve the execution tool chosen in the setup phase: \`/sdd-tool <change>\`
    (runs \`node .openspec-handoff/scripts/sdd.mjs tool <change>\`; project default in
    .openspec-handoff/project.json; a per-change override is recorded with
-   \`/sdd-tool <change> --set <ai-hero|superpowers>\`; \`/sdd-tool <change>\` starts the session file
-   when it is missing, for the default as for --set).
+   \`/sdd-tool <change> --set <ai-hero|superpowers>\`). \`/sdd-tool <change>\` only SHOWS the tool
+   and writes nothing; \`--set\` starts the session file (front matter tool/session). With the
+   project default and no --set, the design session writes the session file itself.
    No tool set: ask the user once, then record it with --set.
 2. Run that tool's design session - the "Design session" part of its wrapper skill:
    - ai-hero -> skill \`openspec-handoff-ai-hero\`: grill-with-docs -> execution/grill.md
@@ -95,9 +96,11 @@ the proposal phase (execution/grill.md for ai-hero, execution/brainstorm.md for
 superpowers); \`/sdd-tool <change>\` resolves it (per-change override, else the
 project default).
 
-The handoff stage writes handoff.md and ENDS by printing the
+The handoff stage writes handoff.md - start from \`node .openspec-handoff/scripts/sdd.mjs handoff-draft <change>\`
+(every derivable field filled: change, tool, base_ref, links, slice/parent, size; only
+apply_mode, harness and notes left as <...>) - and ENDS by printing the
 next steps for the tool - \`node .openspec-handoff/scripts/next-steps.mjs <change>\`
-(reprint: \`/sdd-next-steps <change>\`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
+(reprint: \`/sdd-change-status <change>\`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
 writing-plans), /sdd-spec-check, implementation, the tool's code review, /opsx:verify
 and /opsx:archive are the engineer's next steps, run through the tool's wrapper
 skill. The code review is the tool's own review step (CI also reviews the PR). There is no OpenSpec tasks artifact: progress lives in the tool's own
@@ -144,7 +147,7 @@ const schema = {
     // point engineers at the tool's command. No \`tracks\`: OpenSpec does no task tracking.
     requires: ['handoff'],
     instruction: `This workflow does not implement through /opsx:apply. Run
-\`/sdd-next-steps <change>\` and follow it: planning,
+\`/sdd-change-status <change>\` and follow it: planning,
 /sdd-spec-check and implementation run with the execution tool's own commands
 (handoff.md tool + apply_mode: ai-hero implement | implement-spec; superpowers
 executing-plans | subagent-driven-development) through its wrapper skill
@@ -156,7 +159,11 @@ Verify (/opsx:verify reads this): the tasks are the tool's files, not tasks.md. 
 every ticket in execution/tickets/ has "Status: done" and every plan step box in
 execution/plan-<change>.md is ticked ("- [x]"); report each open ticket or unticked
 step as CRITICAL (incomplete task). Superpowers: execution/progress.md (the ledger
-copied from the workspace) must exist; report it missing as CRITICAL.`,
+copied from the workspace) must exist; report it missing as CRITICAL.
+This overrides verify's own "Task Completion: not applicable" (OpenSpec sees no
+tasks.md, taskTrackingConfigured false): do the Task Completion check on these files
+anyway. /sdd-slice-finish enforces it for slices (refuses open tickets, unticked
+ticket checkboxes or plan steps, CRITICAL issues in verify.md).`,
   },
 };
 const header = `# handoff-driven schema for OpenSpec (tested with @fission-ai/openspec 1.14.1)

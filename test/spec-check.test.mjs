@@ -27,7 +27,10 @@ test('spec-check: a requirement nobody names is missing; an invented one is unkn
   const r = run('spec-check.mjs', [CHANGE], dir);
   assert.equal(r.code, 1, r.out);
   assert.match(r.out, /- Requirement "Blank name falls back to default" - no story \/ ticket \/ plan task names it/);
-  assert.match(r.out, /execution\/tickets\/01-greet-accepts-a-name\.md:1 ticket "01: greet\(\) - name parameter" names requirement "Shout the name"/);
+  // the line of the bad citation itself, not the ticket's first line (e2e3)
+  const line = fs.readFileSync(ex(changeDir, 'tickets/01-greet-accepts-a-name.md'), 'utf8').split('\n').findIndex((l) => l.includes('Shout the name')) + 1;
+  assert.ok(line > 1);
+  assert.match(r.out, new RegExp(`execution/tickets/01-greet-accepts-a-name\\.md:${line} ticket "01: greet\\(\\) - name parameter" names requirement "Shout the name" - cite it exactly as Requirement "<name>" from the delta`));
   assert.match(r.out, /^GAPS: \d+ mechanical finding/m);
 });
 
@@ -53,7 +56,7 @@ test('requirement-link rule: plan tasks need a Covers line naming a delta requir
   const r = run('spec-check.mjs', [CHANGE], dir);
   assert.equal(r.code, 1);
   assert.match(r.out, /plan task "Task 2: CLI wiring" names no delta requirement/);
-  assert.match(r.out, /plan task "Task 2: CLI wiring" names scenario "Name typed twice"/);
+  assert.match(r.out, new RegExp(`execution/plan-${CHANGE}\\.md:13 plan task "Task 2: CLI wiring" names scenario "Name typed twice" - cite it exactly as Scenario "<name>" from the delta`));
 });
 
 test('spec changes since the last accepted PASS: listed on every run until PASS is accepted; --accept guards; added / changed / renamed / removed with citing units (done marked)', () => {
@@ -81,13 +84,18 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   const accepted = fs.readFileSync(report, 'utf8');
   r = run('spec-check.mjs', [CHANGE, '--write'], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /^spec-check add-greeting-name: PASS \(kept\) - unchanged since the accepted PASS \(delta and planning units match\) - kept the saved review and PASS in openspec\/changes\/add-greeting-name\/execution\/spec-check\.md; nothing written\.$/m);
+  assert.match(r.out, /^spec-check add-greeting-name: PASS \(kept\) - unchanged since the accepted PASS \(delta and planning units match\) - kept the saved review and PASS in openspec\/changes\/add-greeting-name\/execution\/spec-check\.md; nothing written\. \(--verbose prints the report\)$/m);
+  // a kept PASS is one line (e2e3); --verbose prints the saved report too
+  assert.equal(r.out.trim().split('\n').length, 1, r.out);
   assert.equal(fs.readFileSync(report, 'utf8'), accepted, 'review + PASS kept byte-identical');
+  r = run('spec-check.mjs', [CHANGE, '--write', '--verbose'], dir);
+  assert.ok(r.out.startsWith(accepted), 'the saved report, then the PASS (kept) line');
+  assert.match(r.out, /PASS \(kept\)[^\n]*nothing written\.$/m);
   assert.match(accepted, /- Contradicted: none\n[\s\S]*^PASS$/m);
   // B3: --check on the accepted, unchanged PASS reports PASS (kept), not PENDING; nothing written
   r = run('spec-check.mjs', [CHANGE, '--check'], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /^spec-check add-greeting-name: PASS \(kept\) - unchanged since the accepted PASS \(delta and planning units match\) - the saved review and PASS in openspec\/changes\/add-greeting-name\/execution\/spec-check\.md stand \(check only: nothing written\)\.$/m);
+  assert.match(r.out, /^spec-check add-greeting-name: PASS \(kept\) - unchanged since the accepted PASS \(delta and planning units match\) - the saved review and PASS in openspec\/changes\/add-greeting-name\/execution\/spec-check\.md stand \(check only: nothing written\)\. \(--verbose prints the report\)$/m);
   assert.doesNotMatch(r.out, /^PENDING/m);
   assert.equal(fs.readFileSync(report, 'utf8'), accepted);
   // B2: progress is not planning - reopening / closing tickets, (un)ticking boxes and ticket comments keep the PASS
@@ -108,7 +116,7 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   r = run('spec-check.mjs', [CHANGE, '--write'], dir);
   assert.doesNotMatch(r.out, /kept the saved review/);
   assert.match(fs.readFileSync(report, 'utf8'), /^PENDING: mechanical checks pass/m);
-  assert.match(r.out, /Wrote openspec\/changes\/add-greeting-name\/execution\/spec-check\.md\. The agent review sets the Result\. On PASS, --accept records it; then commit with the planning files: git add openspec\/changes\/add-greeting-name\/execution\/spec-check\.md openspec\/changes\/add-greeting-name\/execution\/\.spec-check\.json && git commit -m "spec-check\(add-greeting-name\): PASS"\. On GAPS: fix and re-run/);
+  assert.match(r.out, /Wrote openspec\/changes\/add-greeting-name\/execution\/spec-check\.md\. The agent review sets the Result\. On PASS, --accept records it and prints the commit line \(the whole change[^)]*\)\. On GAPS: fix and re-run \(to record it: git add -A openspec\/changes\/add-greeting-name && git commit -m \"spec-check\(add-greeting-name\): GAPS\"\)\./);
   fs.writeFileSync(t1, t1text);
   // edit the delta after planning: change a scenario, rename a requirement (same content), add a scenario
   replaceIn(delta, '- **THEN** the output is `Hello, Ada!`\n\n#### Scenario: Name with', '- **THEN** the output is `Hello, Ada!!`\n\n#### Scenario: Name with');
@@ -155,7 +163,7 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   r = run('spec-check.mjs', [CHANGE, '--accept'], d2);
   assert.equal(r.code, 0, r.out);
   assert.doesNotMatch(fs.readFileSync(rep2, 'utf8'), /removed: Requirement "Old requirement"/, 'the accepted list is cleared in the saved report');
-  r = run('spec-check.mjs', [CHANGE, '--check'], d2);
+  r = run('spec-check.mjs', [CHANGE, '--check', '--verbose'], d2);
   assert.match(r.out, /### Spec changes since the last check \(report-only; baseline accepted [^)]+\)\n\n- none: this PASS is the accepted baseline/);
   assert.match(r.out, /PASS \(kept\)/);
 });

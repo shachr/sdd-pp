@@ -1,13 +1,13 @@
 ---
-description: "Split change status: ready / parallel-safe slices; writes tickets for READY slices"
-argument-hint: <parent-id>
+description: "Where a change is: its steps with [done] markers, before or after the handoff"
+argument-hint: <change-id>
 allowed-tools: Bash(node .openspec-handoff/scripts/*)
 ---
 
 Run this one command from the project root and show its output verbatim:
 
 ```bash
-node .openspec-handoff/scripts/sdd.mjs split next $ARGUMENTS
+node .openspec-handoff/scripts/sdd.mjs change-status $ARGUMENTS
 ```
 
 Do nothing else: no extra checks, no fixes, no follow-up commands. If it exits non-zero, say so and stop; the output says what failed.

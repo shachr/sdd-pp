@@ -1,4 +1,4 @@
-// /sdd-next-steps marks steps whose result is already in the change folder with [done] (cheap file checks)
+// /sdd-change-status marks steps whose result is already in the change folder with [done] (cheap file checks)
 // and uses `git switch` without -c when the change branch exists. Driven through the sdd-pp CLI.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import { makeFixture, CLI } from './helpers.mjs';
 
 const ID = 'add-greeting-name';
 const steps = (dir) => {
-  const r = spawnSync(process.execPath, [CLI, 'next-steps', ID], { cwd: dir, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [CLI, 'change-status', ID], { cwd: dir, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   return r.stdout;
 };
@@ -53,7 +53,7 @@ test('next-steps before /sdd-handoff (no handoff.md): exit 0 with the steps so f
   assert.match(out, /^\[done\] 2\. openspec\/changes\/add-greeting-name\/proposal\.md/m);
   assert.match(out, /^\[done\] 3\. Delta specs/m);
   assert.match(out, /^4\. \/sdd-split-check add-greeting-name - split gate/m);
-  assert.match(out, /^5\. \/sdd-handoff add-greeting-name -> openspec\/changes\/add-greeting-name\/handoff\.md[^\n]*\/sdd-next-steps add-greeting-name reprints them/m);
+  assert.match(out, /^5\. \/sdd-handoff add-greeting-name -> openspec\/changes\/add-greeting-name\/handoff\.md[^\n]*\/sdd-change-status add-greeting-name reprints them/m);
   assert.doesNotMatch(out, /\/to-spec|\/opsx:verify/);
 });
 

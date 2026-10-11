@@ -39,6 +39,8 @@ test('sdd-pp init: plain copies (no symlinks), host selection, config.yaml, giti
   let r = initCli(dir, '--tool', 'superpowers', '--no-claude');
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(lstatAll(dir), []);
+  assert.match(r.stdout, /npx -y skills@latest add mattpocock\/skills --skill '\*' -a <agent> -y/, 'install hint installs every skill, non-interactively');
+  assert.match(r.stdout, /npx -y skills@latest add obra\/superpowers --skill '\*' -a <agent> -y/);
   assert.ok(fs.existsSync(path.join(dir, '.opencode/skills/openspec-handoff-superpowers/SKILL.md')), '.opencode/ auto-detected');
   assert.ok(fs.existsSync(path.join(dir, '.cursor/commands/sdd-handoff.md')));
   assert.ok(!fs.existsSync(path.join(dir, '.claude')));

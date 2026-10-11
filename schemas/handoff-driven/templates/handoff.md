@@ -27,11 +27,11 @@ Implementation diff: `git diff <base_ref>...HEAD -- . ':!openspec'`
 |-----------|-----------|
 | ai-hero `grill-with-docs` (proposal phase, before handoff) | `execution/grill.md`; glossary terms -> `GLOSSARY.md`, ADRs -> `docs/adr/` |
 | ai-hero `to-spec` (reads `execution/grill.md`; user-facing sections link the proposal/delta) | `execution/spec.md` |
-| ai-hero `to-tickets` (scenarios cited by name) | `execution/tickets/NN-<slug>.md` |
+| ai-hero `to-tickets` (cite `Requirement "<name>"` and `Scenario "<name>"` exactly) | `execution/tickets/NN-<slug>.md` |
 | `/sdd-spec-check` (end of planning) | `execution/spec-check.md` |
 | ai-hero `implement` / `implement-spec` (apply_mode) + `tdd`, then `code-review` | code + tests; review notes, if any, in `execution/reviews/` |
 | superpowers `brainstorming` (proposal phase; stopped before writing-plans) | `execution/brainstorm.md` |
-| superpowers `writing-plans` (reads `execution/brainstorm.md`) | `execution/plan-<change-id>.md` |
+| superpowers `writing-plans` (reads `execution/brainstorm.md`; cite `Requirement "<name>"` and `Scenario "<name>"` exactly) | `execution/plan-<change-id>.md` |
 | `/sdd-spec-check` (end of planning) | `execution/spec-check.md` |
 | superpowers `executing-plans` / `subagent-driven-development` (apply_mode) ledger | `execution/progress.md` |
 | superpowers `requesting-code-review` (final review) | review notes, if any, in `execution/reviews/` |

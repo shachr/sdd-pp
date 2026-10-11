@@ -13,17 +13,17 @@ import { nextSteps } from '../scripts/next-steps.mjs';
 const ENV = { ...process.env, PATH: `${path.dirname(OPENSPEC)}${path.delimiter}${process.env.PATH}` };
 const sddPp = (cwd, ...args) => { const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', env: ENV }); return { code: r.status, out: r.stdout + r.stderr }; };
 const labels = (argv) => plan(argv).map(([l]) => l);
-const NEW = { 'next-steps': 'next', tool: 'tool', 'split-apply': 'split apply', 'split-next': 'split next', 'slice-start': 'slice-start', 'split-undo': 'split undo', 'split-finish': 'split-finish', 'slice-finish': 'slice-finish' };
+const NEW = { 'change-status': 'change-status', tool: 'tool', 'split-apply': 'split apply', 'split-status': 'split-status', 'slice-start': 'slice-start', 'split-undo': 'split undo', 'split-finish': 'split-finish', 'slice-finish': 'slice-finish' };
 
 test('sdd.mjs plan: each command maps to the scripts it runs', () => {
   assert.deepEqual(labels(['spec-check', 'x']), ['spec-check.mjs x --write']);
   assert.deepEqual(labels(['split-check', 'x']), ['split-check.mjs x --write']);
-  assert.deepEqual(labels(['next', 'x']), ['next-steps.mjs x']);
+  assert.deepEqual(labels(['change-status', 'x']), ['next-steps.mjs x']);
   assert.deepEqual(labels(['tool', 'x', '--set', 'superpowers']), ['execution-tool.mjs x --set superpowers']);
   assert.deepEqual(labels(['tool', '--default', 'ai-hero']), ['execution-tool.mjs --default ai-hero']);
   assert.deepEqual(labels(['split', 'apply', 'p']), ['split.mjs apply p']);
-  assert.deepEqual(labels(['split', 'next', 'p']), ['split.mjs next p --write-tickets']);
-  assert.deepEqual(labels(['split', 'next', 'p', '--write-tickets']), ['split.mjs next p --write-tickets']);
+  assert.deepEqual(labels(['split-status', 'p']), ['split.mjs next p --write-tickets']);
+  assert.deepEqual(labels(['split-status', 'p', '--write-tickets']), ['split.mjs next p --write-tickets']);
   assert.deepEqual(labels(['slice-start', 's']), ['split.mjs start s']);
   assert.deepEqual(labels(['slice-start', 's', '--undo']), ['split.mjs start s --undo']);
   assert.deepEqual(labels(['split', 'undo', 'p', '--force']), ['split.mjs undo p --force']);
@@ -31,8 +31,8 @@ test('sdd.mjs plan: each command maps to the scripts it runs', () => {
   assert.deepEqual(labels(['split-finish', 'p']), ['split.mjs finalize p', 'openspec archive p --skip-specs -y', 'print commit line']);
   assert.deepEqual(labels(['slice-finish', 's']), ['split.mjs finish-check s', 'openspec archive s -y', 'split.mjs finish-mark s']);
   // renamed, no aliases: the old CLI names say where they went
-  for (const [old, now] of [[['split', 'start', 's'], /"split start" is now "slice-start <slice>"/], [['split', 'archive', 'p'], /"split archive" is now "split-finish <parent>"/], [['split', 'finish', 's'], /"split finish" is now "slice-finish <slice>"/]]) assert.throws(() => plan(old), now);
-  for (const bad of [[], ['check', 'x'], ['split'], ['split', 'bogus', 'p'], ['split', 'mark', 'p', 's', 'in-progress'], ['split', 'start'], ['split', 'apply'], ['nope', 'x'], ['next', '--strict']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
+  for (const [old, now] of [[['split', 'start', 's'], /"split start" is now "slice-start <slice>"/], [['split', 'archive', 'p'], /"split archive" is now "split-finish <parent>"/], [['split', 'finish', 's'], /"split finish" is now "slice-finish <slice>"/], [['split', 'next', 'p'], /"split next" is now "split-status <parent>"/], [['next', 'x'], /"next" is now "change-status <id>"/], [['next-steps', 'x'], /"next-steps" is now "change-status <id>"/]]) assert.throws(() => plan(old), now);
+  for (const bad of [[], ['check', 'x'], ['split'], ['split', 'bogus', 'p'], ['split', 'mark', 'p', 's', 'in-progress'], ['split', 'start'], ['split', 'apply'], ['nope', 'x'], ['change-status', '--strict'], ['split-status']]) assert.throws(() => plan(bad), /usage|unknown|no command|<id>|split/i, bad.join(' '));
 });
 
 test('agent slash commands: claude, cursor, opencode each run sdd.mjs; argument hint / usage on every command', () => {
@@ -56,7 +56,7 @@ test('next-steps and the init summary use the commands, not node script paths', 
     const s = nextSteps({ id: 'x', tool, applyMode: mode, parent: 'p' });
     assert.match(s, /\/opsx:verify x - save the report verbatim/);
     assert.doesNotMatch(s, /check-handoff/);
-    assert.match(s, /On main: \/sdd-split-next p /);
+    assert.match(s, /On main: \/sdd-split-status p /);
     assert.doesNotMatch(s, /node \.openspec-handoff|\.mjs/);
   }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-init-'));
@@ -135,15 +135,15 @@ test('sdd-pp <command> from inside a project runs its installed scripts: tool, n
   let r = sddPp(sub, 'tool', CHANGE);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /\[installed sdd\][\s\S]*add-greeting-name: ai-hero/);
-  r = sddPp(sub, 'next', CHANGE);
+  r = sddPp(sub, 'change-status', CHANGE);
   assert.match(r.out, /Next steps for add-greeting-name \(ai-hero[\s\S]*\/opsx:verify add-greeting-name - save/);
   r = sddPp(sub, 'check', CHANGE);
   assert.equal(r.code, 2, 'sdd-pp check is gone'); assert.match(r.out, /unknown command "check"/);
   r = sddPp(sub, 'spec-check', CHANGE);
   assert.match(r.out, /Spec check: add-greeting-name/);
   assert.ok(fs.existsSync(path.join(dir, 'openspec/changes', CHANGE, 'execution/spec-check.md')));
-  r = sddPp(sub, 'next');
-  assert.equal(r.code, 2); assert.match(r.out, /next <id>/);
+  r = sddPp(sub, 'change-status');
+  assert.equal(r.code, 2); assert.match(r.out, /change-status <id>/);
   r = sddPp(sub, 'split', 'bogus', 'x');
   assert.equal(r.code, 2); assert.match(r.out, /unknown split command "bogus"/);
   // a failing step stops the chain and passes its exit code through (split-finish: loss check, then openspec archive)
@@ -157,7 +157,7 @@ test('verify gets no review instruction: the schema apply instruction (what /ops
   assert.equal(initCli(dir, '--no-claude', '--no-cursor', '--no-opencode').status, 0);
   const r = spawnSync(OPENSPEC, ['instructions', 'apply', '--change', CHANGE, '--json'], { cwd: dir, encoding: 'utf8' });
   const j = JSON.parse(r.stdout);
-  assert.match(j.instruction, /\/sdd-next-steps <change>/);
+  assert.match(j.instruction, /\/sdd-change-status <change>/);
   assert.doesNotMatch(j.instruction, /review|check-handoff/i);
   // verify sees the tool's tasks: open tickets / unticked plan steps and a missing Superpowers ledger are CRITICAL
   assert.match(j.instruction, /every ticket in execution\/tickets\/ has "Status: done" and every plan step box in\s+execution\/plan-<change>\.md is ticked[\s\S]*CRITICAL[\s\S]*execution\/progress\.md[\s\S]*CRITICAL/);
@@ -199,7 +199,7 @@ test('sdd-pp spec-check <id> --check writes nothing; sdd-pp split-check (writes 
   assert.equal(fs.existsSync(path.join(changeDir, 'execution', 'spec-check.md')), false);
   r = sddPp(dir, 'split-check', CHANGE);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /^Commit the change with its deltas \(\/sdd-split-apply needs them committed - that commit is the loss-check baseline\): git add -A openspec\/changes\/add-greeting-name && git commit -m "split-check\(add-greeting-name\)"$/m);
+  assert.match(r.out, /^Commit with the change: git add -A openspec\/changes\/add-greeting-name && git commit -m "split-check\(add-greeting-name\): fits"$/m);
   assert.ok(fs.existsSync(path.join(changeDir, 'execution', 'split-check.md')));
 });
 
@@ -221,9 +221,9 @@ test('reinstall removes retired commands (check-handoff.md, split-mark.md) for c
 });
 
 test('commands are prefixed sdd-: the toolkit ships only sdd-*.md; a reinstall removes our old copies (unprefixed, or renamed: sdd-split-start, sdd-split-archive) and keeps a user\'s own same-named command', () => {
-  const NAMES = ['handoff', 'tool', 'next-steps', 'spec-check', 'split-check', 'split-apply', 'split-next', 'slice-start', 'slice-finish', 'split-finish', 'split-undo'];
+  const NAMES = ['handoff', 'tool', 'change-status', 'spec-check', 'split-check', 'split-apply', 'split-status', 'slice-start', 'slice-finish', 'split-finish', 'split-undo'];
   // old file name -> current command (an earlier install wrote the old one)
-  const OLD = { handoff: 'handoff', tool: 'tool', 'next-steps': 'next-steps', 'spec-check': 'spec-check', 'split-check': 'split-check', 'split-apply': 'split-apply', 'split-next': 'split-next', 'split-undo': 'split-undo',
+  const OLD = { handoff: 'handoff', tool: 'tool', 'next-steps': 'change-status', 'sdd-next-steps': 'change-status', 'sdd-split-next': 'split-status', 'spec-check': 'spec-check', 'split-check': 'split-check', 'split-apply': 'split-apply', 'split-next': 'split-status', 'split-undo': 'split-undo',
     'split-start': 'slice-start', 'split-archive': 'split-finish', 'sdd-split-start': 'slice-start', 'sdd-split-archive': 'split-finish' };
   for (const h of ['claude', 'cursor', 'opencode']) {
     assert.deepEqual(fs.readdirSync(path.join(TOOLKIT, 'commands', h)).sort(), NAMES.map((n) => `sdd-${n}.md`).sort(), h);
@@ -270,11 +270,11 @@ test('sdd-pp init: following the printed commit line leaves git status clean (op
   assert.equal(git('status', '--porcelain'), '', 'nothing left untracked after the printed line');
 });
 
-test('no double prefix and no retired names in anything init installs or the CLI prints (sdd-sdd-, /sdd-split-start, /sdd-split-archive); old CLI names exit 2 naming the new one', () => {
+test('no double prefix and no retired names in anything init installs or the CLI prints (sdd-sdd-, /sdd-split-start, /sdd-split-archive, /sdd-next-steps, /sdd-split-next); old CLI names exit 2 naming the new one', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmd-dbl-'));
   fs.mkdirSync(path.join(dir, 'openspec'));
   assert.equal(initCli(dir, '--claude', '--cursor', '--opencode', '--no-set-default').status, 0);
-  const bad = /sdd-sdd-|\/sdd-split-start\b|\/sdd-split-archive\b|sdd-pp split (start|archive|finish)\b/;
+  const bad = /sdd-sdd-|\/sdd-split-start\b|\/sdd-split-archive\b|\/sdd-next-steps\b|\/sdd-split-next\b|sdd-pp split (start|archive|finish|next)\b|sdd-pp next\b|sdd\.mjs (next|split next)\b/;
   const hits = [];
   const walk = (d) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -285,10 +285,10 @@ test('no double prefix and no retired names in anything init installs or the CLI
   walk(dir);
   assert.deepEqual(hits, []);
   for (const f of ['sdd-slice-start.md', 'sdd-split-finish.md']) assert.ok(fs.existsSync(path.join(dir, '.claude/commands', f)), f);
-  for (const [old, now] of [['start', 'slice-start <slice>'], ['archive', 'split-finish <parent>'], ['finish', 'slice-finish <slice>']]) {
-    const r = spawnSync(process.execPath, [CLI, 'split', old, 'x'], { cwd: dir, encoding: 'utf8' });
-    assert.equal(r.status, 2, old);
-    assert.match(r.stderr + r.stdout, new RegExp(`"split ${old}" is now "${now}"`));
+  for (const [old, now] of [[['split', 'start'], 'slice-start <slice>'], [['split', 'archive'], 'split-finish <parent>'], [['split', 'finish'], 'slice-finish <slice>'], [['split', 'next'], 'split-status <parent>'], [['next'], 'change-status <id>'], [['next-steps'], 'change-status <id>']]) {
+    const r = spawnSync(process.execPath, [CLI, ...old, 'x'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(r.status, 2, old.join(' '));
+    assert.match(r.stderr + r.stdout, new RegExp(`"${old.join(' ')}" is now "${now}"`));
   }
   for (const [tool, mode] of [['ai-hero', 'implement'], ['superpowers', 'subagent-driven-development']]) {
     for (const parent of [null, 'p']) assert.doesNotMatch(nextSteps({ id: 'x', tool, applyMode: mode, parent }), bad);

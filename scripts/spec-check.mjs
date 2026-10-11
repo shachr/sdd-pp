@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { parseArgs } from 'node:util';
-import { findProjectRoot, loadChange, loadConfig, UsageError, deltaRequirements, designUnits, citations, findPlan } from './lib/change.mjs';
+import { addArgs, findProjectRoot, loadChange, loadConfig, UsageError, deltaRequirements, designUnits, citations, findPlan } from './lib/change.mjs';
 import { isMain } from './lib/main.mjs';
 import { findParentOf } from './lib/split.mjs';
 
@@ -138,8 +138,14 @@ export function specCheck(change, { limit = 300, previous = null } = {}) {
   const unknown = [];
   const unsourced = [];
   for (const u of units) {
-    for (const c of u.cites.requirements) if (!known.has(lc(c))) unknown.push(`${u.file}:${u.line} ${u.kind} "${u.label}" names requirement "${c}"`);
-    for (const c of u.cites.scenarios) if (!knownScen.has(lc(c))) unknown.push(`${u.file}:${u.line} ${u.kind} "${u.label}" names scenario "${c}"`);
+    // the line of the citation itself (first line at or after the unit's start that names it)
+    const at = (name) => {
+      const ls = change.read(u.file)?.split(/\r?\n/) || [];
+      for (let i = Math.max(0, u.line - 1); i < ls.length; i++) if (lc(ls[i]).includes(lc(name))) return i + 1;
+      return u.line;
+    };
+    for (const c of u.cites.requirements) if (!known.has(lc(c))) unknown.push(`${u.file}:${at(c)} ${u.kind} "${u.label}" names requirement "${c}" - cite it exactly as Requirement "<name>" from the delta`);
+    for (const c of u.cites.scenarios) if (!knownScen.has(lc(c))) unknown.push(`${u.file}:${at(c)} ${u.kind} "${u.label}" names scenario "${c}" - cite it exactly as Scenario "<name>" from the delta`);
     if (!u.cites.requirements.length) unsourced.push(`${u.file}:${u.line} ${u.kind} "${u.label}" names no delta requirement`);
   }
   const problems = [];
@@ -204,7 +210,8 @@ export function formatReport(r) {
     const done = [...new Set(r.specChanges.flatMap((c) => c.citedBy.filter((u) => u.done).map((u) => u.label)))];
     const tool = r.tool === 'superpowers' ? 'writing-plans' : 'to-spec + to-tickets';
     out.push('', `Hint: re-plan ONLY ${open.length ? `these open units with the tool's planning (${tool}): ${open.join('; ')}` : `new work for the changes above with the tool's planning (${tool}) - no open unit cites them`}. Done units are never touched${done.length ? ` (${done.join('; ')}): a change that affects done work becomes a new ${r.tool === 'superpowers' ? 'plan task' : 'ticket'}` : ''}. Where a planned decision changed, note "superseded by delta edit: <reason>" in the planning output (the design session file stays as-is; the delta wins). Then /sdd-spec-check again until PASS - this list stays until PASS is accepted.`);
-    if (r.parent) out.push('', `Slice of ${r.parent}: a delta edit here must also be accounted for in the split - add a split note to openspec/changes/${r.change}/proposal.md (## Split notes: added: / dropped: / renamed_from: Requirement|Scenario "<name>" - <why>), then run sdd-pp split loss ${r.parent} until it passes.`);
+    // the loss check matches names: only added / removed / renamed names need a split note (content-only edits do not)
+    if (r.parent && r.specChanges.some((c) => c.change !== 'changed')) out.push('', `Slice of ${r.parent}: a requirement or scenario name was added, removed or renamed here - account for it in the split - add a split note to openspec/changes/${r.change}/proposal.md (## Split notes: added: / dropped: / renamed_from: Requirement|Scenario "<name>" - <why>), then run sdd-pp split loss ${r.parent} until it passes.`);
   }
   out.push('', '### Agent review', '', '<!-- /sdd-spec-check: the agent reads each unit against the requirement(s) it names and replaces this comment with four lists (bullets or "- none"): Missing, Invented, Contradicted, Restated (advisory). -->');
   out.push('', `<!-- spec-check delta: ${snapshotDigest(r.snapshot)} -->`, `<!-- spec-check units: ${r.unitsDigest} -->`);
@@ -217,7 +224,7 @@ export function formatReport(r) {
 async function main() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { root: { type: 'string' }, json: { type: 'boolean' }, write: { type: 'boolean' }, check: { type: 'boolean' }, accept: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
+    options: { root: { type: 'string' }, json: { type: 'boolean' }, write: { type: 'boolean' }, check: { type: 'boolean' }, accept: { type: 'boolean' }, verbose: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
   });
   if (values.help || positionals.length !== 1) {
     console.log('usage: spec-check <change-id> [--root <dir>] [--json] [--write | --check] [--accept]');
@@ -234,6 +241,7 @@ async function main() {
   if (values.accept) return accept(change, r, reportFile, snapFile);
   const text = formatReport(r);
   const c = `openspec/changes/${change.id}/execution`;
+  const add = addArgs(change.root, path.relative(change.root, change.dir).split(path.sep).join('/'));
   // unchanged since the accepted PASS (same delta, same planning units, baseline = this delta): the saved review stands
   let saved = null;
   try { saved = fs.readFileSync(reportFile, 'utf8'); } catch { /* first run */ }
@@ -243,7 +251,7 @@ async function main() {
     && (DIGEST_RE.exec(saved) || [])[1] === snapshotDigest(r.snapshot) && (UNITS_RE.exec(saved) || [])[1] === r.unitsDigest;
   if (kept) {
     const how = values.write && !values.check ? `kept the saved review and PASS in ${c}/spec-check.md; nothing written.` : `the saved review and PASS in ${c}/spec-check.md stand (check only: nothing written).`;
-    console.log(values.json ? JSON.stringify({ ...r, snapshot: undefined, kept: true, result: 'PASS' }, null, 2) : `${saved}\nspec-check ${change.id}: PASS (kept) - unchanged since the accepted PASS (delta and planning units match) - ${how}`);
+    console.log(values.json ? JSON.stringify({ ...r, snapshot: undefined, kept: true, result: 'PASS' }, null, 2) : `${values.verbose ? `${saved}\n` : ''}spec-check ${change.id}: PASS (kept) - unchanged since the accepted PASS (delta and planning units match) - ${how}${values.verbose ? '' : ' (--verbose prints the report)'}`);
     return 0;
   }
   if (values.write && !values.check) {
@@ -254,8 +262,8 @@ async function main() {
   console.log(values.json ? JSON.stringify({ ...r, snapshot: undefined }, null, 2) : text);
   if (!values.json) {
     if (values.check || !values.write) console.log(`(check only: nothing written)`);
-    else if (r.gaps) console.log(`Wrote ${c}/spec-check.md with GAPS: fix the design output (or the delta) and run /sdd-spec-check again. To record this state: git add ${c}/spec-check.md && git commit -m "spec-check(${change.id}): GAPS"`);
-    else console.log(`Wrote ${c}/spec-check.md. The agent review sets the Result. On PASS, --accept records it; then commit with the planning files: git add ${c}/spec-check.md ${c}/.spec-check.json && git commit -m "spec-check(${change.id}): PASS". On GAPS: fix and re-run (to record it: git add ${c}/spec-check.md && git commit -m "spec-check(${change.id}): GAPS").`);
+    else if (r.gaps) console.log(`Wrote ${c}/spec-check.md with GAPS: fix the design output (or the delta) and run /sdd-spec-check again. To record this state: git add ${add} && git commit -m "spec-check(${change.id}): GAPS"`);
+    else console.log(`Wrote ${c}/spec-check.md. The agent review sets the Result. On PASS, --accept records it and prints the commit line (the whole change: deltas, split notes, planning, report, baseline). On GAPS: fix and re-run (to record it: git add ${add} && git commit -m "spec-check(${change.id}): GAPS").`);
   }
   return r.gaps ? 1 : 0;
 }
@@ -275,7 +283,7 @@ function accept(change, r, reportFile, snapFile) {
   // the saved report's change list is now accepted: the section says so (review, Result and digest comments untouched)
   const updated = saved.replace(/^(### Spec changes since the last check)[^\n]*\n[\s\S]*?(?=\n### )/m, `$1 (report-only; baseline accepted ${at})\n\n- none: this PASS is the accepted baseline (${at})\n`);
   if (updated !== saved) fs.writeFileSync(reportFile, updated);
-  console.log(`spec-check ${change.id}: PASS accepted - baseline ${SNAPSHOT} (${at}); commit it with the planning files: git add openspec/changes/${change.id}/execution && git commit -m "spec-check(${change.id}): PASS"`);
+  console.log(`spec-check ${change.id}: PASS accepted - baseline ${SNAPSHOT} (${at}); commit it with the planning files (the whole change, incl. any delta edit and split note): git add ${addArgs(change.root, path.relative(change.root, change.dir).split(path.sep).join('/'))} && git commit -m "spec-check(${change.id}): PASS"`);
   return 0;
 }
 

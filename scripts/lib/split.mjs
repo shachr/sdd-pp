@@ -292,18 +292,24 @@ export function lintSlices(plan, { text = '', parent = false } = {}) {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(s.id)) errors.push(`slice "${s.id}": id must be a kebab-case change name`);
     if (!s.goal) errors.push(`slice "${s.id}": no goal`);
     if (!s.capabilities.length) warnings.push(`slice "${s.id}": no capabilities listed`);
-    if (![...SLICE_STATUSES, 'done'].includes(s.status)) warnings.push(`slice "${s.id}": status "${s.status}" - use planned or in-progress (done is written by /sdd-split-next once its archived folder is on main)`);
+    if (![...SLICE_STATUSES, 'done'].includes(s.status)) warnings.push(`slice "${s.id}": status "${s.status}" - use planned or in-progress (done is written by /sdd-split-status once its archived folder is on main)`);
     if (parent && (s.requirements.length || s.split.length)) errors.push(`slice "${s.id}": requirement names in the parent - the parent is a control plane; behaviour and names live in the child delta`);
   }
   for (const s of plan.slices) for (const d of s.depends_on) if (!ids.has(d)) errors.push(`slice "${s.id}": depends_on "${d}" is not a slice`);
   try { dependencyClosure(plan.slices.filter((s) => s.depends_on.every((d) => ids.has(d)))); } catch (e) { errors.push(e.message); }
   const flags = plan.slices.filter((s) => s.flag).map((s) => s.flag);
+  let closure = {};
+  try { closure = dependencyClosure(plan.slices.filter((s) => s.depends_on.every((d) => ids.has(d)))); } catch { /* cycle: reported above */ }
   for (const f of new Set(flags)) {
     const cleanup = plan.slices.filter((s) => s.removes_flag === f);
     if (!cleanup.length) errors.push(`flag "${f}": no cleanup slice (a slice with "removes_flag: ${f}") - always plan the cleanup`);
+    // directly or through another slice (99 -> notices -> holds) is fine
     for (const c of cleanup) for (const s of plan.slices.filter((x) => x.flag === f)) {
-      if (!c.depends_on.includes(s.id)) warnings.push(`cleanup slice "${c.id}" should depend on flagged slice "${s.id}"`);
+      if (!(closure[c.id] || new Set(c.depends_on)).has(s.id)) warnings.push(`cleanup slice "${c.id}" should depend on flagged slice "${s.id}"`);
     }
+  }
+  for (const c of plan.slices.filter((s) => s.removes_flag && !flags.includes(s.removes_flag))) {
+    warnings.push(`cleanup slice "${c.id}" removes flag "${c.removes_flag}", but no slice has "flag: ${c.removes_flag}" (lost in a re-split?) - set it on the slice that holds the flag requirement`);
   }
   for (const d of plan.duplicates || []) warnings.push(`slices.md:${d.line}: slice "${d.slice}" has "${d.field}:" twice (a union merge of two branches?) - keep one; the last one wins`);
   for (const l of behaviourLeaks(text)) errors.push(`line ${l.line}: behaviour text in a split plan (behaviour lives in the child deltas): "${l.text}"`);
