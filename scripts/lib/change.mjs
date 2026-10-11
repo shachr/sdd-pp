@@ -128,12 +128,18 @@ export function openWork(change) {
 /**
  * CRITICAL issues recorded in an /opsx:verify report: a "CRITICAL" line (or heading) whose text, or whose list
  * items below it, are anything but "none" / "0". "No critical issues" (lower case) and "CRITICAL: none" are clean.
+ * OpenSpec verify's own summary wording counts too: "2 critical issue(s) found" (N > 0). A list item under a
+ * CRITICAL heading that itself starts with CRITICAL is one issue, not two.
  */
 export function verifyCriticals(text) {
   const lines = text.split(/\r?\n/);
   const issues = [];
   const clean = (x) => /^(none|0|n\/a|-)?\.?$/i.test(x.trim()) || /^(none|0)\b/i.test(x.trim());
+  const listed = new Set(); // line indexes already taken as list items of a CRITICAL heading
   for (let i = 0; i < lines.length; i++) {
+    if (listed.has(i)) continue;
+    const n = /\b(\d+)\s+critical\s+issue(?:\(s\)|s)?\b/i.exec(lines[i]);
+    if (n) { if (Number(n[1]) > 0) issues.push(lines[i].trim()); continue; }
     const m = /\bCRITICAL\b(.*)$/.exec(lines[i]);
     if (!m) continue;
     const rest = m[1].replace(/\*\*/g, '').replace(/\([^)]*\)/g, '').replace(/^[\s:=-]+/, '').trim();
@@ -145,6 +151,7 @@ export function verifyCriticals(text) {
       const item = /^\s*(?:[-*]|\d+\.)\s+(.*)$/.exec(l);
       if (!item || /^#/.test(l.trim())) break;
       if (/^\s*\d+\.\s/.test(l) && !/^\s/.test(l)) break; // the next numbered priority ("2. **WARNING**")
+      listed.add(j);
       if (!clean(item[1].replace(/\*\*/g, ''))) issues.push(item[1].trim());
     }
   }
@@ -161,6 +168,18 @@ export function isStub(text) {
 export function git(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
+
+/** The branch changes merge into: origin's HEAD branch, else main, else master (best effort; "main" without git). */
+export function mainBranch(root) {
+  try { return git(root, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']).trim().replace(/^origin\//, ''); } catch { /* no remote HEAD */ }
+  for (const b of ['main', 'master']) {
+    try { git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${b}`]); return b; } catch { /* next */ }
+  }
+  return 'main';
+}
+
+/** The review diff: three dots = since the branch point with the main branch, so main merged into the branch later is left out. */
+export const reviewDiff = (main) => `git diff ${main}...HEAD -- . ':!openspec'`;
 
 export function loadConfig(root, explicit) {
   const toolkitDefault = fileURLToPath(new URL('../../config/handoff-review.json', import.meta.url));
@@ -283,6 +302,9 @@ export function resolveTool(change) {
 }
 
 /** Project-level docs AI Hero's grill-with-docs writes next to the change (the documented exception), when present. */
+/** "1 problem" / "2 problems" (irregular plural as the third argument). */
+export const plural = (n, word, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
+
 export const PROJECT_DOCS = ['GLOSSARY.md', 'docs/adr'];
 
 /**

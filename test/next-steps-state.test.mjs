@@ -67,3 +67,28 @@ test('next-steps (superpowers): the sdd-workspace path uses the installed skills
   assert.match(out, / \.claude\/skills\/subagent-driven-development\/scripts\/sdd-workspace openspec\/changes\/add-greeting-name\/execution\/plan-add-greeting-name\.md\./);
   assert.doesNotMatch(out, /<skills dir>/);
 });
+
+test('change-status marks implementation and review [done] from the files: ai-hero tickets done + execution/reviews/; superpowers plan all ticked (a "- [ ]" quoted in prose does not count) + progress.md + reviews/', async () => {
+  const { setHandoff } = await import('./helpers.mjs');
+  const { dir, changeDir } = makeFixture();
+  const ex = (...p) => path.join(changeDir, 'execution', ...p);
+  let out = steps(dir);
+  assert.ok(isDone(out, 4), 'ai-hero: every ticket Status done -> implementation [done]');
+  assert.ok(!isDone(out, 5), 'no review notes yet');
+  fs.mkdirSync(ex('reviews'), { recursive: true });
+  fs.writeFileSync(ex('reviews', 'code-review.md'), '# Review\n\nNo findings.\n');
+  out = steps(dir);
+  assert.ok(isDone(out, 5), 'review notes in execution/reviews/ -> review [done]');
+  assert.ok(!isDone(out, 6), 'verify still open');
+
+  setHandoff(dir, { tool: 'superpowers', apply_mode: 'executing-plans' });
+  fs.renameSync(ex('grill.md'), ex('brainstorm.md'));
+  fs.writeFileSync(ex(`plan-${ID}.md`), '# Plan\n\nTick each - [ ] box as the step lands.\n\n### Task 1: greet\n- [x] **Step 1:** test\n- [x] **Step 2:** code\n');
+  fs.writeFileSync(ex('progress.md'), '# Ledger\n');
+  out = steps(dir);
+  assert.ok(isDone(out, 3), 'superpowers: every plan step ticked -> implementation [done]');
+  assert.match(out, /^   \[done\] Before the final review deletes the workspace: copy the ledger/m);
+  assert.ok(isDone(out, 4), 'review notes -> requesting-code-review [done]');
+  fs.writeFileSync(ex(`plan-${ID}.md`), '# Plan\n\n### Task 1: greet\n- [x] **Step 1:** test\n- [ ] **Step 2:** code\n');
+  assert.ok(!isDone(steps(dir), 3), 'an unticked step keeps implementation open');
+});

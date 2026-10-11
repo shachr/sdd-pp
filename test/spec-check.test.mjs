@@ -39,7 +39,12 @@ test('requirement-link rule: a story or ticket that names no requirement is a ga
   replaceIn(ex(changeDir, 'spec.md'), /## Implementation Decisions/, '3. As a CLI user, I want colours.\n\n## Implementation Decisions');
   const s = run('spec-check.mjs', [CHANGE], dir);
   assert.equal(s.code, 1);
-  assert.match(s.out, /Added without source[\s\S]*execution\/spec\.md:\d+ user story "story 3" names no delta requirement/);
+  assert.match(s.out, /Added without source[\s\S]*execution\/spec\.md:\d+ user story "story 3" names no delta requirement - cite it as Requirement "<name>"/);
+  // an unquoted "Requirement: X" gets the citation-format hint (e2e4: cost a GAPS round)
+  replaceIn(ex(changeDir, 'spec.md'), '3. As a CLI user, I want colours.', '3. As a CLI user, I want colours (Requirement: Greeting by name).');
+  const u = run('spec-check.mjs', [CHANGE], dir);
+  assert.equal(u.code, 1);
+  assert.match(u.out, /user story "story 3" names no delta requirement - "Requirement: Greeting by name" is unquoted; cite it as Requirement "<name>" or "Requirement: <name>" \(quoted, exact delta name\)/);
 });
 
 test('requirement-link rule: plan tasks need a Covers line naming a delta requirement; unknown scenarios fail', () => {
@@ -137,7 +142,7 @@ test('spec changes since the last accepted PASS: listed on every run until PASS 
   assert.deepEqual(JSON.parse(fs.readFileSync(snapFile, 'utf8')), snap, 'baseline unchanged until accepted');
   setPass();
   r = run('spec-check.mjs', [CHANGE, '--accept'], dir);
-  assert.equal(r.code, 1); assert.match(r.out, /mechanical finding\(s\) - fix them/);
+  assert.equal(r.code, 1); assert.match(r.out, /mechanical findings? - fix them/);
   // removal, with no mechanical gap: listed (report-only, PENDING) until a PASS is accepted, then gone
   const { dir: d2, changeDir: c2 } = makeFixture();
   const rep2 = ex(c2, 'spec-check.md'), snap2 = ex(c2, '.spec-check.json');

@@ -23,7 +23,7 @@ test('next-steps: branch before implementation, what to commit, spec changes aft
   assert.match(ai, /git switch -c change\/x, then commit the change folder including \.spec-check\.json \(git add -A openspec\/changes\/x && git commit -m "plan\(x\)"; branch before implementation/);
   assert.match(ai, /On PASS, \/sdd-spec-check accepts it \(--accept\)/);
   assert.match(ai, /After any later delta edit, one order: openspec validate x --strict -> \/sdd-spec-check x \(lists .* since the last accepted PASS .*\) -> re-plan ONLY the open units it names \(done units are never touched; a change affecting done work becomes a new ticket; note "superseded by delta edit: <reason>" .*\) -> \/sdd-spec-check until PASS\./);
-  assert.match(ai, /Review the diff since base_ref in openspec\/changes\/x\/handoff\.md .*the spec is the change folder/);
+  assert.match(ai, /Review the branch's own diff: git diff main\.\.\.HEAD -- \. ':!openspec' \(three dots = since the branch point with main, so main merged in later - e\.g\. another slice - is left out; base_ref in openspec\/changes\/x\/handoff\.md is where planning started\); the spec is the change folder/);
   const spec = nextSteps({ id: 'x', tool: 'ai-hero', applyMode: 'implement-spec' });
   assert.match(spec, /its integration branch is change\/x; each ticket gets its own branch \/ worktree, and its "Status: done" \+ ticked checkboxes go in that ticket-branch commit with its code, before the branch is merged into change\/x/);
   assert.match(spec, /No sub-agent tool in the harness: use \/implement instead/);

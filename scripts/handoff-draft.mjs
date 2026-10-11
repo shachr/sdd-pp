@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { APPLY_MODES, deltaRequirements, findProjectRoot, git, loadChange, resolveTool, SESSION_FILES, SESSION_SKILLS, UsageError } from './lib/change.mjs';
+import { addArgs, APPLY_MODES, deltaRequirements, findProjectRoot, git, loadChange, mainBranch, reviewDiff, resolveTool, SESSION_FILES, SESSION_SKILLS, UsageError } from './lib/change.mjs';
 import { findParentOf } from './lib/split.mjs';
 import { isMain } from './lib/main.mjs';
 
@@ -52,7 +52,7 @@ export function handoffDraft(root, id) {
     `- Design session (proposal phase): [${session}](${session})`,
     ...(parent ? [`- Slice of split change [${parent}](../${parent}/slices.md); shared design session: [../${parent}/${session}](../${parent}/${session})`] : []),
     '', 'Design and implementation are owned by the execution tool (below); OpenSpec has no design step.',
-    'Implementation diff: `git diff <base_ref>...HEAD -- . \':!openspec\'`', '',
+    `Implementation diff: \`${reviewDiff(mainBranch(root))}\` (since the branch point with ${mainBranch(root)}; main merged in later is left out)`, '',
     '## Execution artifacts', '',
     '| Tool step | Writes to |', '|-----------|-----------|',
     ...ROWS[tool].map(([a, b]) => `| ${a} | ${b} |`),
@@ -75,7 +75,7 @@ function main() {
   if (!root) throw new UsageError('no openspec/ directory found');
   const r = handoffDraft(root, positionals[0]);
   console.log(`handoff-draft ${r.id}: wrote openspec/changes/${r.id}/handoff.md (tool ${r.tool}, base_ref ${r.base.slice(0, 7)}${r.parent ? `, slice of ${r.parent}` : ''}; links, deltas and size filled)`);
-  console.log(`Left for you: ${r.todo.join(', ')} - replace each <...>. Then commit it: git add openspec/changes/${r.id}/handoff.md && git commit -m "handoff(${r.id}): ${r.tool}", and print the next steps: /sdd-change-status ${r.id}`);
+  console.log(`Left for you: ${r.todo.join(', ')} - replace each <...>. Then commit it with the change folder (session, split-check report): git add ${addArgs(root, `openspec/changes/${r.id}`)} && git commit -m "handoff(${r.id}): ${r.tool}", and print the next steps: /sdd-change-status ${r.id}`);
   return 0;
 }
 

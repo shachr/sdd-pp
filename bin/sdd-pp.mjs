@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { spawnSync } from 'node:child_process';
 import { isMain } from '../scripts/lib/main.mjs';
+import { RETIRED } from '../scripts/sdd.mjs';
 
 export const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TOOLS = ['ai-hero', 'superpowers'];
@@ -46,7 +47,7 @@ export const RENAMED_COMMANDS = {
   'split-apply': 'sdd-split-apply', 'split-next': 'sdd-split-status', 'split-undo': 'sdd-split-undo',
   'split-start': 'sdd-slice-start', 'split-archive': 'sdd-split-finish', 'sdd-split-start': 'sdd-slice-start', 'sdd-split-archive': 'sdd-split-finish',
 };
-export const RUN_COMMANDS = ['spec-check', 'split-check', 'change-status', 'split-status', 'handoff-draft', 'next', 'next-steps', 'tool', 'split', 'slice-start', 'slice-finish', 'split-finish'];
+export const RUN_COMMANDS = ['spec-check', 'split-check', 'change-status', 'split-status', 'handoff-draft', 'tool', 'split', 'slice-start', 'slice-finish', 'split-finish', ...Object.keys(RETIRED)];
 
 /** The sdd.mjs to run from `start`: the project's installed copy (nearest .openspec-handoff/scripts), else this package's. */
 export function sddScript(start = process.cwd()) {

@@ -21,7 +21,7 @@ The change has been through the proposal phase: proposal + spec deltas (OpenSpec
    - `apply_mode`: the tool's own implement command - ai-hero: `implement` (one session) or `implement-spec` (subagents); superpowers: `executing-plans` (inline) or `subagent-driven-development`. Default to the subagent variant only if the harness has a subagent tool.
    - links to `proposal.md`, every `specs/**/spec.md` delta and the session file - links only
 5. **Commit** (`handoff(<id>): <tool>`). `base_ref` stays the commit before any implementation.
-6. **Print the next steps and stop.** Run `node .openspec-handoff/scripts/next-steps.mjs <id>` and show its output to the user verbatim (the engineer reprints it later with `/sdd-change-status <id>`). Do **not** run any of them: planning (to-spec + to-tickets, or writing-plans), `/sdd-spec-check`, implementation, code review, `/opsx:verify` and `/opsx:archive` are the engineer's, run through the wrapper skill (`openspec-handoff-ai-hero` / `openspec-handoff-superpowers`). There is no OpenSpec tasks stage and `/opsx:apply` is not used.
+6. **Print the next steps and stop.** Run `node .openspec-handoff/scripts/sdd.mjs change-status <id>` and show its output to the user verbatim (the engineer reprints it later with `/sdd-change-status <id>`). Do **not** run any of them: planning (to-spec + to-tickets, or writing-plans), `/sdd-spec-check`, implementation, code review, `/opsx:verify` and `/opsx:archive` are the engineer's, run through the wrapper skill (`openspec-handoff-ai-hero` / `openspec-handoff-superpowers`). There is no OpenSpec tasks stage and `/opsx:apply` is not used.
 
 ## Guardrails
 

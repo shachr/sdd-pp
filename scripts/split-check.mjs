@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { addArgs, findProjectRoot, loadConfig, UsageError } from './lib/change.mjs';
+import { addArgs, findProjectRoot, plural, loadConfig, UsageError } from './lib/change.mjs';
 import { changeDeltas, changeLocation, dependencyClosure, findParentOf, lintSlices, nameSlices, parseSlices, SPLIT_MAX_CAPABILITIES, SPLIT_MAX_REQUIREMENTS } from './lib/split.mjs';
 import { isMain } from './lib/main.mjs';
 
@@ -42,11 +42,19 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
     for (const cap of fs.readdirSync(specsDir)) {
       const f = path.join(specsDir, cap, 'spec.md');
       if (!fs.existsSync(f) || fs.existsSync(path.join(root, 'openspec', 'specs', cap, 'spec.md'))) continue;
-      if (!/^##\s+Purpose\s*$/m.test(fs.readFileSync(f, 'utf8'))) out.warnings.push(`specs/${cap}/spec.md: new capability without "## Purpose" - archive would write a TBD placeholder into the main spec`);
+      const text = fs.readFileSync(f, 'utf8');
+      const purpose = /^##\s+Purpose\s*\n([\s\S]*?)(?=^##\s|(?![\s\S]))/m.exec(text);
+      if (!purpose) out.warnings.push(`specs/${cap}/spec.md: new capability without "## Purpose" - archive would write a TBD placeholder into the main spec`);
+      else {
+        // OpenSpec's strict spec validation wants a Purpose of 50+ characters; the change validates, the archived main spec would not
+        const len = purpose[1].replace(/<!--[\s\S]*?-->/g, '').trim().length;
+        if (len < 50) out.warnings.push(`specs/${cap}/spec.md: "## Purpose" is ${len} characters (< 50) - openspec validate --strict passes on the change but fails on the main spec after archive; write a full sentence`);
+      }
     }
   }
-  if (!over.length) return out;
   const pf = path.join(loc.dir, 'execution', 'split-proposal.md');
+  // a change that fits gets the preview too when a split proposal exists (a deliberate split / re-split)
+  if (!over.length && !fs.existsSync(pf)) return out;
   if (fs.existsSync(pf)) {
     const ptext = fs.readFileSync(pf, 'utf8');
     const prop = parseSlices(ptext);
@@ -85,14 +93,14 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
 
 /** names: false for the file written into the change (it becomes the parent, which carries no requirement names). */
 export function formatSplitCheck(r, { names = true } = {}) {
-  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${r.slices} slices`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /sdd-split-status ${r.change})`].join('\n');
+  if (r.kind === 'parent') return [`split-check ${r.change}: split parent, ${plural(r.slices, 'slice')}`, ...r.errors.map((w) => `  ✗ ${w}`), ...r.warnings.map((w) => `  ! ${w}`), `  (status: /sdd-split-status ${r.change})`].join('\n');
   const warn = (r.warnings || []).map((w) => `  ! ${w}`);
-  const reqs = `${r.requirements} requirement${r.requirements === 1 ? '' : 's'}`;
-  const caps = `${r.capabilities} ${r.capabilities === 1 ? 'capability' : 'capabilities'}`;
-  if (r.status === 'fits') return [`split-check ${r.change}: fits (${reqs}, ${caps})`, ...warn].join('\n');
-  const out = [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (this is a slice: a re-split adds new slices to parent ${r.parent} - /sdd-split-apply builds their ids, continuing its numbering; no nested parents)` : ''}`, ''];
+  const reqs = plural(r.requirements, 'requirement');
+  const caps = plural(r.capabilities, 'capability', 'capabilities');
+  if (r.status === 'fits' && !r.proposal) return [`split-check ${r.change}: fits (${reqs}, ${caps})`, ...warn].join('\n');
+  const out = r.status === 'fits' ? [`split-check ${r.change}: fits (${reqs}, ${caps}) - but execution/split-proposal.md exists (a deliberate split${r.parent ? `; a re-split adds new slices to parent ${r.parent}` : ''}): preview below`, ''] : [`split-check ${r.change}: WARNING - ${r.over.join(', ')} - consider splitting${r.parent ? ` (this is a slice: a re-split adds new slices to parent ${r.parent} - /sdd-split-apply builds their ids, continuing its numbering; no nested parents)` : ''}`, ''];
   out.push(...warn);
-  for (const c of r.byCap) out.push(names ? `- ${c.capability} (${c.requirements.length}): ${c.requirements.join('; ')}` : `- ${c.capability}: ${c.requirements.length} requirements`);
+  for (const c of r.byCap) out.push(names ? `- ${c.capability} (${c.requirements.length}): ${c.requirements.join('; ')}` : `- ${c.capability}: ${plural(c.requirements.length, 'requirement')}`);
   if (!r.proposal) {
     out.push('', 'Next: propose slices in execution/split-proposal.md (front matter "approved_by:" left empty), show them to the engineer, and wait for approval or edits. Format:',
       '  ### Slice: <slice>   (the slice part only; split apply names the change <parent>-<nn>-<slice>)', '  - order: <nn>   (two digits, 01 = first; the flag cleanup slice uses 99; omit on a re-split to continue the numbering)', '  - goal: <one line, no requirement names>', '  - capabilities: <cap>, <cap>', '  - requirements: <exact name>; <exact name>',
@@ -133,7 +141,7 @@ async function main() {
   if (values.write && r.kind === 'change' && !values.json) {
     // the whole change (proposal, deltas, design session, split files): /sdd-split-apply needs it committed as its baseline
     const add = addArgs(root, path.relative(root, changeLocation(root, positionals[0]).dir).split(path.sep).join('/'));
-    if (r.status === 'fits') console.log(`Commit with the change: git add ${add} && git commit -m "split-check(${positionals[0]}): fits"`);
+    if (r.status === 'fits' && !r.proposal) console.log(`Commit with the change: git add ${add} && git commit -m "split-check(${positionals[0]}): fits"`);
     else console.log(`Commit the change with its deltas (/sdd-split-apply needs them committed - that commit is the loss-check baseline): git add ${add} && git commit -m "split-check(${positionals[0]})"`);
   }
   return 0;

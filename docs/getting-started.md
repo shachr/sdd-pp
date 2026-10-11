@@ -46,12 +46,12 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 | Agent command | CLI (`npx github:shachr/sdd-pp ...`) | Runs |
 |---|---|---|
 | `/sdd-tool <id> [--set <tool>]` (show writes nothing; `--set` starts the session file - a stub with no session yet can still be replaced) | `tool <id> [--set <tool>]`, `tool --default <tool>` | `execution-tool.mjs` |
-| `/sdd-split-check <id>` (agent: proposes slices) | `split-check <id>` (counts only) | `split-check.mjs <id> --write` |
-| `/sdd-handoff <id>` (agent skill) | `handoff-draft <id>` (pre-fills handoff.md: change, tool, base_ref, links, slice/parent, size; leaves apply_mode / harness / notes) | `handoff-draft.mjs <id>`, the agent fills the judgment fields, then `next-steps.mjs` |
+| `/sdd-split-check <id>` (agent: proposes slices) | `split-check <id>` (counts only; previews an existing `execution/split-proposal.md` even when the change fits; warns when a new capability's `## Purpose` is missing or under 50 characters - strict validation of the main spec fails after archive) | `split-check.mjs <id> --write` |
+| `/sdd-handoff <id>` (agent skill) | `handoff-draft <id>` (pre-fills handoff.md: change, tool, base_ref, links, slice/parent, size; leaves apply_mode / harness / notes) | `handoff-draft.mjs <id>`, the agent fills the judgment fields, then `next-steps.mjs` (via `sdd.mjs change-status`) |
 | `/sdd-change-status <id>` | `change-status <id>` | `next-steps.mjs <id>` |
 | `/sdd-spec-check <id>` (agent: adds the review for missing / invented / contradicted / restated, sets PASS or GAPS; accepts PASS with `--accept`) | `spec-check <id>` (mechanical report; kept as is when the delta and planning units match the accepted PASS - prints a one-line summary, `--verbose` for the full report), `spec-check <id> --check` (writes nothing) | `spec-check.mjs <id> --write` |
-| `/sdd-split-apply <id> [--force]` (`--force`: re-split a slice already in progress) | `split apply <id> [--force]` | `split.mjs apply <id>` |
-| `/sdd-split-status <parent>` (rewrites `slices.md` only when something changed) | `split-status <parent>` | `split.mjs next <parent> --write-tickets` |
+| `/sdd-split-apply <id> [--force]` (`--force`: re-split a slice already in progress; every refusal reason listed at once; a re-split rewires dependents in `slices.md` and their `proposal.md`) | `split apply <id> [--force]` | `split.mjs apply <id>` |
+| `/sdd-split-status <parent>` (rewrites `slices.md` only when something changed; says done once the parent is archived) | `split-status <parent>` | `split.mjs next <parent> --write-tickets` |
 | `/sdd-slice-start <slice> [--undo]` | `slice-start <slice> [--undo]` | `split.mjs start <slice> [--undo]` |
 | `/sdd-slice-finish <slice>` | `slice-finish <slice>` | `split.mjs finish-check <slice>` (in progress? `execution/verify.md`, + `execution/progress.md` for Superpowers; no open ticket, unticked ticket checkbox or plan step, CRITICAL issue in verify.md or `TODO(agent:` placeholder anywhere in the slice folder except the generated reports (`execution/verify.md`, `spec-check.md`, `split-check.md`, `split-proposal.md`, `execution/reviews/`) - refuses listing every problem at once), `openspec archive <slice> -y`, `split.mjs finish-mark <slice>` (status done in the parent's `slices.md`, commit line) |
 | `/sdd-split-undo <parent> [--force]` (the whole parent only; no per-slice undo) | `split undo <parent> [--force]` | `split.mjs undo <parent> [--force]` |
@@ -62,8 +62,13 @@ installed scripts). Both go through `.openspec-handoff/scripts/sdd.mjs`, which o
 `--skip-specs`) and does not run the final loss check.
 
 Every command that writes files prints the exact `git add ... && git commit -m ...` line for what it wrote. `/sdd-change-status` marks
-steps whose result is already in the change folder with `[done]` (a file check, not progress tracking) and says `git switch
-change/<id>` (no `-c`) once the branch exists.
+steps whose result is already in the change folder with `[done]` (a file check, not progress tracking: tickets all done / plan
+steps all ticked = implementation, a file in `execution/reviews/` or `execution/verify.md` = review) and says `git switch
+change/<id>` (no `-c`) once the branch exists. Before the handoff it shows a pending `execution/split-proposal.md` (approve,
+commit, `/sdd-split-apply`) instead of `/sdd-handoff`, and for a slice the branch step and the slice's split check.
+The review diff is `git diff main...HEAD` (three dots: since the branch point with main, so main merged into the branch
+later - another slice's code - is left out). Dates the toolkit writes (`split_at`, `created`) are local, like OpenSpec's.
+Retired command names (`next-steps`, `split-next`, `split-start`, `split-archive`, ...) exit 2 and name the current command.
 
 ## The flow
 
