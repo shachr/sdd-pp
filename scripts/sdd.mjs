@@ -37,6 +37,15 @@ export const USAGE = `usage: sdd <command> ...
   slice-finish <slice>             finish an in-progress slice: needs execution/verify.md (+ progress.md for Superpowers), openspec archive <slice> -y, status done in slices.md
   split-finish <parent>            stops unless every slice is archived, marks them done, final loss check, then openspec archive <parent> --skip-specs -y`;
 
+/** Retired command names (CLI and old slash-command spellings) -> the current command; they exit 2 naming it. */
+export const RETIRED = {
+  next: 'change-status <id>', 'next-steps': 'change-status <id>', 'sdd-next-steps': 'change-status <id>',
+  'split-next': 'split-status <parent>', 'sdd-split-next': 'split-status <parent>',
+  'split-start': 'slice-start <slice>', 'sdd-split-start': 'slice-start <slice>',
+  'split-archive': 'split-finish <parent>', 'sdd-split-archive': 'split-finish <parent>',
+  'split-apply': 'split apply <id>', 'split-undo': 'split undo <parent>', 'split-loss': 'split loss <parent>',
+};
+
 /** The steps a command runs: [label, executable, args]. Exported for tests and docs. */
 export function plan(argv) {
   const [cmd, ...rest] = argv;
@@ -52,7 +61,6 @@ export function plan(argv) {
     case 'handoff-draft': need(1, 'handoff-draft <id>'); return [node('handoff-draft.mjs', rest)];
     case 'change-status': need(1, 'change-status <id>'); return [node('next-steps.mjs', rest)];
     case 'split-status': need(1, 'split-status <parent>'); return [node('split.mjs', ['next', ...rest, ...(rest.includes('--write-tickets') ? [] : ['--write-tickets'])])];
-    case 'next': case 'next-steps': throw new SddUsage(`"${cmd}" is now "change-status <id>"\n\n${USAGE}`);
     case 'tool': if (!rest.length) throw new SddUsage(`tool <id> [--set <tool>] | tool --default <tool>\n\n${USAGE}`); return [node('execution-tool.mjs', rest)];
     case 'slice-start': need(1, 'slice-start <slice>'); return [node('split.mjs', ['start', ...rest])];
     case 'slice-finish': need(1, 'slice-finish <slice>'); return finish(rest[0]);
@@ -65,7 +73,9 @@ export function plan(argv) {
       const moved = { start: 'slice-start <slice>', archive: 'split-finish <parent>', finish: 'slice-finish <slice>', next: 'split-status <parent>' }[sub];
       throw new SddUsage(`${moved ? `"split ${sub}" is now "${moved}"` : `unknown split command "${sub}"`}\n\n${USAGE}`);
     }
-    default: throw new SddUsage(`${cmd ? `unknown command "${cmd}"` : 'no command'}\n\n${USAGE}`);
+    default:
+      if (Object.hasOwn(RETIRED, cmd)) throw new SddUsage(`"${cmd}" is now "${RETIRED[cmd]}"\n\n${USAGE}`);
+      throw new SddUsage(`${cmd ? `unknown command "${cmd}"` : 'no command'}\n\n${USAGE}`);
   }
 }
 

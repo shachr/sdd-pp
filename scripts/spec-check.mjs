@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { parseArgs } from 'node:util';
-import { addArgs, findProjectRoot, loadChange, loadConfig, UsageError, deltaRequirements, designUnits, citations, findPlan } from './lib/change.mjs';
+import { addArgs, findProjectRoot, plural, loadChange, loadConfig, UsageError, deltaRequirements, designUnits, citations, findPlan } from './lib/change.mjs';
 import { isMain } from './lib/main.mjs';
 import { findParentOf } from './lib/split.mjs';
 
@@ -146,7 +146,11 @@ export function specCheck(change, { limit = 300, previous = null } = {}) {
     };
     for (const c of u.cites.requirements) if (!known.has(lc(c))) unknown.push(`${u.file}:${at(c)} ${u.kind} "${u.label}" names requirement "${c}" - cite it exactly as Requirement "<name>" from the delta`);
     for (const c of u.cites.scenarios) if (!knownScen.has(lc(c))) unknown.push(`${u.file}:${at(c)} ${u.kind} "${u.label}" names scenario "${c}" - cite it exactly as Scenario "<name>" from the delta`);
-    if (!u.cites.requirements.length) unsourced.push(`${u.file}:${u.line} ${u.kind} "${u.label}" names no delta requirement`);
+    if (!u.cites.requirements.length) {
+      // an unquoted "Requirement: X" is not a citation: say which form counts
+      const bare = /\bRequirement:\s*([^"\n][^\n]*)/.exec(u.text || '');
+      unsourced.push(`${u.file}:${u.line} ${u.kind} "${u.label}" names no delta requirement${bare ? ` - "Requirement: ${bare[1].trim().replace(/[.)\]]+$/, '')}" is unquoted; cite it as Requirement "<name>" or "Requirement: <name>" (quoted, exact delta name)` : ' - cite it as Requirement "<name>"'}`);
+    }
   }
   const problems = [];
   if (!units.length) problems.push(`no design output found for tool "${tool}" (expected ${tool === 'superpowers' ? `execution/plan-${change.id}.md` : 'execution/spec.md and execution/tickets/'})`);
@@ -216,7 +220,7 @@ export function formatReport(r) {
   out.push('', '### Agent review', '', '<!-- /sdd-spec-check: the agent reads each unit against the requirement(s) it names and replaces this comment with four lists (bullets or "- none"): Missing, Invented, Contradicted, Restated (advisory). -->');
   out.push('', `<!-- spec-check delta: ${snapshotDigest(r.snapshot)} -->`, `<!-- spec-check units: ${r.unitsDigest} -->`);
   out.push('', '### Result', '', r.gaps
-    ? `GAPS: ${r.gaps} mechanical finding(s). Fix the design output (or the delta) before implementation.`
+    ? `GAPS: ${plural(r.gaps, 'mechanical finding')}. Fix the design output (or the delta) before implementation.`
     : 'PENDING: mechanical checks pass. The agent review decides: write PASS if Missing, Invented and Contradicted are all "none", otherwise GAPS: <n> agent finding(s).');
   return out.join('\n') + '\n';
 }
@@ -271,7 +275,7 @@ async function main() {
 /** --accept: record the current delta as the baseline, only for a saved PASS report of this exact delta. */
 function accept(change, r, reportFile, snapFile) {
   const fail = (m) => { console.error(`spec-check --accept: ${m}`); return 1; };
-  if (r.gaps) return fail(`${r.gaps} mechanical finding(s) - fix them and run /sdd-spec-check again; baseline unchanged.`);
+  if (r.gaps) return fail(`${plural(r.gaps, 'mechanical finding')} - fix them and run /sdd-spec-check again; baseline unchanged.`);
   let saved = '';
   try { saved = fs.readFileSync(reportFile, 'utf8'); } catch { return fail(`no saved report (${path.relative(change.dir, reportFile).split(path.sep).join('/')}) - run /sdd-spec-check first.`); }
   const result = (/^### Result\s*\n+([^\n]*)/m.exec(saved) || [])[1]?.trim();

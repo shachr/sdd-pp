@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { findProjectRoot, loadChange, UsageError, SESSION_FILES, SESSION_SKILLS, APPLY_MODES, findPlan, git, resolveTool, isStub } from './lib/change.mjs';
+import { findProjectRoot, loadChange, UsageError, SESSION_FILES, SESSION_SKILLS, APPLY_MODES, findPlan, git, mainBranch, resolveTool, reviewDiff, isStub } from './lib/change.mjs';
 import { SNAPSHOT, snapshotDigest, specSnapshot } from './spec-check.mjs';
 import { changeLocation, findParentOf } from './lib/split.mjs';
 import { nextReport, placeholders } from './split.mjs';
@@ -17,7 +17,7 @@ export function nextSteps({ id, tool, applyMode, parent = null, state = {} }) {
   // "[done] " in front of a step whose result is already in the change folder (cheap file checks, not progress tracking)
   const d = (key, line) => (done.has(key) ? line.replace(/^(\s*)/, '$1[done] ') : line);
   const sw = state.branchExists ? `git switch change/${id} - the branch exists` : `git switch -c change/${id}`;
-  const review = (n, what) => `${n}. ${what} - the tool's own review step; fix what it finds. Review the diff since base_ref in ${c}/handoff.md (git diff <base_ref>...HEAD); the spec is the change folder ${c}/ (proposal.md, specs/**/spec.md, the planning files). CI also runs a code review on the PR.`;
+  const review = (n, what) => d('review', `${n}. ${what} - the tool's own review step; fix what it finds. Review the branch's own diff: ${reviewDiff(state.main || 'main')} (three dots = since the branch point with ${state.main || 'main'}, so main merged in later - e.g. another slice - is left out; base_ref in ${c}/handoff.md is where planning started); the spec is the change folder ${c}/ (proposal.md, specs/**/spec.md, the planning files). CI also runs a code review on the PR.`);
   const unit = tool === 'superpowers' ? 'plan task' : 'ticket';
   const specCheck = (n) => [
     d('specCheck', `${n}. /sdd-spec-check ${id} -> ${c}/execution/spec-check.md (coverage + the line estimate after planning, budget ~300). On GAPS: stop, fix, re-run. On PASS, /sdd-spec-check accepts it (--accept): the spec-change baseline ${c}/execution/.spec-check.json, committed with the planning files.`),
@@ -84,6 +84,9 @@ export function beforeHandoff(root, change, parent = null) {
   if (parent) {
     const mark = findParentOf(root, id)?.plan.slices.find((s) => s.id === id)?.status;
     out.push(d(mark === 'in-progress' || mark === 'done', `${n++}. /sdd-slice-start ${id} - takes the slice (status: in-progress in openspec/changes/${parent}/slices.md); commit the mark on main.`));
+    let branch = false;
+    try { git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/change/${id}`]); branch = true; } catch { /* no branch yet */ }
+    out.push(d(branch, `${n++}. ${branch ? `git switch change/${id} - the branch exists` : `git switch -c change/${id}`}: the slice's design session, handoff, planning and code all go on this branch (its PR).`));
   }
   const session = r.tool ? SESSION_FILES[r.tool] : null;
   const started = session && !isStub(change.read(session));
@@ -93,7 +96,16 @@ export function beforeHandoff(root, change, parent = null) {
   out.push(d(change.files.includes('proposal.md'), `${n++}. ${c}/proposal.md (/opsx:propose ${id} or /opsx:continue ${id}).`));
   const todos = parent ? placeholders(root, change.dir) : [];
   out.push(d(has(/^specs\/.+\/spec\.md$/) && !todos.length, `${n++}. Delta specs ${c}/specs/<capability>/spec.md, then openspec validate ${id} --strict.${todos.length ? ` Fill the TODO(agent: ...) placeholders first: ${todos.join(', ')}.` : ''}`));
-  if (!parent) out.push(d(change.files.includes('execution/split-check.md'), `${n++}. /sdd-split-check ${id} - split gate (warn-only; a split proposal goes to the engineer).`));
+  out.push(d(change.files.includes('execution/split-check.md'), `${n++}. /sdd-split-check ${id} - split gate (warn-only; a split proposal goes to the engineer)${parent ? `; for a slice a re-split adds slices to ${parent}` : ''}.`));
+  if (change.files.includes('execution/split-proposal.md')) {
+    // a proposed split replaces the handoff: approve, commit the deltas, apply
+    const approved = (/^approved_by:[ \t]*(\S.*)$/m.exec(change.read('execution/split-proposal.md')) || [])[1]?.trim();
+    out.push(approved
+      ? `${n++}. Split approved (by ${approved}): commit the deltas (git add -A ${c} && git commit -m "split proposal(${id})" - the loss-check baseline), then /sdd-split-apply ${id}. Not handed off: its slices are.`
+      : `${n++}. Split proposal waiting for approval: ${c}/execution/split-proposal.md - the engineer approves (approved_by: <name>) or edits it; then commit the deltas and /sdd-split-apply ${id}. Do not hand off a change being split (or delete the proposal to keep it whole).`);
+    out.push(`([done] = its result is already in ${c}/; a file check, not progress tracking)`);
+    return out.join('\n');
+  }
   out.push(`${n++}. /sdd-handoff ${id} -> ${c}/handoff.md (tool, apply_mode, base_ref); it then prints the implementation steps (/sdd-change-status ${id} reprints them).`);
   out.push(`([done] = its result is already in ${c}/; a file check, not progress tracking)`);
   return out.join('\n');
@@ -113,13 +125,16 @@ export function detectState(root, change, tool) {
     if (base?.requirements && snapshotDigest(base.requirements) === snapshotDigest(specSnapshot(change))) done.add('specCheck');
   } catch { /* no baseline */ }
   if (tool === 'ai-hero' && tickets.length && tickets.every((f) => /^\s*\**status:?\**\s*done\b/im.test(change.read(f)))) done.add('impl');
-  if (tool === 'superpowers' && plan && /- \[x\]/i.test(change.read(plan)) && !/- \[ \]/.test(change.read(plan))) done.add('impl');
+  // plan step boxes are list items ("- [x]" at a line start); a "- [ ]" quoted in prose does not count
+  if (tool === 'superpowers' && plan && /^\s*[-*]\s*\[x\]/im.test(change.read(plan)) && !/^\s*[-*]\s*\[ \]/m.test(change.read(plan))) done.add('impl');
+  // review notes in execution/reviews/, or a later step (verify) already done
+  if (change.files.some((f) => f.startsWith('execution/reviews/')) || has('execution/verify.md')) done.add('review');
   if (has('execution/progress.md')) done.add('progress');
   if (has('execution/verify.md')) done.add('verify');
   if (change.archived) { done.add('archive'); done.add('verify'); }
   let branchExists = false;
   try { git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/change/${change.id}`]); branchExists = true; } catch { /* no branch / no git */ }
-  return { done, branchExists };
+  return { done, branchExists, main: mainBranch(root) };
 }
 
 function main() {

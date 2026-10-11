@@ -22,7 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { findProjectRoot, git, listFiles, loadChange, openWork, resolveTool, SESSION_FILES, SESSION_SKILLS, UsageError, verifyCriticals } from './lib/change.mjs';
+import { findProjectRoot, git, listFiles, loadChange, openWork, plural, resolveTool, SESSION_FILES, SESSION_SKILLS, UsageError, verifyCriticals } from './lib/change.mjs';
 import {
   baselineDeltas, changeDeltas, dependencyClosure, changeLocation, findParentOf, lintSlices, mainSpecRequirements,
   nameLeaks, nameSlices, parentDir, parseSlices, parseSplitNotes, readiness, SLICE_STATUSES,
@@ -30,7 +30,8 @@ import {
 import { isMain } from './lib/main.mjs';
 
 const lc = (s) => s.trim().toLowerCase();
-const today = () => new Date().toISOString().slice(0, 10);
+// the local calendar date, like OpenSpec's own `created:` and archive prefixes (not UTC)
+const today = (d = new Date()) => [d.getFullYear(), d.getMonth() + 1, d.getDate()].map((n, i) => String(n).padStart(i ? 2 : 4, '0')).join('-');
 const q = (n) => `"${n}"`;
 
 // ------------------------------------------------------------------ loss check
@@ -186,7 +187,7 @@ export function formatLoss(r) {
   // same state, same verdict as a standalone split loss: placeholders left = not a PASS (pending right after split apply, else FAIL)
   const pending = !r.errors.length && r.todoMode === 'pending' && r.todos?.length;
   const out = [`loss-check ${r.parent} (${r.final ? 'final, before archiving the parent' : 'after split'}): ${r.errors.length ? 'FAIL' : pending ? `PENDING - ${r.todos.length} TODO(agent: ...) placeholder(s) to fill; split loss ${r.parent} fails until they are` : 'PASS'}`];
-  out.push(`  baseline: original deltas at split commit ${r.commit.slice(0, 7)} (git show) - ${r.requirements} requirements, ${r.scenarios} scenarios; slices: ${r.slices}; split notes: ${r.notes}`);
+  out.push(`  baseline: original deltas at split commit ${r.commit.slice(0, 7)} (git show) - ${plural(r.requirements, 'requirement')}, ${plural(r.scenarios, 'scenario')}; slices: ${r.slices}; split notes: ${r.notes}`);
   for (const row of r.rows) {
     const bad = /MISSING|DUPLICATE/.test(row.verdict) || row.scenarios.some((s) => /MISSING|DUPLICATE/.test(s.at));
     out.push(`  ${bad ? '✗' : '✓'} Requirement "${row.requirement}" -> ${row.verdict}`);
@@ -457,12 +458,12 @@ export function finishSlice(root, sliceId, phase) {
     const missing = need.filter((f) => !change.files.includes(f));
     // everything that blocks the archive, listed at once: missing files, open work (verify's instruction is only
     // context for the agent, so it is enforced here), CRITICAL issues in verify.md, TODO(agent:) placeholders
-    const open = [...openWork(change), ...placeholders(root, change.dir, { all: true }).map((t) => `${t}: TODO(agent: ...) placeholder left`)];
+    const open = [...openWork(change).map((o) => `openspec/changes/${sliceId}/${o}`), ...placeholders(root, change.dir, { all: true }).map((t) => `${t}: TODO(agent: ...) placeholder left`)];
     const critical = missing.includes('execution/verify.md') ? [] : verifyCriticals(change.read('execution/verify.md'));
     if (missing.length || open.length || critical.length) {
-      throw new Refused([`${missing.length + open.length + critical.length} problem(s) in ${sliceId} - nothing archived. Fix them all (the tool's implement / plan steps), re-run /opsx:verify, then /sdd-slice-finish again:`,
+      throw new Refused([`${plural(missing.length + open.length + critical.length, 'problem')} in ${sliceId} - nothing archived. Fix them all (the tool's implement / plan steps), re-run /opsx:verify, then /sdd-slice-finish again:`,
         ...missing.map((f) => `  missing: openspec/changes/${sliceId}/${f} (${f.endsWith('verify.md') ? 'run /opsx:verify and save the report there' : 'copy the Superpowers ledger there'})`),
-        ...open.map((o) => `  open: ${o}`), ...critical.map((c) => `  CRITICAL in execution/verify.md: ${c}`)].join('\n'));
+        ...open.map((o) => `  open: ${o}`), ...critical.map((c) => `  CRITICAL in openspec/changes/${sliceId}/execution/verify.md: ${c}`)].join('\n'));
     }
     return [`slice finish ${sliceId}: ${need.join(' and ')} present${tool ? ` (${tool})` : ''}; archiving the slice (parent ${parent.id})`];
   }
@@ -582,20 +583,23 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md',
   if (!fs.existsSync(pf)) throw new UsageError(`no ${proposal} - run /sdd-split-check ${id} and have the engineer approve the proposed slices`);
   const ptext = fs.readFileSync(pf, 'utf8');
   const prop = parseSlices(ptext);
-  if (!prop.front.approved_by) throw new UsageError(`${proposal}: front matter "approved_by:" is empty - the engineer approves (or edits) the slices first; nothing is split automatically`);
+  // every precondition problem is collected and reported at once (like /sdd-slice-finish)
+  const problems = [];
+  let busy = null; // the in-progress refusal (exit 1) when it is the only problem
+  if (!prop.front.approved_by) problems.push(`${proposal}: front matter "approved_by:" is empty - the engineer approves (or edits) the slices first; nothing is split automatically`);
   const parent = findParentOf(root, id);
   const resplit = Boolean(parent && parent.id !== id);
   // slice ids: <parent>-<nn>-<slice> (the proposal lists the slice part + order; a re-split continues the numbering)
   const named = nameSlices(prop.slices, resplit ? parent.id : id, { existing: resplit ? parent.plan.slices.map((s) => s.id) : [] });
-  if (named.errors.length) throw new UsageError(`${proposal}:\n  ${named.errors.join('\n  ')}`);
+  if (named.errors.length) throw new UsageError([...problems, ...named.errors.map((e) => `${proposal}: ${e}`)].join('\n  '));
   prop.slices = named.slices;
   const warnings = [];
   if (resplit) {
     const old = parent.plan.slices.find((x) => x.id === id);
     // re-splitting a taken slice resets it: its children start "planned" - same rule as undo
     if (old?.status === 'in-progress') {
-      if (!force) throw new Refused(`"${id}" is in progress (taken) - someone may be working on it; its new slices would start as planned. Check with them; to re-split anyway: /sdd-split-apply ${id} --force`);
-      warnings.push(`"${id}" was in progress: its new slices start as planned - take one with /sdd-slice-start <slice>`);
+      if (!force) problems.push(busy = `"${id}" is in progress (taken) - someone may be working on it; its new slices would start as planned. Check with them; to re-split anyway: /sdd-split-apply ${id} --force`);
+      else warnings.push(`"${id}" was in progress: its new slices start as planned - take one with /sdd-slice-start <slice>`);
     }
     // the flag stays with the child that holds the flag requirement (the others: flag none)
     if (old?.flag && !prop.slices.some((x) => x.flag)) {
@@ -615,14 +619,14 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md',
       tracked = git(root, ['ls-tree', '-r', '--name-only', 'HEAD', '--', rel]).trim();
       splitCommit = git(root, ['rev-parse', 'HEAD']).trim();
     } catch (e) { throw new UsageError(`split apply needs git: the original deltas at a commit are the loss-check baseline (${String(e.message).split('\n')[0]})`); }
-    if (!tracked || dirty) throw new UsageError(`commit ${rel} first (clean, committed) - that commit is the loss-check baseline${dirty ? `\n  uncommitted: ${dirty.split('\n').join(', ')}` : ''}`);
+    if (!tracked || dirty) problems.push(`commit ${rel} first (clean, committed) - that commit is the loss-check baseline${dirty ? `\n  uncommitted: ${dirty.split('\n').join(', ')}` : ''}`);
   }
   const combined = resplit
     ? { ...prop, slices: [...parent.plan.slices.filter((s) => s.id !== id).map((s) => ({ ...s, depends_on: s.depends_on.flatMap((d) => (d === id ? prop.slices.map((x) => x.id) : [d])) })), ...prop.slices] }
     : prop;
   const lint = lintSlices(combined, { text: ptext.replace(/^---[\s\S]*?---/, '') });
-  if (lint.errors.length) throw new UsageError(`${proposal}:\n  ${lint.errors.join('\n  ')}`);
-  if (resplit && prop.slices.some((s) => s.id === id)) throw new UsageError(`re-split: the new slices must have new ids (not "${id}")`);
+  problems.push(...lint.errors.map((e) => `${proposal}: ${e}`));
+  if (resplit && prop.slices.some((s) => s.id === id)) problems.push(`re-split: the new slices must have new ids (not "${id}")`);
   const originals = changeDeltas(src);
   const keep = originals.filter((r) => r.section !== 'REMOVED');
   const byName = new Map(keep.map((r) => [lc(r.name), r]));
@@ -639,7 +643,9 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md',
   }
   for (const r of keep) if (!used.has(lc(r.name))) errs.push(`requirement "${r.name}" is in no slice (to drop it, put it in a slice and record "- dropped:" in that child's split notes after the split)`);
   if (originals.some((r) => r.section === 'REMOVED')) errs.push('REMOVED requirements in the original change are not supported by split apply - move them to a slice by hand first');
-  if (errs.length) throw new UsageError(`${proposal}:\n  ${errs.join('\n  ')}`);
+  problems.push(...errs.map((e) => `${proposal}: ${e}`));
+  if (problems.length === 1 && busy) throw new Refused(busy);
+  if (problems.length) throw new UsageError(problems.length === 1 ? problems[0] : `${plural(problems.length, 'problem')} - nothing split; fix them all, then /sdd-split-apply ${id} again:\n  - ${problems.join('\n  - ')}`);
 
   const mainCaps = new Set(mainSpecRequirements(root).map((m) => m.capability));
   const depClosure = dependencyClosure(prop.slices);
@@ -653,6 +659,7 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md',
     return { id: s.id, requirements: new Set([...names(/^###\s+Requirement:\s*(.+)$/gm, blocks), ...s.split.map((x) => lc(x.to))]), scenarios: names(/^####\s+Scenario:\s*(.+)$/gm, blocks) };
   })) : {};
   const created = [];
+  const rewired = []; // re-split: dependents whose proposal.md Impact line was rewired
   // feature-flag scaffolding: the flagged slice ADDs "Feature flag <flag>" (+ an "added:" split note), the cleanup
   // slice REMOVEs it - placeholders the agent fills. Skipped when the source delta already has that requirement.
   const flagReqName = (f) => `Feature flag ${f}`;
@@ -767,11 +774,19 @@ export function applySplit(root, id, { proposal = 'execution/split-proposal.md',
     const newIds = prop.slices.map((s) => s.id);
     text = text.replace(/^(- depends_on:\s*)(.*)$/gm, (m, a, v) => a + v.split(',').map((x) => x.trim()).flatMap((x) => (x === id ? newIds : [x])).filter(Boolean).join(', '));
     fs.writeFileSync(f, text);
+    // dependents' proposals name their dependencies in Impact ("depends on: ..."): rewire those too
+    for (const sib of parent.plan.slices.filter((x) => x.id !== id && x.depends_on.includes(id))) {
+      const pf = path.join(root, 'openspec', 'changes', sib.id, 'proposal.md');
+      if (!fs.existsSync(pf)) continue;
+      const t = fs.readFileSync(pf, 'utf8');
+      const u = t.replace(/(depends on: )([^\n.]*)/g, (m, a, v) => a + v.split(',').map((x) => x.trim()).flatMap((x) => (x === id ? newIds : [x])).filter(Boolean).join(', '));
+      if (u !== t) { fs.writeFileSync(pf, u); rewired.push(sib.id); }
+    }
     fs.rmSync(src, { recursive: true, force: true });
     // the old slice's Jira ticket goes with it (the new slices get theirs when READY)
     fs.rmSync(path.join(pdir, 'tickets', `${id}.md`), { force: true });
   }
-  return { parent: parentId, parentDir: pdir, created, resplit, splitCommit, warnings, scaffolded, names: named.slices.map((x) => [x.given, x.id]) };
+  return { parent: parentId, parentDir: pdir, created, rewired, resplit, splitCommit, warnings, scaffolded, names: named.slices.map((x) => [x.given, x.id]) };
 }
 
 // ------------------------------------------------------------------ CLI
@@ -796,6 +811,7 @@ async function main() {
     }
     console.log(`split apply ${id}: ${r.resplit ? `re-split into parent ${r.parent}` : `parent ${r.parent} (schema split-plan, split_commit ${r.splitCommit.slice(0, 7)})`}; children: ${r.created.join(', ')}`);
     console.log(`  slice ids (<parent>-<nn>-<slice>): ${r.names.map(([g, f]) => (g === f ? f : `${g} -> ${f}`)).join(', ')}`);
+    if (r.rewired?.length) console.log(`  depends on ${id} -> ${r.created.join(', ')}: slices.md and the proposal.md of ${r.rewired.join(', ')}`);
     console.log('  Child deltas hold the original requirement blocks verbatim; narrow any split requirement by hand (keep its <!-- split_from --> line).');
     for (const w of r.warnings) console.log(`  ! ${w}`);
     const loss = lossCheck(root, r.parent, { todos: 'pending' });
@@ -805,7 +821,7 @@ async function main() {
     const t = writeTickets(root, nextReport(root, r.parent));
     console.log(`  tickets written for READY slices: ${t.join(', ') || 'none'}`);
     for (const x of r.scaffolded) console.log(`  flag scaffold: ${x}`);
-    const commit = `git add -A openspec/changes && git commit -m "split: ${id}${r.resplit ? ` re-split in ${r.parent}` : ''} into ${r.created.length} slices"`;
+    const commit = `git add -A openspec/changes && git commit -m "split: ${id}${r.resplit ? ` re-split in ${r.parent}` : ''} into ${plural(r.created.length, 'slice')}"`;
     if (loss.todos.length) {
       console.log(`Next: fill the TODO(agent: ...) placeholders first - ${loss.todos.join(', ')} (split loss ${r.parent} fails while any is left);`);
       console.log(`  then: split loss ${r.parent} (PASS), then commit the split (one planning PR): ${commit}`);
@@ -836,7 +852,7 @@ async function main() {
     // /sdd-split-finish, before openspec archive: every slice archived (else stop early), statuses done, final loss check
     const rep = nextReport(root, id);
     const open = rep.rows.filter((x) => x.status !== 'done');
-    if (open.length) { console.log(`split-finish ${id}: REFUSED - ${open.length} slice(s) not archived: ${open.map((x) => `${x.id} (${x.status})`).join(', ')}. Each slice's archive lands on main with its PR first; /sdd-split-status ${id} shows the state.`); return 1; }
+    if (open.length) { console.log(`split-finish ${id}: REFUSED - ${plural(open.length, 'slice')} not archived: ${open.map((x) => `${x.id} (${x.status})`).join(', ')}. Each slice's archive lands on main with its PR first; /sdd-split-status ${id} shows the state.`); return 1; }
     const marked = markDone(root, rep);
     const r = lossCheck(root, id, { final: true });
     r.errors.push(...parentLeaks(root, id));
@@ -855,6 +871,12 @@ async function main() {
     r.warnings.push(...sm.warnings);
     console.log(values.json ? JSON.stringify(r, null, 2) : formatLoss(r));
     return r.errors.length ? 1 : 0;
+  }
+  const loc = changeLocation(root, id);
+  if (loc?.archived && fs.existsSync(path.join(loc.dir, 'slices.md'))) {
+    // /sdd-split-finish ran: the parent is archived - nothing is ready, nothing is written
+    console.log(`split-status ${id}: done - the split is finished (parent archived in ${path.relative(root, loc.dir).split(path.sep).join('/')}/ after every slice). Nothing left to do.`);
+    return 0;
   }
   const r = nextReport(root, id);
   const marked = values['write-tickets'] ? markDone(root, r) : [];

@@ -136,11 +136,12 @@ test('commit lines cover the whole change and AI Hero project docs: tool --set o
 test('sdd-pp handoff-draft pre-fills handoff.md (change, tool, base_ref, every delta + session link, size) leaving only apply_mode / harness / notes; refuses to overwrite; for a slice it links the parent', () => {
   const { dir, changeDir, git } = makeFixture();
   fs.rmSync(path.join(changeDir, 'handoff.md'));
+  fs.writeFileSync(path.join(changeDir, 'execution/split-check.md'), '# split-check\n'); // written before the handoff, not committed yet
   const cli = (...a) => { const r = spawnSync(process.execPath, [CLI, ...a], { cwd: dir, encoding: 'utf8' }); return { code: r.status, out: r.stdout + r.stderr }; };
   let r = cli('handoff-draft', CHANGE);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /^handoff-draft add-greeting-name: wrote openspec\/changes\/add-greeting-name\/handoff\.md \(tool ai-hero, base_ref [0-9a-f]{7}; links, deltas and size filled\)$/m);
-  assert.match(r.out, /Left for you: apply_mode, harness \(optional\)[^\n]*git add openspec\/changes\/add-greeting-name\/handoff\.md && git commit -m "handoff\(add-greeting-name\): ai-hero"/);
+  assert.match(r.out, /Left for you: apply_mode, harness \(optional\)[^\n]*git add -A openspec\/changes\/add-greeting-name && git commit -m "handoff\(add-greeting-name\): ai-hero"/, 'the whole change folder');
   const h = fs.readFileSync(path.join(changeDir, 'handoff.md'), 'utf8');
   assert.match(h, /^change: add-greeting-name$/m);
   assert.match(h, /^tool: ai-hero$/m);
@@ -150,10 +151,15 @@ test('sdd-pp handoff-draft pre-fills handoff.md (change, tool, base_ref, every d
   assert.match(h, /^- Design session \(proposal phase\): \[execution\/grill\.md\]\(execution\/grill\.md\)$/m);
   assert.match(h, /^- Requirements in deltas: 2 \(budget 5\)$/m);
   assert.match(h, /^- Split decision: fits$/m);
-  assert.doesNotMatch(h, /brainstorm|writing-plans|<capability>/, 'only the chosen tool\'s rows, real deltas');
+  assert.doesNotMatch(h, /brainstorm|writing-plans|<capability>|<base_ref>/, 'only the chosen tool\'s rows, real deltas, no literal placeholders');
+  assert.match(h, /^Implementation diff: `git diff main\.\.\.HEAD -- \. ':!openspec'` \(since the branch point with main/m);
   // the filled draft is a valid handoff once apply_mode is chosen
   fs.writeFileSync(path.join(changeDir, 'handoff.md'), h.replace(/^apply_mode: .*$/m, 'apply_mode: implement').replace(/^harness: .*\n/m, ''));
-  assert.match(cli('change-status', CHANGE).out, /^Next steps for add-greeting-name \(ai-hero, apply_mode: implement\)/m);
+  runPrinted(dir, r.out, 'Left for you');
+  assert.equal(git('status', '--porcelain'), '', 'the printed commit line leaves a clean tree');
+  const cs = cli('change-status', CHANGE).out;
+  assert.match(cs, /^Next steps for add-greeting-name \(ai-hero, apply_mode: implement\)/m);
+  assert.match(cs, /Review the branch's own diff: git diff main\.\.\.HEAD -- \. ':!openspec' \(three dots = since the branch point with main/);
   r = cli('handoff-draft', CHANGE);
   assert.equal(r.code, 2, r.out);
   assert.match(r.out, /handoff\.md exists - edit it \(nothing overwritten\)/);

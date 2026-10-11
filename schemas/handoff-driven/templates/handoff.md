@@ -18,7 +18,7 @@ apply_mode: <implement | implement-spec | executing-plans | subagent-driven-deve
 - Design session (proposal phase): [execution/grill.md](execution/grill.md) | [execution/brainstorm.md](execution/brainstorm.md)
 
 Design and implementation are owned by the execution tool (below); OpenSpec has no design step.
-Implementation diff: `git diff <base_ref>...HEAD -- . ':!openspec'`
+Implementation diff: `git diff main...HEAD -- . ':!openspec'` (three dots: since the branch point with main, so main merged in later is left out)
 
 ## Execution artifacts
 

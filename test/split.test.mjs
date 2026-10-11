@@ -82,6 +82,12 @@ test('split apply: refuses without approval or with uncommitted deltas; the pare
   r = run('split.mjs', ['apply', 'add-reports'], dir);
   assert.equal(r.code, 2);
   assert.match(r.out, /commit .*specs.* first .*loss-check baseline/);
+  // several problems at once: all listed in one refusal (not one per run)
+  W(dir, `${c}/execution/split-proposal.md`, PROPOSAL('').replace('- requirements: Report filters\n', '- requirements: none\n'));
+  r = run('split.mjs', ['apply', 'add-reports'], dir);
+  assert.equal(r.code, 2, r.out);
+  assert.match(r.out, /3 problems - nothing split; fix them all, then \/sdd-split-apply add-reports again:\n  - execution\/split-proposal\.md: front matter "approved_by:" is empty[^\n]*\n  - commit openspec\/changes\/add-reports\/specs first[\s\S]*\n  - execution\/split-proposal\.md: requirement "Report filters" is in no slice/);
+  W(dir, `${c}/execution/split-proposal.md`, PROPOSAL());
   git('commit', '-qam', 'deltas final');
   const head = git('rev-parse', 'HEAD').trim();
   r = run('split.mjs', ['apply', 'add-reports'], dir);
@@ -346,6 +352,11 @@ test('re-split: a slice is split again into the SAME parent (no nested parents);
   assert.equal(fs.existsSync(path.join(dir, 'openspec/changes/add-reports-03-csv-export')), false);
   const s = R(dir, `${C}/slices.md`);
   assert.match(s, /### Slice: add-reports-99-remove-csv-flag[\s\S]*- depends_on: add-reports-04-csv-export-core, add-reports-05-csv-export-flag/);
+  // the dependent's proposal.md Impact line is rewired too (no stale pointer to a removed folder)
+  const p99 = R(dir, 'openspec/changes/add-reports-99-remove-csv-flag/proposal.md');
+  assert.match(p99, /depends on: add-reports-04-csv-export-core, add-reports-05-csv-export-flag\./);
+  assert.doesNotMatch(p99, /add-reports-03-csv-export/);
+  assert.match(r.out, /^  depends on add-reports-03-csv-export -> add-reports-04-csv-export-core, add-reports-05-csv-export-flag: slices\.md and the proposal\.md of add-reports-99-remove-csv-flag$/m);
   assert.equal(fs.existsSync(path.join(dir, 'openspec/changes/add-reports-04-csv-export-core/slices.md')), false);
   assert.match(R(dir, 'openspec/changes/add-reports-05-csv-export-flag/proposal.md'), /- added: Requirement "Feature flag csv-export"/);
   const l = run('split.mjs', ['loss', 'add-reports'], dir);
@@ -580,10 +591,16 @@ test('split-check --write prints a commit line that, followed literally, commits
   const { dir, git } = splitProject(); // split-proposal.md is not committed yet
   W(dir, `${C}/specs/export/spec.md`, R(dir, `${C}/specs/export/spec.md`).replace('for every report', 'for every weekly report'));
   W(dir, `${C}/execution/grill.md`, '# Grill\n\n- weekly\n');
+  const prop = R(dir, `${C}/execution/split-proposal.md`);
+  fs.rmSync(path.join(dir, `${C}/execution/split-proposal.md`));
   let r = run('split-check.mjs', ['add-reports', '--write'], dir);
   assert.match(r.out, /^Commit with the change: git add -A openspec\/changes\/add-reports && git commit -m "split-check\(add-reports\): fits"$/m);
-  assert.doesNotMatch(r.out, /sdd-split-apply needs them/, 'fits: no split-apply wording');
-  runPrinted(dir, r.out, 'Commit with the change');
+  assert.doesNotMatch(r.out, /sdd-split-apply needs them/, 'fits without a proposal: no split-apply wording');
+  W(dir, `${C}/execution/split-proposal.md`, prop);
+  r = run('split-check.mjs', ['add-reports', '--write'], dir);
+  assert.match(r.out, /^split-check add-reports: fits \(3 requirements, 2 capabilities\) - but execution\/split-proposal\.md exists \(a deliberate split\): preview below$/m);
+  assert.match(r.out, /^Approved\. Apply \(after committing the deltas/m);
+  runPrinted(dir, r.out, 'Commit the change with its deltas');
   assert.equal(git('status', '--porcelain', '--', 'openspec/changes').trim(), '', 'the printed line committed everything split apply checks');
   r = run('split.mjs', ['apply', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
@@ -599,15 +616,27 @@ test('next-steps on a started slice (no handoff.md yet): exit 0, the steps up to
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^add-reports-03-csv-export: no handoff\.md yet - the change is not handed off/);
   assert.match(r.stdout, /^\[done\] 1\. \/sdd-slice-start add-reports-03-csv-export - takes the slice/m);
-  assert.match(r.stdout, /^2\. (Design session|Pick the tool)/m);
-  assert.match(r.stdout, /^\[done\] 3\. openspec\/changes\/add-reports-03-csv-export\/proposal\.md/m);
+  assert.match(r.stdout, /^2\. git switch -c change\/add-reports-03-csv-export: the slice's design session, handoff, planning and code all go on this branch/m, 'the branch step');
+  assert.match(r.stdout, /^3\. (Design session|Pick the tool)/m);
+  assert.match(r.stdout, /^\[done\] 4\. openspec\/changes\/add-reports-03-csv-export\/proposal\.md/m);
   // the flag scaffold's TODO(agent: ...) placeholders keep the delta step open and are listed
-  assert.match(r.stdout, /^4\. Delta specs [^\n]*Fill the TODO\(agent: \.\.\.\) placeholders first: openspec\/changes\/add-reports-03-csv-export\/specs\/export\/spec\.md:\d+/m);
-  assert.match(r.stdout, /^5\. \/sdd-handoff add-reports-03-csv-export -> openspec\/changes\/add-reports-03-csv-export\/handoff\.md/m);
-  assert.doesNotMatch(r.stdout, /split-check|\/to-spec|writing-plans/, 'no split gate for a slice, no implementation steps before handoff');
+  assert.match(r.stdout, /^5\. Delta specs [^\n]*Fill the TODO\(agent: \.\.\.\) placeholders first: openspec\/changes\/add-reports-03-csv-export\/specs\/export\/spec\.md:\d+/m);
+  assert.match(r.stdout, /^6\. \/sdd-split-check add-reports-03-csv-export - split gate [^\n]*; for a slice a re-split adds slices to add-reports\.$/m, 'the slice split gate the handoff skill requires');
+  assert.match(r.stdout, /^7\. \/sdd-handoff add-reports-03-csv-export -> openspec\/changes\/add-reports-03-csv-export\/handoff\.md/m);
+  assert.doesNotMatch(r.stdout, /\/to-spec|writing-plans/, 'no implementation steps before handoff');
   addFlag(dir);
+  git('branch', 'change/add-reports-03-csv-export');
   r = run('next-steps.mjs', ['add-reports-03-csv-export'], dir);
-  assert.match(r.stdout, /^\[done\] 4\. Delta specs/m);
+  assert.match(r.stdout, /^\[done\] 5\. Delta specs/m);
+  assert.match(r.stdout, /^\[done\] 2\. git switch change\/add-reports-03-csv-export - the branch exists/m);
+  // a pending split proposal (re-split) replaces the handoff step: approve, commit, apply
+  W(dir, 'openspec/changes/add-reports-03-csv-export/execution/split-proposal.md', '---\napproved_by:\n---\n\n## Slices\n');
+  r = run('next-steps.mjs', ['add-reports-03-csv-export'], dir);
+  assert.match(r.stdout, /^7\. Split proposal waiting for approval: openspec\/changes\/add-reports-03-csv-export\/execution\/split-proposal\.md - the engineer approves \(approved_by: <name>\)[^\n]*\/sdd-split-apply add-reports-03-csv-export\. Do not hand off/m);
+  assert.doesNotMatch(r.stdout, /\/sdd-handoff add-reports-03/);
+  W(dir, 'openspec/changes/add-reports-03-csv-export/execution/split-proposal.md', '---\napproved_by: lead\n---\n\n## Slices\n');
+  assert.match(run('next-steps.mjs', ['add-reports-03-csv-export'], dir).stdout, /^7\. Split approved \(by lead\): commit the deltas \(git add -A openspec\/changes\/add-reports-03-csv-export && git commit [^\n]*then \/sdd-split-apply add-reports-03-csv-export\./m);
+  fs.rmSync(path.join(dir, 'openspec/changes/add-reports-03-csv-export/execution/split-proposal.md'));
   // a handoff.md with no valid tool is still an error (it exists but is wrong)
   W(dir, 'openspec/changes/add-reports-03-csv-export/handoff.md', '---\ntool: bogus\n---\n');
   r = run('next-steps.mjs', ['add-reports-03-csv-export'], dir);
@@ -768,7 +797,7 @@ test('split apply with flag TODOs says PENDING like split loss (not PASS); slice
   assert.match(run('next-steps.mjs', ['add-reports-03-csv-export'], dir).out, /--set <tool> changes it before the session starts/);
   W(dir, `${slice}/execution/grill.md`, R(dir, `${slice}/execution/grill.md`) + '\nDecided: CSV only.\n');
   r = run('next-steps.mjs', ['add-reports-03-csv-export'], dir);
-  assert.match(r.out, /^\[done\] 2\. Design session: grill-with-docs/m);
+  assert.match(r.out, /^\[done\] 3\. Design session: grill-with-docs/m);
   assert.doesNotMatch(r.out, /--set <tool> changes it/);
   // finish-mark: not the last slice -> split-status; the last one -> split-finish
   for (const id of ['add-reports-01-totals', 'add-reports-02-filters']) archive(dir, id);
@@ -799,4 +828,51 @@ test('handoff-draft on a slice links the parent plan and its shared session; Spl
   r = sddCli(dir, 'handoff-draft', 'add-reports');
   assert.equal(r.code, 2);
   assert.match(r.out, /add-reports is a split parent - hand off its slices/);
+});
+
+test('split apply dates (slices.md split_at, slice .openspec.yaml created) are the local calendar date, not UTC', () => {
+  // UTC-12 and UTC+14: at any moment at least one of them is on a different date than UTC
+  for (const [tz, hours] of [['Etc/GMT+12', -12], ['Etc/GMT-14', 14]]) {
+    const { dir } = splitProject();
+    const r = spawnSync(process.execPath, [path.join(TOOLKIT, 'scripts/split.mjs'), 'apply', 'add-reports'], { cwd: dir, encoding: 'utf8', env: { ...process.env, TZ: tz } });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const local = new Date(Date.now() + hours * 3600e3).toISOString().slice(0, 10);
+    assert.match(R(dir, 'openspec/changes/add-reports/slices.md'), new RegExp(`^split_at: ${local}$`, 'm'), tz);
+    assert.match(R(dir, 'openspec/changes/add-reports-01-totals/.openspec.yaml'), new RegExp(`created: ${local}`), tz);
+  }
+});
+
+test('change-status on a change with a pending split proposal: approve, commit, /sdd-split-apply - not /sdd-handoff', () => {
+  const { dir, c } = splitProject();
+  W(dir, `${c}/execution/split-check.md`, '# split-check\n');
+  W(dir, `${c}/execution/split-proposal.md`, PROPOSAL(''));
+  let r = sddCli(dir, 'change-status', 'add-reports');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^\[done\] \d\. \/sdd-split-check add-reports - split gate/m);
+  assert.match(r.out, /^\d\. Split proposal waiting for approval: openspec\/changes\/add-reports\/execution\/split-proposal\.md/m);
+  assert.doesNotMatch(r.out, /\/sdd-handoff add-reports/);
+  W(dir, `${c}/execution/split-proposal.md`, PROPOSAL());
+  assert.match(sddCli(dir, 'change-status', 'add-reports').out, /Split approved \(by engineer \(test\)\): commit the deltas/);
+});
+
+test('split-check: a fitting slice with a split proposal gets the preview (ids, lint, approval) and the baseline commit line; a short "## Purpose" on a new capability warns early', () => {
+  const { dir, git } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  addFlag(dir);
+  git('add', '-A'); git('commit', '-qm', 'split');
+  const s = 'add-reports-03-csv-export';
+  W(dir, `openspec/changes/${s}/execution/split-proposal.md`, `---\napproved_by:\n---\n\n## Slices\n\n### Slice: csv-core\n- goal: File export\n- capabilities: export\n- requirements: CSV export\n- depends_on: none\n- flag: none\n`);
+  let r = sddCli(dir, 'split-check', s);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^split-check add-reports-03-csv-export: fits \(2 requirements, 1 capability\) - but execution\/split-proposal\.md exists \(a deliberate split; a re-split adds new slices to parent add-reports\): preview below$/m);
+  assert.match(r.out, /^\| add-reports-04-csv-core \| CSV export \| - \| - \|$/m, 'the ids split apply will create');
+  assert.match(r.out, /✗ Requirement "Feature flag csv-export" is in no slice/);
+  assert.match(r.out, /Waiting for the engineer: approve or edit the slices/);
+  assert.match(r.out, /^Commit the change with its deltas \(\/sdd-split-apply needs them committed/m);
+  // Purpose under 50 characters on a new capability: strict validation fails only after archive
+  const spec = `openspec/changes/${s}/specs/export/spec.md`;
+  W(dir, spec, R(dir, spec).replace(/## Purpose\n\n[^\n]*\n/, '## Purpose\n\nCSV export.\n'));
+  fs.rmSync(path.join(dir, `openspec/changes/${s}/execution/split-proposal.md`));
+  r = sddCli(dir, 'split-check', s);
+  assert.match(r.out, /^  ! specs\/export\/spec\.md: "## Purpose" is 11 characters \(< 50\) - openspec validate --strict passes on the change but fails on the main spec after archive; write a full sentence$/m);
 });

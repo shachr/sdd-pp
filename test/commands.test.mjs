@@ -285,11 +285,14 @@ test('no double prefix and no retired names in anything init installs or the CLI
   walk(dir);
   assert.deepEqual(hits, []);
   for (const f of ['sdd-slice-start.md', 'sdd-split-finish.md']) assert.ok(fs.existsSync(path.join(dir, '.claude/commands', f)), f);
-  for (const [old, now] of [[['split', 'start'], 'slice-start <slice>'], [['split', 'archive'], 'split-finish <parent>'], [['split', 'finish'], 'slice-finish <slice>'], [['split', 'next'], 'split-status <parent>'], [['next'], 'change-status <id>'], [['next-steps'], 'change-status <id>']]) {
+  for (const [old, now] of [[['split', 'start'], 'slice-start <slice>'], [['split', 'archive'], 'split-finish <parent>'], [['split', 'finish'], 'slice-finish <slice>'], [['split', 'next'], 'split-status <parent>'], [['next'], 'change-status <id>'], [['next-steps'], 'change-status <id>'],
+    [['split-next'], 'split-status <parent>'], [['split-archive'], 'split-finish <parent>'], [['split-start'], 'slice-start <slice>'], [['sdd-next-steps'], 'change-status <id>'], [['split-apply'], 'split apply <id>'], [['split-undo'], 'split undo <parent>']]) {
     const r = spawnSync(process.execPath, [CLI, ...old, 'x'], { cwd: dir, encoding: 'utf8' });
     assert.equal(r.status, 2, old.join(' '));
     assert.match(r.stderr + r.stdout, new RegExp(`"${old.join(' ')}" is now "${now}"`));
   }
+  // the agent-facing instructions name the public command, not the script behind it (e2e4)
+  for (const f of ['schemas/handoff-driven/schema.yaml', 'skills/openspec-handoff/SKILL.md', 'scripts/dev-generate-schema.mjs']) assert.doesNotMatch(fs.readFileSync(path.join(TOOLKIT, f), 'utf8'), /next-steps\.mjs/, f);
   for (const [tool, mode] of [['ai-hero', 'implement'], ['superpowers', 'subagent-driven-development']]) {
     for (const parent of [null, 'p']) assert.doesNotMatch(nextSteps({ id: 'x', tool, applyMode: mode, parent }), bad);
   }

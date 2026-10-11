@@ -99,8 +99,8 @@ project default).
 The handoff stage writes handoff.md - start from \`node .openspec-handoff/scripts/sdd.mjs handoff-draft <change>\`
 (every derivable field filled: change, tool, base_ref, links, slice/parent, size; only
 apply_mode, harness and notes left as <...>) - and ENDS by printing the
-next steps for the tool - \`node .openspec-handoff/scripts/next-steps.mjs <change>\`
-(reprint: \`/sdd-change-status <change>\`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
+next steps for the tool - \`node .openspec-handoff/scripts/sdd.mjs change-status <change>\`
+(the engineer reprints them with \`/sdd-change-status <change>\`) - WITHOUT running them. Planning (AI Hero to-spec + to-tickets, or Superpowers
 writing-plans), /sdd-spec-check, implementation, the tool's code review, /opsx:verify
 and /opsx:archive are the engineer's next steps, run through the tool's wrapper
 skill. The code review is the tool's own review step (CI also reviews the PR). There is no OpenSpec tasks artifact: progress lives in the tool's own
