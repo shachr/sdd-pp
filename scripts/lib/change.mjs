@@ -312,5 +312,10 @@ export const PROJECT_DOCS = ['GLOSSARY.md', 'docs/adr'];
  * notes, execution/, deleted stubs) plus GLOSSARY.md / docs/adr when they exist. `relDir` is relative to the root.
  */
 export function addArgs(root, relDir) {
-  return ['-A', relDir, ...PROJECT_DOCS.filter((p) => fs.existsSync(path.join(root, p)))].join(' ');
+  // GLOSSARY.md / docs/adr only when they exist AND have uncommitted changes (an unchanged path adds nothing)
+  const changed = (p) => {
+    if (!fs.existsSync(path.join(root, p))) return false;
+    try { return git(root, ['status', '--porcelain', '--', p]).trim() !== ''; } catch { return true; /* no git: keep it */ }
+  };
+  return ['-A', relDir, ...PROJECT_DOCS.filter(changed)].join(' ');
 }

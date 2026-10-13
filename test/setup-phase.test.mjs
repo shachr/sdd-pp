@@ -127,10 +127,13 @@ test('commit lines cover the whole change and AI Hero project docs: tool --set o
   fs.writeFileSync(rep, fs.readFileSync(rep, 'utf8').replace(/^PENDING: .*$/m, 'PASS').replace(/<!-- \/sdd-spec-check: the agent reads[^>]*-->/, '- Missing: none'));
   r = run('spec-check.mjs', [CHANGE, '--accept'], dir);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /git add -A openspec\/changes\/add-greeting-name GLOSSARY\.md docs\/adr && git commit -m "spec-check\(add-greeting-name\): PASS"$/m);
+  assert.match(r.out, /git add -A openspec\/changes\/add-greeting-name GLOSSARY\.md && git commit -m "spec-check\(add-greeting-name\): PASS"$/m, 'only the changed project doc: docs/adr is committed and unchanged');
   const m = /(git add -A [^\n]*&& git commit -m "[^"]*")/.exec(r.out);
   assert.equal(spawnSync('bash', ['-c', m[1]], { cwd: dir }).status, 0);
   assert.equal(status(), '', 'delta edit, report, baseline and glossary committed');
+  // nothing changed in GLOSSARY.md / docs/adr: they are left out of the line
+  r = run('execution-tool.mjs', ['add-thing', '--set', 'superpowers'], dir);
+  assert.match(r.out, /^Commit with the change: git add -A openspec\/changes\/add-thing && git commit/m, r.out);
 });
 
 test('sdd-pp handoff-draft pre-fills handoff.md (change, tool, base_ref, every delta + session link, size) leaving only apply_mode / harness / notes; refuses to overwrite; for a slice it links the parent', () => {
@@ -161,6 +164,6 @@ test('sdd-pp handoff-draft pre-fills handoff.md (change, tool, base_ref, every d
   assert.match(cs, /^Next steps for add-greeting-name \(ai-hero, apply_mode: implement\)/m);
   assert.match(cs, /Review the branch's own diff: git diff main\.\.\.HEAD -- \. ':!openspec' \(three dots = since the branch point with main/);
   r = cli('handoff-draft', CHANGE);
-  assert.equal(r.code, 2, r.out);
+  assert.equal(r.code, 1, r.out);
   assert.match(r.out, /handoff\.md exists - edit it \(nothing overwritten\)/);
 });

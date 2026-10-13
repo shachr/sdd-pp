@@ -27,15 +27,18 @@ const ROWS = {
   ],
 };
 
+/** The change is not in a state to draft a handoff (exit 1; a usage error is exit 2). */
+export class Refused extends Error {}
+
 export function handoffDraft(root, id) {
   const change = loadChange(root, id);
-  if (change.archived) throw new UsageError(`${id} is archived`);
-  if (change.files.includes('slices.md')) throw new UsageError(`${id} is a split parent - hand off its slices`);
-  if (change.files.includes('handoff.md')) throw new UsageError(`openspec/changes/${id}/handoff.md exists - edit it (nothing overwritten)`);
+  if (change.archived) throw new Refused(`${id} is archived`);
+  if (change.files.includes('slices.md')) throw new Refused(`${id} is a split parent - hand off its slices`);
+  if (change.files.includes('handoff.md')) throw new Refused(`openspec/changes/${id}/handoff.md exists - edit it (nothing overwritten)`);
   const { tool } = resolveTool(change);
-  if (!tool) throw new UsageError(`${id}: no execution tool - /sdd-tool ${id} --set <ai-hero|superpowers> (or a project default) first`);
+  if (!tool) throw new Refused(`${id}: no execution tool - /sdd-tool ${id} --set <ai-hero|superpowers> (or a project default) first`);
   const session = SESSION_FILES[tool];
-  if (!change.files.includes(session)) throw new UsageError(`${id}: no ${session} - run the design session (${SESSION_SKILLS[tool]}) first`);
+  if (!change.files.includes(session)) throw new Refused(`${id}: no ${session} - run the design session (${SESSION_SKILLS[tool]}) first`);
   let base = '<git rev-parse HEAD at handoff>';
   try { base = git(root, ['rev-parse', 'HEAD']).trim(); } catch { /* not a git checkout */ }
   const p = findParentOf(root, id);
@@ -80,5 +83,5 @@ function main() {
 }
 
 if (isMain(import.meta.url)) {
-  try { process.exit(main()); } catch (e) { console.error(`handoff-draft: ${e.message}`); process.exit(e instanceof UsageError ? 2 : 1); }
+  try { process.exit(main()); } catch (e) { console.error(`handoff-draft: ${e instanceof Refused ? 'REFUSED - ' : ''}${e.message}`); process.exit(e instanceof UsageError ? 2 : 1); }
 }
