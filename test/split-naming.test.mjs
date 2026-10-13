@@ -73,12 +73,12 @@ test('split-check shows the ids split apply will create; split apply builds them
   assert.ok(fs.existsSync(path.join(dir, 'openspec/changes/add-text-stats-01-core/specs/text-stats/spec.md')));
   ({ dir, c, g } = project(CORE + CLI_.replace('### Slice: cli\n- order: 02', '### Slice: add-text-stats-cli\n- order: 02') + CLEAN));
   r = run('split.mjs', ['apply', P], dir);
-  assert.equal(r.code, 2);
+  assert.equal(r.code, 1, "a refusal is exit 1");
   assert.match(r.out, /expected "add-text-stats-02-cli"/);
   assert.ok(!fs.existsSync(path.join(dir, 'openspec/changes/add-text-stats-cli')), 'nothing created');
   ({ dir } = project(CORE + CLI_ + CLEAN.replace('- goal: Remove', '- order: 03\n- goal: Remove')));
   r = run('split.mjs', ['apply', P], dir);
-  assert.equal(r.code, 2);
+  assert.equal(r.code, 1);
   assert.match(r.out, /uses order 99 - expected "add-text-stats-99-remove-flag"/);
 });
 
@@ -168,7 +168,19 @@ test('sdd-pp slice-finish (ai-hero): verify.md present -> openspec archive, stat
   assert.equal(sdd('slice-start', CORE_ID).code, 0);
   assert.equal(sdd('tool', CORE_ID, '--set', 'ai-hero').code, 0);
   W(dir, `openspec/changes/${CORE_ID}/execution/verify.md`, '# Verify\n\nNo critical issues.\n');
-  const r = sdd('slice-finish', CORE_ID);
+  // --run-tests: no test command declared -> refused; failing tests -> refused; nothing archived either way
+  let t = sdd('slice-finish', CORE_ID, '--run-tests');
+  assert.equal(t.code, 1, t.out);
+  assert.match(t.out, /REFUSED - --run-tests: no test command declared \(package\.json "scripts\.test"\) - nothing archived/);
+  W(dir, 'package.json', JSON.stringify({ name: 'x', scripts: { test: 'node -e "process.exit(3)"' } }));
+  t = sdd('slice-finish', CORE_ID, '--run-tests');
+  assert.equal(t.code, 1, t.out);
+  assert.match(t.out, /REFUSED - npm test failed \(exit 3\) - nothing archived/);
+  assert.doesNotMatch(t.out, /\$ openspec archive/);
+  assert.ok(!fs.existsSync(path.join(dir, 'openspec/changes/archive')) || !archived(dir, CORE_ID));
+  W(dir, 'package.json', JSON.stringify({ name: 'x', scripts: { test: 'node -e "process.exit(0)"' } }));
+  const r = sdd('slice-finish', CORE_ID, '--run-tests');
+  assert.match(r.out, /^\$ run-tests\.mjs add-text-stats-01-core\nslice finish add-text-stats-01-core: running the project's tests[\s\S]*slice finish add-text-stats-01-core: tests pass$/m);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /^\$ split\.mjs finish-check add-text-stats-01-core\nslice finish add-text-stats-01-core: execution\/verify\.md present \(ai-hero\); archiving the slice \(parent add-text-stats\)$/m);
   assert.match(r.out, /^\$ openspec archive add-text-stats-01-core -y$/m);

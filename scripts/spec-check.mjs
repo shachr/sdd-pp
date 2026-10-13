@@ -29,7 +29,8 @@ import crypto from 'node:crypto';
 import { parseArgs } from 'node:util';
 import { addArgs, findProjectRoot, plural, loadChange, loadConfig, UsageError, deltaRequirements, designUnits, citations, findPlan } from './lib/change.mjs';
 import { isMain } from './lib/main.mjs';
-import { findParentOf } from './lib/split.mjs';
+import { findParentOf, parseSplitNotes } from './lib/split.mjs';
+import { lossCheck } from './split.mjs';
 
 export const SNAPSHOT = 'execution/.spec-check.json';
 const norm = (t) => t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).join('\n');
@@ -174,7 +175,17 @@ export function specCheck(change, { limit = 300, previous = null } = {}) {
   const unitsDigest = hash(JSON.stringify(units.map((u) => [u.file, u.label, planningText(u.text)])));
   let parent = null;
   try { const p = change.root && findParentOf(change.root, change.id); parent = p && p.id !== change.id ? p.id : null; } catch { /* no split */ }
-  return { change: change.id, parent, tool, sources, units: units.length, unitsDigest, rows, missing, unknown, unsourced, problems, gaps, size, snapshot, previousAt: previous?.accepted_at || previous?.checked_at || null, specChanges: specChangeList };
+  // a slice's name changes are already accounted for when every one has a split note and the loss check passes
+  let splitNoted = false;
+  const named = (specChangeList || []).filter((c) => c.change !== 'changed');
+  if (parent && named.length) {
+    const notes = parseSplitNotes(change.read('proposal.md') || '').notes;
+    const noted = (c) => notes.some((n) => [n.name, n.to].filter(Boolean).map(lc).some((x) => x === lc(c.name) || (c.from && x === lc(c.from))));
+    if (named.every(noted)) {
+      try { const l = lossCheck(change.root, parent); splitNoted = !l.errors.length && !l.todos?.length; } catch { /* no baseline: keep the hint */ }
+    }
+  }
+  return { change: change.id, parent, splitNoted, tool, sources, units: units.length, unitsDigest, rows, missing, unknown, unsourced, problems, gaps, size, snapshot, previousAt: previous?.accepted_at || previous?.checked_at || null, specChanges: specChangeList };
 }
 
 export function formatReport(r) {
@@ -215,7 +226,8 @@ export function formatReport(r) {
     const tool = r.tool === 'superpowers' ? 'writing-plans' : 'to-spec + to-tickets';
     out.push('', `Hint: re-plan ONLY ${open.length ? `these open units with the tool's planning (${tool}): ${open.join('; ')}` : `new work for the changes above with the tool's planning (${tool}) - no open unit cites them`}. Done units are never touched${done.length ? ` (${done.join('; ')}): a change that affects done work becomes a new ${r.tool === 'superpowers' ? 'plan task' : 'ticket'}` : ''}. Where a planned decision changed, note "superseded by delta edit: <reason>" in the planning output (the design session file stays as-is; the delta wins). Then /sdd-spec-check again until PASS - this list stays until PASS is accepted.`);
     // the loss check matches names: only added / removed / renamed names need a split note (content-only edits do not)
-    if (r.parent && r.specChanges.some((c) => c.change !== 'changed')) out.push('', `Slice of ${r.parent}: a requirement or scenario name was added, removed or renamed here - account for it in the split - add a split note to openspec/changes/${r.change}/proposal.md (## Split notes: added: / dropped: / renamed_from: Requirement|Scenario "<name>" - <why>), then run sdd-pp split loss ${r.parent} until it passes.`);
+    if (r.parent && r.specChanges.some((c) => c.change !== 'changed') && r.splitNoted) out.push('', `Slice of ${r.parent}: the name changes above have split notes and split loss ${r.parent} passes (already noted).`);
+    else if (r.parent && r.specChanges.some((c) => c.change !== 'changed')) out.push('', `Slice of ${r.parent}: a requirement or scenario name was added, removed or renamed here - account for it in the split - add a split note to openspec/changes/${r.change}/proposal.md (## Split notes: added: / dropped: / renamed_from: Requirement|Scenario "<name>" - <why>), then run sdd-pp split loss ${r.parent} until it passes.`);
   }
   out.push('', '### Agent review', '', '<!-- /sdd-spec-check: the agent reads each unit against the requirement(s) it names and replaces this comment with four lists (bullets or "- none"): Missing, Invented, Contradicted, Restated (advisory). -->');
   out.push('', `<!-- spec-check delta: ${snapshotDigest(r.snapshot)} -->`, `<!-- spec-check units: ${r.unitsDigest} -->`);

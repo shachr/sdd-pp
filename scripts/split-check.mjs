@@ -61,7 +61,11 @@ export function splitCheck(root, id, { maxRequirements = SPLIT_MAX_REQUIREMENTS,
     // show the ids split apply will create: <parent>-<nn>-<slice>
     const named = nameSlices(prop.slices, r.parent || id, { existing: r.parent ? parent.plan.slices.map((x) => x.id) : [] });
     prop.slices = named.slices;
-    const lint = lintSlices(prop, { text: ptext.replace(/^---[\s\S]*?---/, '') });
+    // a re-split is linted with the parent's other slices (e.g. its existing cleanup slice 99 removes the flag), as apply does
+    const combined = r.parent
+      ? { ...prop, slices: [...parent.plan.slices.filter((x) => x.id !== id).map((x) => ({ ...x, depends_on: x.depends_on.flatMap((d) => (d === id ? prop.slices.map((y) => y.id) : [d])) })), ...prop.slices] }
+      : prop;
+    const lint = lintSlices(combined, { text: ptext.replace(/^---[\s\S]*?---/, '') });
     lint.errors.unshift(...named.errors);
     const assigned = new Map();
     for (const s of prop.slices) {

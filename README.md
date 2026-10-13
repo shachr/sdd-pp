@@ -136,7 +136,7 @@ npx github:shachr/sdd-pp split apply|loss ...              # = /sdd-split-apply
 npx github:shachr/sdd-pp split-status <parent>            # = /sdd-split-status <parent>
 npx github:shachr/sdd-pp split-finish <parent>            # = /sdd-split-finish <parent>
 npx github:shachr/sdd-pp slice-start <slice> [--undo]     # = /sdd-slice-start <slice>
-npx github:shachr/sdd-pp slice-finish <slice>             # = /sdd-slice-finish <slice>
+npx github:shachr/sdd-pp slice-finish <slice> [--run-tests] # = /sdd-slice-finish <slice> (--run-tests: npm test first)
 npx github:shachr/sdd-pp split undo <parent> [--force]    # = /sdd-split-undo <parent>
 ```
 

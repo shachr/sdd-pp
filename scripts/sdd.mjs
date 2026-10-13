@@ -13,7 +13,7 @@
 //   slice-start <slice> [--undo]    split.mjs start <slice> [--undo]
 //   split undo <parent> [--force]  split.mjs undo <parent> [--force]
 //   split loss <parent> [--final]   split.mjs loss <parent> [--final]
-//   slice-finish <slice>            split.mjs finish-check <slice> + openspec archive <slice> -y + split.mjs finish-mark <slice>
+//   slice-finish <slice> [--run-tests]  split.mjs finish-check <slice> [+ run-tests.mjs: npm test] + openspec archive <slice> -y + split.mjs finish-mark <slice>
 //   split-finish <parent>           split.mjs finalize <parent> (all slices archived? statuses done, final loss check)  +  openspec archive <parent> --skip-specs -y
 // Exit: the first failing step's exit code; 2 on a usage error.
 import path from 'node:path';
@@ -34,7 +34,7 @@ export const USAGE = `usage: sdd <command> ...
   slice-start <slice> [--undo]     take a READY slice: mark it in-progress (finds the parent) + next lines; --undo: back to planned
   split undo <parent> [--force]    undo the split: the original change back from split_commit, slice folders removed (uncommitted)
   split loss <parent> [--final]    loss check
-  slice-finish <slice>             finish an in-progress slice: needs execution/verify.md (+ progress.md for Superpowers), openspec archive <slice> -y, status done in slices.md
+  slice-finish <slice> [--run-tests]  finish an in-progress slice: needs execution/verify.md (+ progress.md for Superpowers), openspec archive <slice> -y, status done in slices.md; --run-tests: npm test first, stops on failure
   split-finish <parent>            stops unless every slice is archived, marks them done, final loss check, then openspec archive <parent> --skip-specs -y`;
 
 /** Retired command names (CLI and old slash-command spellings) -> the current command; they exit 2 naming it. */
@@ -51,7 +51,8 @@ export function plan(argv) {
   const [cmd, ...rest] = argv;
   const node = (script, args) => [`${script} ${args.join(' ')}`.trim(), process.execPath, [path.join(HERE, script), ...args]];
   const openspec = (args) => [`openspec ${args.join(' ')}`, 'openspec', args];
-  const finish = (id) => [node('split.mjs', ['finish-check', id]), openspec(['archive', id, '-y']), node('split.mjs', ['finish-mark', id])];
+  // --run-tests: the project's test command (package.json scripts.test) between the checks and the archive; a failure stops it
+  const finish = (id, tests) => [node('split.mjs', ['finish-check', id]), ...(tests ? [node('run-tests.mjs', [id])] : []), openspec(['archive', id, '-y']), node('split.mjs', ['finish-mark', id])];
   // a line printed after the steps ran (the commit line goes last, after OpenSpec's own output)
   const say = (text) => ['print commit line', null, [text]];
   const need = (n, what) => { if (rest.length < n || rest.slice(0, n).some((a) => a.startsWith('-'))) throw new SddUsage(`${what}\n\n${USAGE}`); };
@@ -63,7 +64,7 @@ export function plan(argv) {
     case 'split-status': need(1, 'split-status <parent>'); return [node('split.mjs', ['next', ...rest, ...(rest.includes('--write-tickets') ? [] : ['--write-tickets'])])];
     case 'tool': if (!rest.length) throw new SddUsage(`tool <id> [--set <tool>] | tool --default <tool>\n\n${USAGE}`); return [node('execution-tool.mjs', rest)];
     case 'slice-start': need(1, 'slice-start <slice>'); return [node('split.mjs', ['start', ...rest])];
-    case 'slice-finish': need(1, 'slice-finish <slice>'); return finish(rest[0]);
+    case 'slice-finish': need(1, 'slice-finish <slice>'); return finish(rest[0], rest.includes('--run-tests'));
     case 'split-finish': need(1, 'split-finish <parent>'); return [node('split.mjs', ['finalize', rest[0]]), openspec(['archive', rest[0], '--skip-specs', '-y']), say(`Commit the archive: git add -A openspec/changes && git commit -m "split: finish parent ${rest[0]}"`)];
     case 'split': {
       const [sub, ...a] = rest;

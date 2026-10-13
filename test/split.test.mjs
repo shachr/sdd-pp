@@ -75,17 +75,17 @@ test('split apply: refuses without approval or with uncommitted deltas; the pare
   const { dir, c, git } = splitProject();
   W(dir, `${c}/execution/split-proposal.md`, PROPOSAL(''));
   let r = run('split.mjs', ['apply', 'add-reports'], dir);
-  assert.equal(r.code, 2);
+  assert.equal(r.code, 1, "refusal: exit 1 (usage errors are 2)");
   assert.match(r.out, /approved_by:" is empty - the engineer approves/);
   W(dir, `${c}/execution/split-proposal.md`, PROPOSAL());
   W(dir, `${c}/specs/export/spec.md`, R(dir, `${c}/specs/export/spec.md`) + '\n');
   r = run('split.mjs', ['apply', 'add-reports'], dir);
-  assert.equal(r.code, 2);
+  assert.equal(r.code, 1);
   assert.match(r.out, /commit .*specs.* first .*loss-check baseline/);
   // several problems at once: all listed in one refusal (not one per run)
   W(dir, `${c}/execution/split-proposal.md`, PROPOSAL('').replace('- requirements: Report filters\n', '- requirements: none\n'));
   r = run('split.mjs', ['apply', 'add-reports'], dir);
-  assert.equal(r.code, 2, r.out);
+  assert.equal(r.code, 1, r.out);
   assert.match(r.out, /3 problems - nothing split; fix them all, then \/sdd-split-apply add-reports again:\n  - execution\/split-proposal\.md: front matter "approved_by:" is empty[^\n]*\n  - commit openspec\/changes\/add-reports\/specs first[\s\S]*\n  - execution\/split-proposal\.md: requirement "Report filters" is in no slice/);
   W(dir, `${c}/execution/split-proposal.md`, PROPOSAL());
   git('commit', '-qam', 'deltas final');
@@ -405,7 +405,7 @@ test('next-steps CLI for a slice (ends with /sdd-split-status <parent>) and for 
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /^Next steps for add-reports-01-totals \(ai-hero, apply_mode: implement\)/);
   assert.match(r.out, /On main: \/sdd-split-status add-reports /);
-  assert.match(r.out, /\/sdd-slice-finish add-reports-01-totals on the change branch \(instead of \/opsx:archive\): it checks execution\/verify\.md, runs openspec archive add-reports-01-totals -y, marks the slice done in openspec\/changes\/add-reports\/slices\.md/);
+  assert.match(r.out, /Run the project's tests, then \/sdd-slice-finish add-reports-01-totals on the change branch \(instead of \/opsx:archive; \/sdd-slice-finish add-reports-01-totals --run-tests runs npm test first and stops on failure\): it checks execution\/verify\.md, runs openspec archive add-reports-01-totals -y, marks the slice done in openspec\/changes\/add-reports\/slices\.md/);
   assert.doesNotMatch(r.out, /\/opsx:archive add-reports-01-totals on/);
   r = run('next-steps.mjs', ['add-reports'], dir);
   assert.equal(r.code, 0, r.out);
@@ -654,13 +654,13 @@ test('split-status warns when two parallel-safe slices name the same code files 
   const { dir } = splitProject();
   run('split.mjs', ['apply', 'add-reports'], dir);
   let r = run('split.mjs', ['next', 'add-reports'], dir);
-  assert.doesNotMatch(r.out, /Same files named/);
+  assert.doesNotMatch(r.out, /Same files in both/);
   W(dir, 'openspec/changes/add-reports-01-totals/execution/tickets/01-totals.md', '# 01\n\nEdit `src/cli.js` and src/report/totals.js.\n');
   W(dir, 'openspec/changes/add-reports-03-csv-export/execution/plan-add-reports-03-csv-export.md', '# Plan\n\n### Task 1\n- [ ] add the flag in `src/cli.js` and see openspec/changes/x/proposal.md\n');
   r = run('split.mjs', ['next', 'add-reports'], dir);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /Parallel-safe now[^\n]*add-reports-01-totals ∥ add-reports-03-csv-export/);
-  assert.match(r.out, /^! Same files named in both slices' planning \([^\n]*parallel-safe is by capability only - expect merge conflicts[^\n]*\): add-reports-01-totals \/ add-reports-03-csv-export: src\/cli\.js$/m);
+  assert.match(r.out, /^! Same files in both slices \(named in their planning, or changed on their change\/<slice> branches;[^\n]*parallel-safe is by capability only - expect merge conflicts[^\n]*\): add-reports-01-totals \/ add-reports-03-csv-export: src\/cli\.js$/m);
 });
 
 test('split-status reads each open slice\'s planning from its change/<slice> branch (the documented flow plans there), and leaves slices.md alone when nothing changed', () => {
@@ -686,7 +686,7 @@ test('split-status reads each open slice\'s planning from its change/<slice> bra
   assert.ok(!fs.existsSync(path.join(dir, 'openspec/changes/add-reports-01-totals/execution/tickets')), 'not on main');
   r = sddCli(dir, 'split-status', 'add-reports');
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /^! Same files named in both slices' planning \(this checkout \+ their change\/<slice> branches[^\n]*\): add-reports-01-totals \/ add-reports-03-csv-export: src\/cli\.js$/m);
+  assert.match(r.out, /^! Same files in both slices \(named in their planning, or changed on their change\/<slice> branches[^\n]*\): add-reports-01-totals \/ add-reports-03-csv-export: src\/cli\.js$/m);
   assert.equal(git('status', '--porcelain'), '');
 });
 
@@ -716,6 +716,14 @@ test('spec-check on a slice: a renamed / added / removed name since the accepted
   r = run('spec-check.mjs', [id, '--write'], dir);
   assert.match(r.out, /Slice of add-reports: a requirement or scenario name was added, removed or renamed here - account for it in the split - add a split note to openspec\/changes\/add-reports-01-totals\/proposal\.md[^\n]*then run sdd-pp split loss add-reports until it passes\./);
   assert.equal(run('split.mjs', ['loss', 'add-reports'], dir).code, 1, 'and the loss check fails until it is there');
+  // the split note is written and the loss check passes: the hint says so instead of asking again (e2e5)
+  const prop = `${c}/proposal.md`;
+  W(dir, prop, R(dir, prop).replace(/## Split notes\n/, '## Split notes\n\n- renamed_from: Scenario "Empty week" -> "Week with no activity"\n'));
+  const loss = run('split.mjs', ['loss', 'add-reports'], dir);
+  assert.equal(loss.code, 0, loss.out);
+  r = run('spec-check.mjs', [id, '--write'], dir);
+  assert.match(r.out, /^Slice of add-reports: the name changes above have split notes and split loss add-reports passes \(already noted\)\.$/m);
+  assert.doesNotMatch(r.out, /add a split note to/);
   // a change that is not a slice gets no such line
   const f = makeFixture();
   assert.doesNotMatch(run('spec-check.mjs', ['add-greeting-name', '--write'], f.dir).out, /Slice of/);
@@ -826,7 +834,7 @@ test('handoff-draft on a slice links the parent plan and its shared session; Spl
   assert.match(h, /^- Split decision: slice of add-reports$/m);
   assert.match(h, /writing-plans` \(reads `execution\/brainstorm\.md`; cite `Requirement "<name>"` and `Scenario "<name>"` exactly\)/);
   r = sddCli(dir, 'handoff-draft', 'add-reports');
-  assert.equal(r.code, 2);
+  assert.equal(r.code, 1);
   assert.match(r.out, /add-reports is a split parent - hand off its slices/);
 });
 
@@ -875,4 +883,73 @@ test('split-check: a fitting slice with a split proposal gets the preview (ids, 
   fs.rmSync(path.join(dir, `openspec/changes/${s}/execution/split-proposal.md`));
   r = sddCli(dir, 'split-check', s);
   assert.match(r.out, /^  ! specs\/export\/spec\.md: "## Purpose" is 11 characters \(< 50\) - openspec validate --strict passes on the change but fails on the main spec after archive; write a full sentence$/m);
+});
+
+test('same-file warning: a slice archived on its branch still counts (archive/*-<slice>), bare file names resolve to repo files, and the branch diff (main...change/<slice>) is real data', () => {
+  const { dir, git } = splitProject();
+  W(dir, 'src/cli.js', '// cli\n'); W(dir, 'src/store.js', '// store\n');
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  addFlag(dir);
+  git('add', '-A'); git('commit', '-qm', 'split + code');
+  // 01: AI Hero tickets name no paths - only the code change on its branch says what it touches
+  git('switch', '-qc', 'change/add-reports-01-totals');
+  W(dir, 'openspec/changes/add-reports-01-totals/execution/tickets/01-totals.md', '# 01\n\nTotals per day.\n');
+  W(dir, 'src/store.js', '// store + totals\n');
+  git('add', '-A'); git('commit', '-qm', '01 code');
+  // 03: planning names the bare file "store.js", then the slice is finished (archived) on its branch
+  git('switch', '-q', 'main'); git('switch', '-qc', 'change/add-reports-03-csv-export');
+  W(dir, 'openspec/changes/add-reports-03-csv-export/execution/grill.md', '# grill\n\nThe export reads store.js directly.\n');
+  git('add', '-A'); git('commit', '-qm', 'plan 03');
+  fs.mkdirSync(path.join(dir, 'openspec/changes/archive'), { recursive: true });
+  git('mv', 'openspec/changes/add-reports-03-csv-export', 'openspec/changes/archive/2026-10-13-add-reports-03-csv-export');
+  git('commit', '-qm', 'archive 03');
+  git('switch', '-q', 'main');
+  const r = sddCli(dir, 'split-status', 'add-reports');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^! Same files in both slices [^\n]*: add-reports-01-totals \/ add-reports-03-csv-export: src\/store\.js$/m);
+  assert.doesNotMatch(r.out, /src\/cli\.js/, 'cli.js is named by neither');
+});
+
+test('re-split of the flagged slice: split-check lints it with the parent (its 99 slice removes the flag - no false "no cleanup slice"); apply warns when a child keeps the flag without the flag requirement', () => {
+  const { dir, git } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  addFlag(dir);
+  git('add', '-A'); git('commit', '-qm', 'split');
+  const s = 'add-reports-03-csv-export';
+  W(dir, `openspec/changes/${s}/execution/split-proposal.md`, `---\napproved_by: engineer (test)\n---\n\n## Slices\n\n### Slice: csv-core\n- goal: File export\n- capabilities: export\n- requirements: CSV export\n- depends_on: none\n- flag: csv-export\n\n### Slice: csv-flag\n- goal: Flag for the export\n- capabilities: export-ui\n- requirements: Feature flag csv-export\n- depends_on: csv-core\n- flag: csv-export\n`);
+  let r = sddCli(dir, 'split-check', s);
+  assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.out, /no cleanup slice/, r.out);
+  assert.doesNotMatch(r.out, /✗/, r.out);
+  git('add', '-A'); git('commit', '-qm', 're-split proposal');
+  r = sddCli(dir, 'split', 'apply', s);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^  ! "add-reports-04-csv-core" has "flag: csv-export" but Requirement "Feature flag csv-export" \(and its split note\) is in add-reports-05-csv-flag - set "flag: none" on add-reports-04-csv-core in slices\.md/m);
+});
+
+test('split loss: PASS prints a commit line only when something under openspec/changes is uncommitted (the filled placeholders); refusals are exit 1, usage errors exit 2', () => {
+  const { dir, git } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  git('add', '-A'); git('commit', '-qm', 'split');
+  addFlag(dir); // the agent fills the TODO(agent:) placeholders
+  let r = sddCli(dir, 'split', 'loss', 'add-reports');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^Commit the filled split \(placeholders, split notes\): git add -A openspec\/changes && git commit -m "split loss\(add-reports\): PASS"$/m);
+  runPrinted(dir, r.out, 'Commit the filled split (placeholders, split notes)');
+  assert.equal(git('status', '--porcelain'), '');
+  r = sddCli(dir, 'split', 'loss', 'add-reports');
+  assert.doesNotMatch(r.out, /Commit the filled split/, 'nothing to commit: no line');
+  // refusal (state) = 1, usage (invocation) = 2
+  assert.equal(sddCli(dir, 'split', 'apply', 'add-reports').code, 1, 'already a split parent: refused');
+  assert.equal(sddCli(dir, 'split', 'apply').code, 2, 'missing id: usage');
+});
+
+test('split-status with the parallel slices taken: no "Parallel-safe now: none" line - the work-in-progress line says what runs alongside', () => {
+  const { dir } = splitProject();
+  run('split.mjs', ['apply', 'add-reports'], dir);
+  for (const s of ['add-reports-01-totals', 'add-reports-03-csv-export']) assert.equal(run('split.mjs', ['start', s], dir).code, 0);
+  const r = sddCli(dir, 'split-status', 'add-reports');
+  assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.out, /Parallel-safe now/);
+  assert.match(r.out, /^Parallel-safe with work in progress [^\n]*add-reports-01-totals ∥ add-reports-03-csv-export/m);
 });

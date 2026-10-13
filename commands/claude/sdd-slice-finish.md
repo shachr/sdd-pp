@@ -1,6 +1,6 @@
 ---
-description: "Finish an in-progress slice: needs execution/verify.md (+ execution/progress.md for Superpowers), runs openspec archive <slice> -y, marks it done in the parent's slices.md, prints the commit line"
-argument-hint: <slice-id>
+description: "Finish an in-progress slice: needs execution/verify.md (+ execution/progress.md for Superpowers), runs openspec archive <slice> -y, marks it done in the parent's slices.md, prints the commit line; --run-tests runs the project's npm test first and stops on failure"
+argument-hint: <slice-id> [--run-tests]
 allowed-tools: Bash(node .openspec-handoff/scripts/*)
 ---
 
